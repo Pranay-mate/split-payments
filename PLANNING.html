@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PLANNING — EasySplits</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #161922;
+    --surface-2: #1d2230;
+    --border: #2a3142;
+    --text: #e6e9f0;
+    --muted: #9098ad;
+    --accent: #6ee7b7;
+    --accent-2: #60a5fa;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --check-bg: rgba(110, 231, 183, 0.12);
+    --check-border: rgba(110, 231, 183, 0.35);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #ffffff;
+      --surface: #f7f8fb;
+      --surface-2: #eef1f7;
+      --border: #d8dde7;
+      --text: #1a1d24;
+      --muted: #5a6478;
+      --accent: #047857;
+      --accent-2: #1d4ed8;
+      --warn: #b45309;
+      --danger: #b91c1c;
+      --check-bg: rgba(4, 120, 87, 0.08);
+      --check-border: rgba(4, 120, 87, 0.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 16px; }
+  .container { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 32px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 { font-size: 22px; margin: 36px 0 12px; letter-spacing: -0.01em; border-top: 1px solid var(--border); padding-top: 24px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: var(--accent); }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  .meta { color: var(--muted); font-size: 14px; margin: 0 0 32px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); }
+  .badge-warn { color: var(--warn); border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.08); }
+  .badge-ok { color: var(--accent); border-color: var(--check-border); background: var(--check-bg); }
+  .badge-info { color: var(--accent-2); border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.08); }
+  .badge-muted { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+  ul.tasks { list-style: none; padding: 0; margin: 12px 0; }
+  ul.tasks li { padding: 10px 14px 10px 38px; border-radius: 10px; background: var(--surface); margin-bottom: 6px; position: relative; font-size: 14px; border: 1px solid var(--border); }
+  ul.tasks li::before { content: ""; position: absolute; left: 14px; top: 14px; width: 14px; height: 14px; border: 1.5px solid var(--muted); border-radius: 4px; }
+  ul.tasks li.done { background: var(--check-bg); border-color: var(--check-border); }
+  ul.tasks li.done::before { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 2px var(--bg); }
+  ul.tasks li.done::after { content: "✓"; position: absolute; left: 16.5px; top: 8px; color: var(--bg); font-size: 11px; font-weight: 700; }
+  .phase { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin: 14px 0; }
+  .progress { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 8px 0 14px; }
+  .progress > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.3s; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+  .callout { padding: 14px 18px; border-radius: 10px; background: var(--surface); border-left: 3px solid var(--accent-2); margin: 16px 0; }
+  .callout strong { color: var(--accent-2); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>EasySplits — PLANNING</h1>
+  <p class="lead">Splitwise alternative. Free + ads, India-default but global, offline-capable PWA, SEO-first.</p>
+  <p class="meta">
+    Updated <strong>2026-05-06</strong> ·
+    <span class="badge badge-info">Decisions 1–5 locked</span> ·
+    <span class="badge badge-warn">Phase 1 scope #6 pending confirmation</span>
+  </p>
+
+  <h2>Locked decisions</h2>
+  <table>
+    <thead><tr><th>#</th><th>Decision</th><th>Locked value</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>API style</td><td><span class="badge badge-ok">tRPC + selective Next.js API routes</span></td></tr>
+      <tr><td>2</td><td>Currency</td><td><span class="badge badge-ok">INR default, picker per group, multi-currency from day 1</span></td></tr>
+      <tr><td>3</td><td>Auth</td><td><span class="badge badge-ok">Google OAuth + email magic-link</span></td></tr>
+      <tr><td>4</td><td>Monetization</td><td><span class="badge badge-ok">Free + ads</span> (revisit freemium in Phase 4)</td></tr>
+      <tr><td>5</td><td>Brand vibe</td><td><span class="badge badge-info">Optimise for UI/UX + SEO; explore during scaffold</span></td></tr>
+      <tr><td>6</td><td>Phase 1 scope</td><td><span class="badge badge-warn">Pending confirmation of bullet list below</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Three differentiators</strong>:
+    <ol style="margin:8px 0 0">
+      <li><strong>Offline-first</strong> — add expenses on a trek, sync later</li>
+      <li><strong>Mobile speed</strong> — optimistic UI, no spinners on common actions</li>
+      <li><strong>SEO-first</strong> — landing/features/use-case pages SSG with full JSON-LD; standalone calculators as ranking bait</li>
+    </ol>
+  </div>
+
+  <h2>Phase 1 — Core MVP</h2>
+  <p class="meta">Target: 5–7 weeks · Progress <span class="badge badge-muted">0%</span></p>
+  <div class="progress"><div style="width:0%"></div></div>
+
+  <div class="grid-2">
+    <div class="phase">
+      <h3>A. Auth + profile</h3>
+      <ul class="tasks">
+        <li>Google OAuth (one-click)</li>
+        <li>Email magic-link (fallback)</li>
+        <li>User profile (display name, avatar)</li>
+        <li>Sign-out + delete-account</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>B. Groups</h3>
+      <ul class="tasks">
+        <li>Create group: name, primary currency picker</li>
+        <li>Join via shareable 32-byte link</li>
+        <li>Group settings (rename, currency, leave, kick)</li>
+        <li>Members list</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>C. Expenses (multi-currency day 1)</h3>
+      <ul class="tasks">
+        <li>Add expense: payer, amount, currency, date, who-shares</li>
+        <li>FX conversion at entry (free FX API)</li>
+        <li>Split types: equal · exact · share · percent</li>
+        <li>Edit / delete expense</li>
+        <li>Comments per expense</li>
+        <li>Activity feed</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>D. Balances</h3>
+      <ul class="tasks">
+        <li>Per-person balance in primary currency</li>
+        <li>Group summary (you owe / are owed)</li>
+        <li>Simplify Payments toggle (greedy algo)</li>
+        <li>Settle-up flow</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>E. Offline (the wedge)</h3>
+      <ul class="tasks">
+        <li>PWA manifest + install prompt</li>
+        <li>Service Worker caches app shell</li>
+        <li>IndexedDB via Dexie stores data</li>
+        <li>Event queue for offline mutations</li>
+        <li>Background Sync API on reconnect</li>
+        <li>Conflict resolution (last-write-wins)</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>F. Marketing site + SEO</h3>
+      <ul class="tasks">
+        <li>Landing (<code>/</code>) with hero + features + CTA</li>
+        <li><code>/features</code> long-form</li>
+        <li><code>/use-cases/*</code> hub: rent, trip, roommate, dinner, family</li>
+        <li><code>/calculators/split-bill</code> public tool (SEO bait)</li>
+        <li><code>/about</code>, <code>/privacy</code>, <code>/terms</code></li>
+        <li>Full JSON-LD on all marketing pages</li>
+        <li><code>sitemap.xml</code> + <code>robots.txt</code> + OG cards</li>
+        <li>Lighthouse 95+ on marketing</li>
+        <li>Vercel Analytics + Speed Insights</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>G. Ads (monetization)</h3>
+      <ul class="tasks">
+        <li>AdSense application (apply early)</li>
+        <li>Banner on group dashboard (lazy)</li>
+        <li>Native cards in activity feed</li>
+        <li>Hard rule: zero ads on add-expense / settle-up / login</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>H. Polish</h3>
+      <ul class="tasks">
+        <li>Mobile-first responsive (375 → 1280px)</li>
+        <li>Dark mode (auto + manual)</li>
+        <li>Empty / error states</li>
+        <li>Toasts + skeleton loaders only where needed</li>
+        <li>OG cards + favicon + manifest</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>I. Launch checks</h3>
+      <ul class="tasks">
+        <li>Lighthouse 95+ mobile</li>
+        <li>PWA install on Android + iOS</li>
+        <li>Offline test: airplane → add → reconnect → sync</li>
+        <li>Privacy + terms drafted</li>
+        <li>Custom domain + GSC verification + sitemap submission</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Phase 2 — UX wins</h2>
+  <ul class="tasks">
+    <li>Receipt photo upload (Supabase Storage)</li>
+    <li>Categories (Food, Travel, Stay, Misc, custom)</li>
+    <li>Recurring expenses (rent, subs)</li>
+    <li>Bulk-split: one bill across line items</li>
+    <li>Export to CSV / PDF</li>
+    <li>Trip mode: daily summary, per-day spend</li>
+    <li>Historical FX rates (lock per-expense rate at entry)</li>
+    <li>View balances in any currency</li>
+  </ul>
+
+  <h2>Phase 3 — Power features</h2>
+  <ul class="tasks">
+    <li>OCR receipt scanning (Google Cloud Vision free tier)</li>
+    <li>AI categorization (Claude Haiku)</li>
+    <li>WhatsApp bot (Meta Cloud API, DM only)</li>
+    <li>Voice input</li>
+    <li>Reminder nudges (configurable)</li>
+    <li>SMS UPI debit parsing</li>
+  </ul>
+
+  <h2>Phase 4 — Optional Pro tier</h2>
+  <ul class="tasks">
+    <li>Revisit freemium if ad CPMs are too low or AdSense rejected</li>
+    <li>Pro tier ₹99/yr — no ads, OCR, recurring, exports, WhatsApp</li>
+    <li>Razorpay/Stripe integration</li>
+  </ul>
+
+  <h2>SEO strategy</h2>
+  <table>
+    <thead><tr><th>Page</th><th>Type</th><th>JSON-LD</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code></td><td>SSG</td><td>Organization + SoftwareApplication</td></tr>
+      <tr><td><code>/features</code></td><td>SSG</td><td>SoftwareApplication</td></tr>
+      <tr><td><code>/use-cases/split-rent</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
+      <tr><td><code>/use-cases/trip-expenses</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
+      <tr><td><code>/use-cases/roommate-utilities</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
+      <tr><td><code>/use-cases/group-dinner</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
+      <tr><td><code>/calculators/split-bill</code></td><td>SSG</td><td>SoftwareApplication</td></tr>
+      <tr><td><code>/about</code>, <code>/privacy</code>, <code>/terms</code></td><td>SSG</td><td>Organization</td></tr>
+      <tr><td><code>/app/...</code></td><td>CSR + auth gate</td><td>None — robots.txt blocked</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Risks &amp; mitigations</h2>
+  <table>
+    <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>AdSense rejection (fintech-adjacent)</td><td>Apply early. If rejected, switch to direct affiliates (Cred / Niyo / Jupiter) or revisit freemium</td></tr>
+      <tr><td>Multi-currency complexity in Phase 1</td><td>Free FX API; store rate at entry time; balance math in primary only</td></tr>
+      <tr><td>Offline conflict edge cases</td><td>Event sourcing + tombstones; tests for known races</td></tr>
+      <tr><td>Supabase free tier limits</td><td>Monitor; bump to Pro at first warning</td></tr>
+      <tr><td>iOS PWA background-sync flakiness</td><td>Detect iOS, sync on app-open instead</td></tr>
+      <tr><td>Simplify-payments correctness</td><td>Property-based tests (balances sum to zero)</td></tr>
+      <tr><td>SEO competition (Splitwise et al.)</td><td>Lean into India-first + offline + multi-currency UX wins; chase long-tail use-case + calculator queries</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Milestone log</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Milestone</th></tr></thead>
+    <tbody>
+      <tr><td>2026-05-06</td><td>Decisions 1–5 locked. tRPC hybrid · multi-currency day 1 · Google + magic-link · free + ads · brand TBD. Phase 1 scope #6 pending.</td></tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
