@@ -3,7 +3,9 @@
 > Phased roadmap. Update this and `PLANNING.html` together after every progress milestone.
 
 **Last updated:** 2026-05-06
-**Status:** All 6 decisions locked. Scaffolding in progress.
+**Status:** All 6 decisions locked. Scaffolded + live at https://split-payments-sigma.vercel.app
+
+**Live:** https://split-payments-sigma.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 ---
 
@@ -194,3 +196,6 @@ These give Google something to rank without forcing signup.
 | Date | Milestone |
 |---|---|
 | 2026-05-06 | Project initialised. Decisions 1-5 locked: tRPC hybrid, multi-currency day 1, Google + magic-link, free + ads, brand TBD. Phase 1 scope (#6) pending confirmation. |
+| 2026-05-06 | Phase 1 scope confirmed. All 6 decisions locked. |
+| 2026-05-06 | Scaffolded Next.js 16 + Tailwind v4 + TS. Pushed to github.com/Pranay-mate/split-payments. |
+| 2026-05-06 | Branded landing placeholder live (indigo→violet→emerald gradient hero, 6 feature pillars, dark mode). Vercel Analytics + Speed Insights wired. Live at https://split-payments-sigma.vercel.app |

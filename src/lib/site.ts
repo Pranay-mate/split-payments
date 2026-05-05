@@ -8,7 +8,7 @@ export const SITE = {
   tagline: "Split expenses with friends — fast, free, and works offline.",
   description:
     "Free expense-splitting app for groups, trips, roommates and friends. Multi-currency, offline-capable, India-first defaults.",
-  url: "https://easysplits.vercel.app",
+  url: "https://split-payments-sigma.vercel.app",
   ogLocale: "en_IN",
   defaultCurrency: "INR",
   socials: {
