@@ -199,3 +199,6 @@ These give Google something to rank without forcing signup.
 | 2026-05-06 | Phase 1 scope confirmed. All 6 decisions locked. |
 | 2026-05-06 | Scaffolded Next.js 16 + Tailwind v4 + TS. Pushed to github.com/Pranay-mate/split-payments. |
 | 2026-05-06 | Branded landing placeholder live (indigo→violet→emerald gradient hero, 6 feature pillars, dark mode). Vercel Analytics + Speed Insights wired. Live at https://split-payments-sigma.vercel.app |
+| 2026-05-06 | SEO infrastructure shipped: seo.ts + jsonld.ts helpers, sitemap.ts, robots.ts. Standalone Split Bill Calculator at /calculators/split-bill (works offline, no auth) with 4 JSON-LD blocks. Home CTA points to it. |
+| 2026-05-06 | UX refinement: simplified Split Bill Calculator — tip is now optional ₹ amount (not %), removed extra service charge field, removed rounding-mode toggle (always rounds up to whole rupees). |
+| 2026-05-06 | PWA scaffold: manifest.ts (Next.js native), dynamic gradient ES icons (64×64 + 180×180 for iOS), hand-rolled service worker (network-first navigations, cache-first assets), client-side SW registration in production only. Site is now installable + works offline after first visit. |

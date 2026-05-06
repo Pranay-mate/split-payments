@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SITE } from "@/lib/site";
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import "./globals.css";
 
 const sans = Geist({ variable: "--font-sans", subsets: ["latin"] });
@@ -39,6 +40,11 @@ export const metadata: Metadata = {
     description: SITE.description,
   },
   formatDetection: { email: false, address: false, telephone: false },
+  appleWebApp: {
+    capable: true,
+    title: SITE.name,
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
@@ -60,6 +66,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         {children}
+        <ServiceWorkerRegister />
         <Analytics />
         <SpeedInsights />
       </body>
