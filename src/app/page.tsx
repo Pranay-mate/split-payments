@@ -24,20 +24,20 @@ export default function HomePage() {
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/calculators/split-bill"
+              href="/calculators/trip"
               className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
-              Try the bill splitter →
+              Try the trip splitter →
             </Link>
-            <a
-              href="#features"
+            <Link
+              href="/calculators/split-bill"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              See what&apos;s coming
-            </a>
+              Single bill?
+            </Link>
           </div>
           <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-            Free standalone tool · no signup · works offline
+            Free standalone tools · no signup · work offline
           </p>
         </div>
       </section>
