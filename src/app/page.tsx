@@ -9,8 +9,8 @@ export default function HomePage() {
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(99,102,241,0.18),transparent_60%)] dark:bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(99,102,241,0.30),transparent_60%)]" />
         <div className="mx-auto flex max-w-3xl flex-col items-center px-6 py-24 text-center sm:py-32">
           <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300">
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" />
-            In development · launching soon
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" />
+            New · India-first
           </span>
 
           <h1 className="mt-6 text-4xl font-semibold tracking-tight sm:text-6xl">
@@ -94,6 +94,12 @@ export default function HomePage() {
             © {new Date().getFullYear()} {SITE.name}. Built in India.
           </p>
           <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/features" className="hover:text-slate-900 dark:hover:text-slate-200">
+              Features
+            </Link>
+            <Link href="/about" className="hover:text-slate-900 dark:hover:text-slate-200">
+              About
+            </Link>
             <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-slate-200">
               Privacy
             </Link>
