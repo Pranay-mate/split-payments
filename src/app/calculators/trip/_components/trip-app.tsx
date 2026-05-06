@@ -1,13 +1,32 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Trash2, Users, Receipt, Plus, ArrowRight, RotateCcw } from "lucide-react";
-import { useTripState } from "./use-trip-state";
-import { summariseTrip } from "@/lib/calculators/trip-split";
+import { useMemo, useRef, useState } from "react";
+import {
+  Trash2,
+  Users,
+  Receipt,
+  Plus,
+  ArrowRight,
+  RotateCcw,
+  Pencil,
+  X,
+} from "lucide-react";
+import { useTripState, type ExpenseInput } from "./use-trip-state";
+import {
+  equalSplits,
+  summariseTrip,
+  type Expense,
+  type SplitMode,
+} from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
+
+const EPSILON = 0.01;
 
 export function TripApp() {
   const [state, dispatch] = useTripState();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement | null>(null);
+
   const summary = useMemo(
     () => summariseTrip(state.people, state.expenses),
     [state.people, state.expenses],
@@ -18,6 +37,11 @@ export function TripApp() {
     for (const p of state.people) m.set(p.id, p.name);
     return m;
   }, [state.people]);
+
+  const editingExpense = useMemo(
+    () => (editingId ? state.expenses.find((e) => e.id === editingId) : null),
+    [editingId, state.expenses],
+  );
 
   return (
     <div className="space-y-6">
@@ -30,6 +54,7 @@ export function TripApp() {
         onReset={() => {
           if (confirm("Clear all people and expenses for this trip?")) {
             dispatch({ type: "reset" });
+            setEditingId(null);
           }
         }}
       />
@@ -37,22 +62,67 @@ export function TripApp() {
       <PeopleSection
         people={state.people}
         onAdd={(name) => dispatch({ type: "add-person", name })}
-        onRemove={(id) => dispatch({ type: "remove-person", id })}
+        onRemove={(id) => {
+          dispatch({ type: "remove-person", id });
+          if (editingExpense?.payerId === id) setEditingId(null);
+        }}
       />
 
-      <ExpensesSection
-        people={state.people}
-        expenses={state.expenses}
-        personNameById={personNameById}
-        onAdd={(expense) => dispatch({ type: "add-expense", expense })}
-        onRemove={(id) => dispatch({ type: "remove-expense", id })}
-      />
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <Receipt className="h-4 w-4 text-emerald-500" aria-hidden />
+          Expenses
+        </h2>
+
+        {state.people.length < 1 ? (
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            Add at least one person first.
+          </p>
+        ) : (
+          <div ref={formRef}>
+            <ExpenseForm
+              key={editingId ?? "new"}
+              people={state.people}
+              editingExpense={editingExpense ?? null}
+              onSubmit={(input) => {
+                if (editingId) {
+                  dispatch({ type: "update-expense", id: editingId, expense: input });
+                  setEditingId(null);
+                } else {
+                  dispatch({ type: "add-expense", expense: input });
+                }
+              }}
+              onCancel={editingId ? () => setEditingId(null) : undefined}
+            />
+          </div>
+        )}
+
+        {state.expenses.length > 0 && (
+          <ul className="mt-5 space-y-2">
+            {state.expenses.map((e) => (
+              <ExpenseRow
+                key={e.id}
+                expense={e}
+                personNameById={personNameById}
+                isEditing={editingId === e.id}
+                onEdit={() => {
+                  setEditingId(e.id);
+                  setTimeout(() => {
+                    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 50);
+                }}
+                onRemove={() => {
+                  dispatch({ type: "remove-expense", id: e.id });
+                  if (editingId === e.id) setEditingId(null);
+                }}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
 
       {state.people.length > 0 && state.expenses.length > 0 && (
-        <ResultsSection
-          summary={summary}
-          personNameById={personNameById}
-        />
+        <ResultsSection summary={summary} personNameById={personNameById} />
       )}
     </div>
   );
@@ -174,115 +244,219 @@ function PeopleSection({
   );
 }
 
-function ExpensesSection({
-  people,
-  expenses,
+function ExpenseRow({
+  expense,
   personNameById,
-  onAdd,
+  isEditing,
+  onEdit,
   onRemove,
 }: {
-  people: { id: string; name: string }[];
-  expenses: import("@/lib/calculators/trip-split").Expense[];
+  expense: Expense;
   personNameById: Map<string, string>;
-  onAdd: (expense: Omit<import("@/lib/calculators/trip-split").Expense, "id">) => void;
-  onRemove: (id: string) => void;
+  isEditing: boolean;
+  onEdit: () => void;
+  onRemove: () => void;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-        <Receipt className="h-4 w-4 text-emerald-500" aria-hidden />
-        Expenses
-      </h2>
-
-      {people.length < 1 ? (
-        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          Add at least one person first.
+    <li
+      className={`flex items-start justify-between gap-3 rounded-xl border p-3 transition ${
+        isEditing
+          ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/30"
+          : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"
+      }`}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          {expense.description || "Expense"}
         </p>
-      ) : (
-        <ExpenseForm people={people} onAdd={onAdd} />
-      )}
-
-      {expenses.length > 0 && (
-        <ul className="mt-5 space-y-2">
-          {expenses.map((e) => (
-            <li
-              key={e.id}
-              className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/40"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {e.description || "Expense"}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  {personNameById.get(e.payerId) ?? "Unknown"} paid{" "}
-                  {formatINR(e.amount, 0)} · split among {e.sharerIds.length}{" "}
-                  {e.sharerIds.length === 1 ? "person" : "people"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onRemove(e.id)}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                aria-label="Remove expense"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+          {personNameById.get(expense.payerId) ?? "Unknown"} paid{" "}
+          {formatINR(expense.amount, 0)} · {expense.splitMode === "exact" ? "exact" : "equal"} split among {expense.splits.length}{" "}
+          {expense.splits.length === 1 ? "person" : "people"}
+        </p>
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-pressed={isEditing}
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
+            isEditing
+              ? "bg-indigo-500 text-white"
+              : "text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          }`}
+          aria-label="Edit expense"
+        >
+          <Pencil className="h-4 w-4" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          aria-label="Remove expense"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+    </li>
   );
 }
 
 function ExpenseForm({
   people,
-  onAdd,
+  editingExpense,
+  onSubmit,
+  onCancel,
 }: {
   people: { id: string; name: string }[];
-  onAdd: (expense: Omit<import("@/lib/calculators/trip-split").Expense, "id">) => void;
+  editingExpense: Expense | null;
+  onSubmit: (input: ExpenseInput) => void;
+  onCancel?: () => void;
 }) {
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState<number | "">("");
-  const [payerId, setPayerId] = useState<string>(people[0]?.id ?? "");
-  const [sharerIds, setSharerIds] = useState<string[]>(people.map((p) => p.id));
+  const isEditing = editingExpense !== null;
 
-  // Keep payer + sharers in sync if people list changes (rare during normal use).
-  if (payerId && !people.some((p) => p.id === payerId)) {
-    setPayerId(people[0]?.id ?? "");
-  }
-  if (sharerIds.some((id) => !people.some((p) => p.id === id))) {
-    setSharerIds(sharerIds.filter((id) => people.some((p) => p.id === id)));
-  }
+  // Initial state — pulled from editingExpense if present.
+  const [description, setDescription] = useState(editingExpense?.description ?? "");
+  const [amount, setAmount] = useState<number | "">(editingExpense?.amount ?? "");
+  const [payerId, setPayerId] = useState<string>(
+    editingExpense?.payerId ?? people[0]?.id ?? "",
+  );
+  const [splitMode, setSplitMode] = useState<SplitMode>(
+    editingExpense?.splitMode ?? "equal",
+  );
+  const [sharerIds, setSharerIds] = useState<string[]>(
+    editingExpense?.splits.map((s) => s.personId) ?? people.map((p) => p.id),
+  );
+  const [exactByPerson, setExactByPerson] = useState<Record<string, number>>(() => {
+    if (editingExpense && editingExpense.splitMode === "exact") {
+      const m: Record<string, number> = {};
+      for (const s of editingExpense.splits) m[s.personId] = s.amount;
+      return m;
+    }
+    return {};
+  });
 
-  const handleAdd = () => {
-    if (typeof amount !== "number" || amount <= 0) return;
-    if (!payerId) return;
-    if (sharerIds.length === 0) return;
+  // Drop sharers / payer that no longer exist. Computed during render rather
+  // than in an effect — React 19's set-state-in-effect rule pushes us this way.
+  const safePayerId =
+    payerId && people.some((p) => p.id === payerId)
+      ? payerId
+      : people[0]?.id ?? "";
+  if (safePayerId !== payerId) setPayerId(safePayerId);
 
-    onAdd({
+  const safeSharerIds = sharerIds.filter((id) => people.some((p) => p.id === id));
+  if (safeSharerIds.length !== sharerIds.length) setSharerIds(safeSharerIds);
+
+  const numericAmount = typeof amount === "number" ? amount : 0;
+
+  const exactTotal = useMemo(() => {
+    return sharerIds.reduce((sum, id) => sum + (exactByPerson[id] ?? 0), 0);
+  }, [exactByPerson, sharerIds]);
+  const exactDelta = numericAmount - exactTotal;
+
+  const computeSplits = (): { description: string; amount: number; payerId: string; splitMode: SplitMode; splits: { personId: string; amount: number }[] } | null => {
+    if (numericAmount <= 0) return null;
+    if (!payerId) return null;
+    if (sharerIds.length === 0) return null;
+
+    if (splitMode === "equal") {
+      return {
+        description: description.trim(),
+        amount: numericAmount,
+        payerId,
+        splitMode: "equal",
+        splits: equalSplits(numericAmount, sharerIds),
+      };
+    }
+    // exact
+    if (Math.abs(exactDelta) > EPSILON) return null;
+    const splits = sharerIds.map((id) => ({
+      personId: id,
+      amount: round2(exactByPerson[id] ?? 0),
+    }));
+    return {
       description: description.trim(),
-      amount,
+      amount: numericAmount,
       payerId,
-      sharerIds,
-    });
-    setDescription("");
-    setAmount("");
+      splitMode: "exact",
+      splits,
+    };
+  };
+
+  const valid = computeSplits() !== null;
+
+  const handleSubmit = () => {
+    const input = computeSplits();
+    if (!input) return;
+    onSubmit(input);
+    if (!isEditing) {
+      setDescription("");
+      setAmount("");
+      setExactByPerson({});
+      setSplitMode("equal");
+      setSharerIds(people.map((p) => p.id));
+    }
   };
 
   const toggleSharer = (id: string) => {
-    setSharerIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setSharerIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      // clean exact map of removed sharers
+      if (!next.includes(id)) {
+        setExactByPerson((m) => {
+          const copy = { ...m };
+          delete copy[id];
+          return copy;
+        });
+      }
+      return next;
+    });
   };
 
   const allSelected = sharerIds.length === people.length;
   const toggleAll = () => {
     setSharerIds(allSelected ? [] : people.map((p) => p.id));
+    if (allSelected) setExactByPerson({});
+  };
+
+  // When user switches to exact, prefill from equal.
+  const onSplitModeChange = (mode: SplitMode) => {
+    if (mode === "exact" && numericAmount > 0 && sharerIds.length > 0) {
+      const per = round2(numericAmount / sharerIds.length);
+      const fresh: Record<string, number> = {};
+      for (const id of sharerIds) fresh[id] = per;
+      setExactByPerson(fresh);
+    }
+    setSplitMode(mode);
+  };
+
+  // Auto-balance: distribute remainder to last sharer.
+  const balanceToLast = () => {
+    if (sharerIds.length === 0) return;
+    const last = sharerIds[sharerIds.length - 1];
+    const rest = sharerIds
+      .slice(0, -1)
+      .reduce((sum, id) => sum + (exactByPerson[id] ?? 0), 0);
+    setExactByPerson((m) => ({ ...m, [last]: round2(numericAmount - rest) }));
   };
 
   return (
     <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">
+          {isEditing ? "Edit expense" : "Add expense"}
+        </h3>
+        {isEditing && onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          >
+            <X className="h-3 w-3" aria-hidden /> Cancel
+          </button>
+        )}
+      </div>
+
       <div className="grid gap-2 sm:grid-cols-[1fr_140px]">
         <input
           value={description}
@@ -309,7 +483,7 @@ function ExpenseForm({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
             Paid by
@@ -328,10 +502,35 @@ function ExpenseForm({
         </label>
 
         <div>
-          <div className="flex items-baseline justify-between">
-            <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
-              Split between
-            </span>
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+            Split mode
+          </span>
+          <div className="mt-1 grid grid-cols-2 gap-1.5 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+            {(["equal", "exact"] as SplitMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onSplitModeChange(mode)}
+                aria-pressed={splitMode === mode}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition ${
+                  splitMode === mode
+                    ? "bg-indigo-500 text-white"
+                    : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                }`}
+              >
+                {mode === "equal" ? "Equal" : "Exact ₹"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-baseline justify-between">
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+            {splitMode === "equal" ? "Split between" : "Amounts each person owes"}
+          </span>
+          {splitMode === "equal" && (
             <button
               type="button"
               onClick={toggleAll}
@@ -339,7 +538,10 @@ function ExpenseForm({
             >
               {allSelected ? "Clear" : "Select all"}
             </button>
-          </div>
+          )}
+        </div>
+
+        {splitMode === "equal" ? (
           <div className="mt-1 flex flex-wrap gap-1.5">
             {people.map((p) => {
               const selected = sharerIds.includes(p.id);
@@ -360,17 +562,103 @@ function ExpenseForm({
               );
             })}
           </div>
-        </div>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {people.map((p) => {
+              const included = sharerIds.includes(p.id);
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-2 rounded-lg border p-2 ${
+                    included
+                      ? "border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900"
+                      : "border-slate-200 bg-slate-50/60 opacity-60 dark:border-slate-800 dark:bg-slate-800/40"
+                  }`}
+                >
+                  <label className="flex flex-1 cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={included}
+                      onChange={() => toggleSharer(p.id)}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-sm">{p.name}</span>
+                  </label>
+                  {included && (
+                    <div className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950">
+                      <span className="text-slate-400">₹</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step={1}
+                        value={exactByPerson[p.id] ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setExactByPerson((m) => ({
+                            ...m,
+                            [p.id]: v === "" ? 0 : Number(v),
+                          }));
+                        }}
+                        placeholder="0"
+                        className="w-20 bg-transparent text-right outline-none tabular-nums"
+                        aria-label={`${p.name}'s share`}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-xs dark:bg-slate-800">
+              <span className="text-slate-600 dark:text-slate-300">
+                {formatINR(exactTotal, 2)} of {formatINR(numericAmount, 2)}
+                {Math.abs(exactDelta) > EPSILON && (
+                  <span className="ml-2 font-medium text-rose-600 dark:text-rose-400">
+                    ({exactDelta > 0 ? "+" : "−"}
+                    {formatINR(Math.abs(exactDelta), 2)} off)
+                  </span>
+                )}
+              </span>
+              {Math.abs(exactDelta) > EPSILON && sharerIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={balanceToLast}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                >
+                  Auto-balance
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      <button
-        type="button"
-        onClick={handleAdd}
-        disabled={typeof amount !== "number" || amount <= 0 || sharerIds.length === 0}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:bg-slate-300 disabled:dark:bg-slate-700 sm:w-auto"
-      >
-        <Plus className="h-4 w-4" aria-hidden /> Add expense
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!valid}
+          className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition ${
+            isEditing
+              ? "bg-indigo-600 hover:bg-indigo-500"
+              : "bg-emerald-600 hover:bg-emerald-500"
+          } disabled:bg-slate-300 disabled:dark:bg-slate-700`}
+        >
+          {isEditing ? (
+            <>Save changes</>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" aria-hidden /> Add expense
+            </>
+          )}
+        </button>
+        {!valid && splitMode === "exact" && Math.abs(exactDelta) > EPSILON && numericAmount > 0 && (
+          <span className="text-xs text-rose-600 dark:text-rose-400">
+            Amounts must add up to ₹{numericAmount}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -484,4 +772,8 @@ function ResultsSection({
       </section>
     </div>
   );
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }

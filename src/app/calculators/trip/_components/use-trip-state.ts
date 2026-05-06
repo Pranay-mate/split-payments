@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useReducer, useRef } from "react";
-import type { Expense, Person } from "@/lib/calculators/trip-split";
+import type { Expense, Person, SplitMode, Split } from "@/lib/calculators/trip-split";
 
-const STORAGE_KEY = "easysplits-trip-v1";
+const STORAGE_KEY = "easysplits-trip-v2";
 
 export type TripState = {
   tripName: string;
@@ -11,11 +11,20 @@ export type TripState = {
   expenses: Expense[];
 };
 
+export type ExpenseInput = {
+  description: string;
+  amount: number;
+  payerId: string;
+  splitMode: SplitMode;
+  splits: Split[];
+};
+
 export type TripAction =
   | { type: "set-trip-name"; name: string }
   | { type: "add-person"; name: string }
   | { type: "remove-person"; id: string }
-  | { type: "add-expense"; expense: Omit<Expense, "id"> }
+  | { type: "add-expense"; expense: ExpenseInput }
+  | { type: "update-expense"; id: string; expense: ExpenseInput }
   | { type: "remove-expense"; id: string }
   | { type: "load"; state: TripState }
   | { type: "reset" };
@@ -57,9 +66,9 @@ function reducer(state: TripState, action: TripAction): TripState {
         .filter((e) => e.payerId !== action.id)
         .map((e) => ({
           ...e,
-          sharerIds: e.sharerIds.filter((s) => s !== action.id),
+          splits: e.splits.filter((s) => s.personId !== action.id),
         }))
-        .filter((e) => e.sharerIds.length > 0);
+        .filter((e) => e.splits.length > 0);
       return {
         ...state,
         people: remainingPeople,
@@ -69,13 +78,24 @@ function reducer(state: TripState, action: TripAction): TripState {
 
     case "add-expense": {
       if (action.expense.amount <= 0) return state;
-      if (action.expense.sharerIds.length === 0) return state;
+      if (action.expense.splits.length === 0) return state;
       return {
         ...state,
         expenses: [
           ...state.expenses,
           { id: genId("e"), ...action.expense },
         ],
+      };
+    }
+
+    case "update-expense": {
+      if (action.expense.amount <= 0) return state;
+      if (action.expense.splits.length === 0) return state;
+      return {
+        ...state,
+        expenses: state.expenses.map((e) =>
+          e.id === action.id ? { id: action.id, ...action.expense } : e,
+        ),
       };
     }
 
@@ -113,7 +133,7 @@ export function useTripState() {
         }
       }
     } catch {
-      // Ignore — localStorage may be unavailable or corrupted
+      // localStorage unavailable / corrupted — start fresh
     }
     hydratedRef.current = true;
   }, []);
@@ -124,7 +144,7 @@ export function useTripState() {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // Storage full or disabled — non-fatal
+      // storage full / disabled — non-fatal
     }
   }, [state]);
 

@@ -3,14 +3,22 @@ export type Person = {
   name: string;
 };
 
+export type SplitMode = "equal" | "exact";
+
+export type Split = {
+  personId: string;
+  /** Amount this person is responsible for (in rupees). */
+  amount: number;
+};
+
 export type Expense = {
   id: string;
   description: string;
-  /** Amount paid in rupees. */
+  /** Total amount paid in rupees. Should equal sum of splits[].amount (within 1 paisa). */
   amount: number;
   payerId: string;
-  /** Equal split among these person IDs. */
-  sharerIds: string[];
+  splitMode: SplitMode;
+  splits: Split[];
 };
 
 export type Balance = {
@@ -26,8 +34,8 @@ export type Settlement = {
 };
 
 /**
- * 1 paisa epsilon. Balances closer to zero than this are treated as settled
- * (avoids ping-pong on float precision artefacts).
+ * 1 paisa epsilon. Balances closer to zero than this are treated as settled.
+ * Also used as the tolerance for "splits sum to amount" validation.
  */
 const EPSILON = 0.01;
 
@@ -36,12 +44,24 @@ function round2(n: number): number {
 }
 
 /**
+ * Builds equal-split shares for a given amount across sharer IDs. Used by the
+ * form when the user picks "Equal" split, and by tests as a convenient helper.
+ */
+export function equalSplits(amount: number, sharerIds: string[]): Split[] {
+  if (sharerIds.length === 0) return [];
+  const per = round2(amount / sharerIds.length);
+  return sharerIds.map((id) => ({ personId: id, amount: per }));
+}
+
+/**
  * Net balance per person across all expenses.
  *
- *   balance(p) = (sum of amounts p paid) − (sum of p's share in each expense)
+ *   balance(p) = (sum of amounts p paid) − (sum of p's split amounts)
  *
- * Positive balance means others owe p; negative means p owes others.
- * The sum of all balances is always zero (modulo float epsilon).
+ * Positive = owed money, negative = owes money. Sum of all balances ≈ 0.
+ *
+ * Expenses where splits don't sum to amount (within 1 paisa) are skipped to
+ * keep balances coherent — the UI must validate before saving.
  */
 export function calculateBalances(
   people: Person[],
@@ -51,15 +71,20 @@ export function calculateBalances(
   for (const p of people) totals.set(p.id, 0);
 
   for (const e of expenses) {
-    if (e.amount <= 0 || e.sharerIds.length === 0) continue;
+    if (e.amount <= 0 || e.splits.length === 0) continue;
     if (!totals.has(e.payerId)) continue;
 
-    const sharePerPerson = e.amount / e.sharerIds.length;
+    const splitSum = e.splits.reduce((s, x) => s + Math.max(0, x.amount), 0);
+    if (Math.abs(splitSum - e.amount) > EPSILON) continue;
 
     totals.set(e.payerId, (totals.get(e.payerId) ?? 0) + e.amount);
-    for (const sid of e.sharerIds) {
-      if (!totals.has(sid)) continue;
-      totals.set(sid, (totals.get(sid) ?? 0) - sharePerPerson);
+    for (const split of e.splits) {
+      if (!totals.has(split.personId)) continue;
+      if (split.amount <= 0) continue;
+      totals.set(
+        split.personId,
+        (totals.get(split.personId) ?? 0) - split.amount,
+      );
     }
   }
 
@@ -70,10 +95,8 @@ export function calculateBalances(
 }
 
 /**
- * Greedy debt minimiser. Repeatedly settles the largest creditor against the
- * largest debtor for the smaller of the two amounts. Produces at most N − 1
- * transactions for N people with non-zero balances — this is the practical
- * minimum (true minimum is NP-hard but greedy hits it almost always).
+ * Greedy debt minimiser. Pairs largest creditor with largest debtor each
+ * iteration. ≤ N − 1 transfers for N non-zero balances.
  */
 export function simplifyPayments(balances: Balance[]): Settlement[] {
   const work = balances.map((b) => ({
@@ -82,8 +105,6 @@ export function simplifyPayments(balances: Balance[]): Settlement[] {
   }));
 
   const settlements: Settlement[] = [];
-  // Safety bound: greedy strictly reduces non-zero count, so this terminates
-  // long before the bound. The bound just guards against pathological floats.
   const safetyMax = work.length * work.length + 10;
   let iter = 0;
 
@@ -124,9 +145,6 @@ export function simplifyPayments(balances: Balance[]): Settlement[] {
   return settlements;
 }
 
-/**
- * Convenience: balances + settlements + total spent.
- */
 export type TripSummary = {
   balances: Balance[];
   settlements: Settlement[];
