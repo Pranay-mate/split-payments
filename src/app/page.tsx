@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { SITE, FEATURES } from "@/lib/site";
+import { organizationLd, softwareApplicationLd } from "@/lib/jsonld";
 
 export default function HomePage() {
   return (
@@ -21,21 +23,22 @@ export default function HomePage() {
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/calculators/split-bill"
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+            >
+              Try the bill splitter →
+            </Link>
             <a
               href="#features"
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               See what&apos;s coming
             </a>
-            <a
-              href={SITE.socials.github}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              View on GitHub
-            </a>
           </div>
+          <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+            Free standalone tool · no signup · works offline
+          </p>
         </div>
       </section>
 
@@ -67,6 +70,23 @@ export default function HomePage() {
           </ul>
         </div>
       </section>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd()) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            softwareApplicationLd({
+              name: SITE.name,
+              description: SITE.description,
+              path: "/",
+            }),
+          ),
+        }}
+      />
 
       <footer className="border-t border-slate-200 dark:border-slate-800">
         <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between dark:text-slate-400">
