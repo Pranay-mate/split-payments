@@ -36,239 +36,234 @@
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 16px; }
-  .container { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
-  h1 { font-size: 32px; margin: 0 0 6px; letter-spacing: -0.02em; }
-  h2 { font-size: 22px; margin: 36px 0 12px; letter-spacing: -0.01em; border-top: 1px solid var(--border); padding-top: 24px; }
-  h3 { font-size: 16px; margin: 20px 0 10px; color: var(--accent); }
-  .lead { color: var(--muted); margin: 0 0 24px; }
-  .meta { color: var(--muted); font-size: 14px; margin: 0 0 32px; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; font-size: 15px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 { font-size: 22px; margin: 36px 0 8px; letter-spacing: -0.01em; border-top: 1px solid var(--border); padding-top: 24px; }
+  h3 { font-size: 14px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .lead { color: var(--muted); margin: 0 0 18px; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
   .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--border); background: var(--surface); }
-  .badge-warn { color: var(--warn); border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.08); }
   .badge-ok { color: var(--accent); border-color: var(--check-border); background: var(--check-bg); }
   .badge-info { color: var(--accent-2); border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.08); }
-  .badge-muted { color: var(--muted); }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
-  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-warn { color: var(--warn); border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.08); }
+  .badge-danger { color: var(--danger); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 13.5px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
   tr:last-child td { border-bottom: none; }
-  ul.tasks { list-style: none; padding: 0; margin: 12px 0; }
-  ul.tasks li { padding: 10px 14px 10px 38px; border-radius: 10px; background: var(--surface); margin-bottom: 6px; position: relative; font-size: 14px; border: 1px solid var(--border); }
-  ul.tasks li::before { content: ""; position: absolute; left: 14px; top: 14px; width: 14px; height: 14px; border: 1.5px solid var(--muted); border-radius: 4px; }
-  ul.tasks li.done { background: var(--check-bg); border-color: var(--check-border); }
-  ul.tasks li.done::before { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 2px var(--bg); }
-  ul.tasks li.done::after { content: "✓"; position: absolute; left: 16.5px; top: 8px; color: var(--bg); font-size: 11px; font-weight: 700; }
-  .phase { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin: 14px 0; }
-  .progress { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 8px 0 14px; }
-  .progress > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.3s; }
-  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; font-size: 13px; }
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
-  .callout { padding: 14px 18px; border-radius: 10px; background: var(--surface); border-left: 3px solid var(--accent-2); margin: 16px 0; }
-  .callout strong { color: var(--accent-2); }
+  td.task { width: 65%; }
+  td.status { width: 35%; white-space: nowrap; }
+  .status-cell { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+  .dot.done { background: var(--accent); }
+  .dot.in-progress { background: var(--accent-2); }
+  .dot.todo { background: var(--muted); opacity: 0.4; }
+  .dot.blocked { background: var(--warn); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .progress { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 6px 0 14px; }
+  .progress > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .callout { padding: 12px 16px; border-radius: 10px; background: var(--surface); border-left: 3px solid var(--accent-2); margin: 12px 0; font-size: 13.5px; }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>EasySplits — PLANNING</h1>
-  <p class="lead">Splitwise alternative. Free + ads, India-default but global, offline-capable PWA, SEO-first.</p>
+  <p class="lead">Phased roadmap with per-task status. Updated as we ship.</p>
   <p class="meta">
-    Updated <strong>2026-05-06</strong> ·
-    <span class="badge badge-info">Decisions 1–5 locked</span> ·
-    <span class="badge badge-warn">Phase 1 scope #6 pending confirmation</span>
+    Updated <strong>2026-05-07</strong> ·
+    <span class="badge badge-ok">All decisions locked</span> ·
+    <span class="badge badge-info">Live: <a href="https://split-payments-sigma.vercel.app" style="color:inherit">split-payments-sigma.vercel.app</a></span>
   </p>
 
-  <h2>Locked decisions</h2>
+  <p class="meta">
+    <strong>Status legend:</strong>
+    <span class="status-cell"><span class="dot done"></span>done</span> ·
+    <span class="status-cell"><span class="dot in-progress"></span>in progress</span> ·
+    <span class="status-cell"><span class="dot todo"></span>not started</span> ·
+    <span class="status-cell"><span class="dot blocked"></span>blocked (waiting)</span>
+  </p>
+
+  <h2>Decisions (all locked)</h2>
   <table>
     <thead><tr><th>#</th><th>Decision</th><th>Locked value</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>API style</td><td><span class="badge badge-ok">tRPC + selective Next.js API routes</span></td></tr>
-      <tr><td>2</td><td>Currency</td><td><span class="badge badge-ok">INR default, picker per group, multi-currency from day 1</span></td></tr>
-      <tr><td>3</td><td>Auth</td><td><span class="badge badge-ok">Google OAuth + email magic-link</span></td></tr>
-      <tr><td>4</td><td>Monetization</td><td><span class="badge badge-ok">Free + ads</span> (revisit freemium in Phase 4)</td></tr>
-      <tr><td>5</td><td>Brand vibe</td><td><span class="badge badge-info">Optimise for UI/UX + SEO; explore during scaffold</span></td></tr>
-      <tr><td>6</td><td>Phase 1 scope</td><td><span class="badge badge-ok">Confirmed</span></td></tr>
+      <tr><td>1</td><td>API style</td><td>tRPC + Next.js API routes hybrid <span class="badge badge-ok">locked</span></td></tr>
+      <tr><td>2</td><td>Currency</td><td>INR default per group, multi-currency from day 1 <span class="badge badge-ok">locked</span></td></tr>
+      <tr><td>3</td><td>Auth</td><td>Google OAuth + email magic-link <span class="badge badge-ok">locked</span></td></tr>
+      <tr><td>4</td><td>Monetization</td><td>Free + ads (Pro tier in Phase 4) <span class="badge badge-ok">locked</span></td></tr>
+      <tr><td>5</td><td>Brand vibe</td><td>Indigo→violet→emerald · light/dark · mobile-first <span class="badge badge-ok">locked</span></td></tr>
+      <tr><td>6</td><td>Phase 1 scope</td><td>Confirmed <span class="badge badge-ok">locked</span></td></tr>
     </tbody>
   </table>
-
-  <div class="callout">
-    <strong>Three differentiators</strong>:
-    <ol style="margin:8px 0 0">
-      <li><strong>Offline-first</strong> — add expenses on a trek, sync later</li>
-      <li><strong>Mobile speed</strong> — optimistic UI, no spinners on common actions</li>
-      <li><strong>SEO-first</strong> — landing/features/use-case pages SSG with full JSON-LD; standalone calculators as ranking bait</li>
-    </ol>
-  </div>
 
   <h2>Phase 1 — Core MVP</h2>
-  <p class="meta">Target: 5–7 weeks · Progress <span class="badge badge-info">PWA + calculator + tests + legal pages</span></p>
-  <div class="progress"><div style="width:24%"></div></div>
 
-  <div class="grid-2">
-    <div class="phase">
-      <h3>A. Auth + profile</h3>
-      <ul class="tasks">
-        <li>Google OAuth (one-click)</li>
-        <li>Email magic-link (fallback)</li>
-        <li>User profile (display name, avatar)</li>
-        <li>Sign-out + delete-account</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>B. Groups</h3>
-      <ul class="tasks">
-        <li>Create group: name, primary currency picker</li>
-        <li>Join via shareable 32-byte link</li>
-        <li>Group settings (rename, currency, leave, kick)</li>
-        <li>Members list</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>C. Expenses (multi-currency day 1)</h3>
-      <ul class="tasks">
-        <li>Add expense: payer, amount, currency, date, who-shares</li>
-        <li>FX conversion at entry (free FX API)</li>
-        <li>Split types: equal · exact · share · percent</li>
-        <li>Edit / delete expense</li>
-        <li>Comments per expense</li>
-        <li>Activity feed</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>D. Balances</h3>
-      <ul class="tasks">
-        <li>Per-person balance in primary currency</li>
-        <li>Group summary (you owe / are owed)</li>
-        <li>Simplify Payments toggle (greedy algo)</li>
-        <li>Settle-up flow</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>E. Offline (the wedge)</h3>
-      <ul class="tasks">
-        <li>PWA manifest + install prompt</li>
-        <li>Service Worker caches app shell</li>
-        <li>IndexedDB via Dexie stores data</li>
-        <li>Event queue for offline mutations</li>
-        <li>Background Sync API on reconnect</li>
-        <li>Conflict resolution (last-write-wins)</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>F. Marketing site + SEO</h3>
-      <ul class="tasks">
-        <li>Landing (<code>/</code>) with hero + features + CTA</li>
-        <li><code>/features</code> long-form</li>
-        <li><code>/use-cases/*</code> hub: rent, trip, roommate, dinner, family</li>
-        <li><code>/calculators/split-bill</code> public tool (SEO bait)</li>
-        <li><code>/about</code>, <code>/privacy</code>, <code>/terms</code></li>
-        <li>Full JSON-LD on all marketing pages</li>
-        <li><code>sitemap.xml</code> + <code>robots.txt</code> + OG cards</li>
-        <li>Lighthouse 95+ on marketing</li>
-        <li>Vercel Analytics + Speed Insights</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>G. Ads (monetization)</h3>
-      <ul class="tasks">
-        <li>AdSense application (apply early)</li>
-        <li>Banner on group dashboard (lazy)</li>
-        <li>Native cards in activity feed</li>
-        <li>Hard rule: zero ads on add-expense / settle-up / login</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>H. Polish</h3>
-      <ul class="tasks">
-        <li>Mobile-first responsive (375 → 1280px)</li>
-        <li>Dark mode (auto + manual)</li>
-        <li>Empty / error states</li>
-        <li>Toasts + skeleton loaders only where needed</li>
-        <li>OG cards + favicon + manifest</li>
-      </ul>
-    </div>
-    <div class="phase">
-      <h3>I. Launch checks</h3>
-      <ul class="tasks">
-        <li>Lighthouse 95+ mobile</li>
-        <li>PWA install on Android + iOS</li>
-        <li>Offline test: airplane → add → reconnect → sync</li>
-        <li>Privacy + terms drafted</li>
-        <li>Custom domain + GSC verification + sitemap submission</li>
-      </ul>
-    </div>
-  </div>
+  <h3>1.A — Auth + profile <span class="badge badge-warn">blocked on Supabase</span></h3>
+  <table><tbody>
+    <tr><td class="task">Google OAuth (one-click, Supabase Auth)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Email magic-link (fallback)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">User profile (display name, avatar)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Sign-out</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Delete account</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+  </tbody></table>
 
-  <h2>Phase 2 — UX wins</h2>
-  <ul class="tasks">
-    <li>Receipt photo upload (Supabase Storage)</li>
-    <li>Categories (Food, Travel, Stay, Misc, custom)</li>
-    <li>Recurring expenses (rent, subs)</li>
-    <li>Bulk-split: one bill across line items</li>
-    <li>Export to CSV / PDF</li>
-    <li>Trip mode: daily summary, per-day spend</li>
-    <li>Historical FX rates (lock per-expense rate at entry)</li>
-    <li>View balances in any currency</li>
-  </ul>
+  <h3>1.B — Groups <span class="badge badge-warn">blocked on Supabase</span></h3>
+  <table><tbody>
+    <tr><td class="task">Create group (name, primary currency picker)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Join group via shareable 32-byte link</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Group settings (rename, change currency)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Leave group / kick members</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Members list</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+  </tbody></table>
 
-  <h2>Phase 3 — Power features</h2>
-  <ul class="tasks">
-    <li>OCR receipt scanning (Google Cloud Vision free tier)</li>
-    <li>AI categorization (Claude Haiku)</li>
-    <li>WhatsApp bot (Meta Cloud API, DM only)</li>
-    <li>Voice input</li>
-    <li>Reminder nudges (configurable)</li>
-    <li>SMS UPI debit parsing</li>
-  </ul>
+  <h3>1.C — Expenses (multi-currency) <span class="badge badge-warn">mostly blocked</span></h3>
+  <table><tbody>
+    <tr><td class="task">Add expense (payer, amount, currency, date, who-shares)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">FX conversion at entry time (free FX API)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Split modes: equal, exact, share, percent</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>equal+exact done · share+percent pending</span></td></tr>
+    <tr><td class="task">Edit expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done in Trip Splitter</span></td></tr>
+    <tr><td class="task">Delete expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done in Trip Splitter</span></td></tr>
+    <tr><td class="task">Comments per expense</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Activity feed</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+  </tbody></table>
+
+  <h3>1.D — Balances + Simplify Payments <span class="badge badge-ok">algorithm done</span></h3>
+  <table><tbody>
+    <tr><td class="task">Per-person balance calculation</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Group summary (you owe / are owed)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Simplify Payments greedy algorithm</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Property tests (sum-to-zero, ≤ N−1 transfers)</td><td class="status"><span class="status-cell"><span class="dot done"></span>35 tests passing</span></td></tr>
+    <tr><td class="task">Settle-up flow (record a payment)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>needs Supabase</span></td></tr>
+  </tbody></table>
+
+  <h3>1.E — Offline / PWA</h3>
+  <table><tbody>
+    <tr><td class="task">Web App Manifest</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">App icons (gradient ES, 64×64 + 180×180)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Service worker (network-first nav, cache-first assets)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">SW registration (production only)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">iOS PWA meta tags</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>localStorage</code> persistence (Trip Splitter)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Offline test (calculator)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>works · needs manual verify</span></td></tr>
+    <tr><td class="task">Offline event queue for app mutations</td><td class="status"><span class="status-cell"><span class="dot todo"></span>after Supabase</span></td></tr>
+    <tr><td class="task">Background Sync API on reconnect</td><td class="status"><span class="status-cell"><span class="dot todo"></span>after Supabase</span></td></tr>
+    <tr><td class="task">Conflict resolution (LWW by timestamp+userId)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>after Supabase</span></td></tr>
+  </tbody></table>
+
+  <h3>1.F — Marketing + SEO</h3>
+  <table><tbody>
+    <tr><td class="task">Home page (hero + 6 features + footer)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>/features</code> (8 features + comparison table)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>/about</code> (why + principles + contact)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>/privacy</code></td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>/terms</code></td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>/calculators/split-bill</code></td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>/calculators/trip</code> (with edit + exact-split)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>sitemap.xml</code> (7 URLs auto-generated)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>robots.txt</code></td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Open Graph + Twitter cards on every page</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">JSON-LD on every page (Org / SoftwareApp / Breadcrumb / FAQPage)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><code>/use-cases/split-rent</code></td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task"><code>/use-cases/trip-expenses</code></td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task"><code>/use-cases/roommate-utilities</code></td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task"><code>/use-cases/group-dinner</code></td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Lighthouse 95+ on mobile (verify)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>likely passing · needs verify</span></td></tr>
+  </tbody></table>
+
+  <h3>1.G — Ads (free-tier monetization)</h3>
+  <table><tbody>
+    <tr><td class="task">AdSense application</td><td class="status"><span class="status-cell"><span class="dot todo"></span>wait for custom domain + 2 weeks</span></td></tr>
+    <tr><td class="task">Banner ad on dashboard (lazy-loaded)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>after AdSense approval</span></td></tr>
+    <tr><td class="task">Native cards in activity feed</td><td class="status"><span class="status-cell"><span class="dot todo"></span>after AdSense approval</span></td></tr>
+    <tr><td class="task">Hard rule: zero ads on add-expense / settle / login</td><td class="status"><span class="status-cell"><span class="dot done"></span>locked in policy</span></td></tr>
+  </tbody></table>
+
+  <h3>1.H — Polish</h3>
+  <table><tbody>
+    <tr><td class="task">Mobile-first responsive (375 → 1280px)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Dark mode (<code>prefers-color-scheme</code>)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Empty states for People + Expenses</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Toasts / proper confirm dialogs</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>basic <code>confirm()</code> · upgrade later</span></td></tr>
+    <tr><td class="task">Tabular-nums + en-IN formatting</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Optimistic UI on add/edit/delete</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Edit-mode visual cue (highlighted row)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Native share / clipboard</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Custom install prompt UI</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Update notification when SW activates new version</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Top-nav header with logo + Features + About</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+  </tbody></table>
+
+  <h3>1.I — Launch checks</h3>
+  <table><tbody>
+    <tr><td class="task">Lighthouse 95+ on mobile</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>verify</span></td></tr>
+    <tr><td class="task">PWA install on Android Chrome</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>manual verify</span></td></tr>
+    <tr><td class="task">PWA install on iOS Safari</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>manual verify</span></td></tr>
+    <tr><td class="task">Offline test: airplane → add → reconnect</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>works for calculator</span></td></tr>
+    <tr><td class="task">Custom domain (e.g., easysplits.in)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">GSC verification + sitemap submission</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Vercel Analytics + Speed Insights</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+  </tbody></table>
+
+  <h2>Phase 2 — UX wins (all blocked on Supabase / app foundation)</h2>
+  <table><tbody>
+    <tr><td class="task">Receipt photo upload (Supabase Storage)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Categories (Food, Travel, Stay, Misc, custom)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Recurring expenses</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Bulk-split: one bill across line items</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Export to CSV / PDF</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Trip mode: daily summary</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Historical FX rates (lock per-expense at entry)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">View balances in any currency</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+  </tbody></table>
+
+  <h2>Phase 3 — Power features (all blocked)</h2>
+  <table><tbody>
+    <tr><td class="task">OCR receipt scanning (Google Cloud Vision)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">AI categorization (Claude Haiku)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">WhatsApp bot (Meta Cloud API)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Voice input</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Reminder nudges</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">SMS UPI debit parsing</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+  </tbody></table>
 
   <h2>Phase 4 — Optional Pro tier</h2>
-  <ul class="tasks">
-    <li>Revisit freemium if ad CPMs are too low or AdSense rejected</li>
-    <li>Pro tier ₹99/yr — no ads, OCR, recurring, exports, WhatsApp</li>
-    <li>Razorpay/Stripe integration</li>
-  </ul>
+  <table><tbody>
+    <tr><td class="task">Revisit freemium if AdSense rejected</td><td class="status"><span class="status-cell"><span class="dot todo"></span>conditional</span></td></tr>
+    <tr><td class="task">Pro tier ₹99/yr</td><td class="status"><span class="status-cell"><span class="dot todo"></span>conditional</span></td></tr>
+    <tr><td class="task">Razorpay/Stripe integration</td><td class="status"><span class="status-cell"><span class="dot todo"></span>conditional</span></td></tr>
+  </tbody></table>
 
-  <h2>SEO strategy</h2>
+  <h2>Where data is stored (current snapshot)</h2>
   <table>
-    <thead><tr><th>Page</th><th>Type</th><th>JSON-LD</th></tr></thead>
+    <thead><tr><th>Data</th><th>Location</th><th>Persistence</th></tr></thead>
     <tbody>
-      <tr><td><code>/</code></td><td>SSG</td><td>Organization + SoftwareApplication</td></tr>
-      <tr><td><code>/features</code></td><td>SSG</td><td>SoftwareApplication</td></tr>
-      <tr><td><code>/use-cases/split-rent</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
-      <tr><td><code>/use-cases/trip-expenses</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
-      <tr><td><code>/use-cases/roommate-utilities</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
-      <tr><td><code>/use-cases/group-dinner</code></td><td>SSG</td><td>FAQPage + Article</td></tr>
-      <tr><td><code>/calculators/split-bill</code></td><td>SSG</td><td>SoftwareApplication</td></tr>
-      <tr><td><code>/about</code>, <code>/privacy</code>, <code>/terms</code></td><td>SSG</td><td>Organization</td></tr>
-      <tr><td><code>/app/...</code></td><td>CSR + auth gate</td><td>None — robots.txt blocked</td></tr>
+      <tr><td>Trip Splitter trip state</td><td>Browser <code>localStorage</code> (<code>easysplits-trip-v2</code>)</td><td>Per-device · resets on cache clear</td></tr>
+      <tr><td>Bill Splitter inputs</td><td>React state only</td><td>Component lifetime</td></tr>
+      <tr><td>Static assets / pages</td><td>Vercel CDN</td><td>Edge cached</td></tr>
+      <tr><td>Service worker cache</td><td>Browser cache (<code>easysplits-runtime-v1</code>)</td><td>Per-device · cleared on SW bump</td></tr>
+      <tr><td><strong>Future</strong> app data (groups/expenses)</td><td>Supabase Postgres (Mumbai region)</td><td>Cross-device <span class="badge badge-warn">not yet provisioned</span></td></tr>
+      <tr><td><strong>Future</strong> offline mutation queue</td><td>IndexedDB via Dexie</td><td>Per-device until synced <span class="badge badge-warn">not yet built</span></td></tr>
     </tbody>
   </table>
-
-  <h2>Risks &amp; mitigations</h2>
-  <table>
-    <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
-    <tbody>
-      <tr><td>AdSense rejection (fintech-adjacent)</td><td>Apply early. If rejected, switch to direct affiliates (Cred / Niyo / Jupiter) or revisit freemium</td></tr>
-      <tr><td>Multi-currency complexity in Phase 1</td><td>Free FX API; store rate at entry time; balance math in primary only</td></tr>
-      <tr><td>Offline conflict edge cases</td><td>Event sourcing + tombstones; tests for known races</td></tr>
-      <tr><td>Supabase free tier limits</td><td>Monitor; bump to Pro at first warning</td></tr>
-      <tr><td>iOS PWA background-sync flakiness</td><td>Detect iOS, sync on app-open instead</td></tr>
-      <tr><td>Simplify-payments correctness</td><td>Property-based tests (balances sum to zero)</td></tr>
-      <tr><td>SEO competition (Splitwise et al.)</td><td>Lean into India-first + offline + multi-currency UX wins; chase long-tail use-case + calculator queries</td></tr>
-    </tbody>
-  </table>
+  <div class="callout">
+    <strong>No server-side database is active right now.</strong> The standalone calculators are 100% client-side. The full app needs Supabase; not started until you provision a project.
+  </div>
 
   <h2>Milestone log</h2>
   <table>
     <thead><tr><th>Date</th><th>Milestone</th></tr></thead>
     <tbody>
-      <tr><td>2026-05-06</td><td>Decisions 1–5 locked. tRPC hybrid · multi-currency day 1 · Google + magic-link · free + ads · brand TBD. Phase 1 scope #6 pending.</td></tr>
-      <tr><td>2026-05-06</td><td>Phase 1 scope confirmed. All 6 decisions locked.</td></tr>
-      <tr><td>2026-05-06</td><td>Scaffolded Next.js 16 + Tailwind v4 + TS. Pushed to <code>github.com/Pranay-mate/split-payments</code>.</td></tr>
-      <tr><td>2026-05-06</td><td>Branded landing placeholder live (indigo→violet→emerald gradient, 6 feature pillars, dark mode). Vercel Analytics + Speed Insights wired. Live at <a href="https://split-payments-sigma.vercel.app">split-payments-sigma.vercel.app</a>.</td></tr>
-      <tr><td>2026-05-06</td><td>SEO infrastructure + Split Bill Calculator at <code>/calculators/split-bill</code> (4 JSON-LD blocks, FAQ, sitemap, robots). UX refinement: optional ₹ tip, no service charge field, whole-rupee rounding by default.</td></tr>
-      <tr><td>2026-05-06</td><td>PWA scaffold: manifest, dynamic gradient ES icons (64×64 + 180×180 iOS), hand-rolled service worker (network-first nav / cache-first assets) registered in production only. Site is now installable on Android + iOS and works offline after first visit.</td></tr>
-      <tr><td>2026-05-06</td><td>Vitest set up (16 tests for split-bill calc — happy path, clamping, realistic scenarios, invariants). <code>/privacy</code> + <code>/terms</code> pages drafted in plain English; added to sitemap with footer links. Required for AdSense.</td></tr>
+      <tr><td>2026-05-06</td><td>Project initialised. All 6 decisions locked.</td></tr>
+      <tr><td>2026-05-06</td><td>Scaffolded Next.js 16 + Tailwind v4 + TS. Live on Vercel.</td></tr>
+      <tr><td>2026-05-06</td><td>Branded landing live (gradient hero, 6 feature pillars, dark mode).</td></tr>
+      <tr><td>2026-05-06</td><td>SEO infrastructure + Bill Splitter at <code>/calculators/split-bill</code>.</td></tr>
+      <tr><td>2026-05-06</td><td>UX simplified Bill Splitter — optional ₹ tip, whole-rupee rounding.</td></tr>
+      <tr><td>2026-05-06</td><td>PWA scaffold: manifest + dynamic icons + hand-rolled service worker.</td></tr>
+      <tr><td>2026-05-06</td><td>Vitest set up. 16 tests for Bill Splitter. <code>/privacy</code> + <code>/terms</code>.</td></tr>
+      <tr><td>2026-05-06</td><td>Trip Expense Splitter live with simplify-payments algorithm.</td></tr>
+      <tr><td>2026-05-06</td><td><code>/features</code> + <code>/about</code> live. AdSense prerequisites complete except custom domain.</td></tr>
+      <tr><td>2026-05-07</td><td>Trip Splitter edit + exact-amount split mode. 35 tests. Data model rewrite.</td></tr>
     </tbody>
   </table>
 </div>
