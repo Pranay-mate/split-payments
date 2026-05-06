@@ -93,16 +93,22 @@ export default function HomePage() {
           <p>
             © {new Date().getFullYear()} {SITE.name}. Built in India.
           </p>
-          <p>
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/privacy" className="hover:text-slate-900 dark:hover:text-slate-200">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-slate-900 dark:hover:text-slate-200">
+              Terms
+            </Link>
             <a
               href={SITE.socials.github}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-slate-900 dark:hover:text-slate-200"
             >
-              Open source on GitHub
+              GitHub
             </a>
-          </p>
+          </nav>
         </div>
       </footer>
     </main>
