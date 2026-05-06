@@ -1,37 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  calculateSplitBill,
-  type RoundingMode,
-} from "@/lib/calculators/split-bill";
+import { calculateSplitBill } from "@/lib/calculators/split-bill";
 import { formatINR } from "@/lib/format";
-
-const TIP_PRESETS = [0, 5, 10, 15, 20];
-const ROUNDING_OPTIONS: { value: RoundingMode; label: string }[] = [
-  { value: "none", label: "Off" },
-  { value: "10", label: "₹10" },
-  { value: "50", label: "₹50" },
-  { value: "100", label: "₹100" },
-];
 
 export function SplitBillForm() {
   const [billAmount, setBillAmount] = useState(1500);
   const [numPeople, setNumPeople] = useState(4);
-  const [tipPercent, setTipPercent] = useState(10);
-  const [extraServiceChargePercent, setExtraServiceChargePercent] = useState(0);
-  const [rounding, setRounding] = useState<RoundingMode>("10");
+  const [tipAmount, setTipAmount] = useState(0);
 
   const result = useMemo(
     () =>
       calculateSplitBill({
         billAmount,
         numPeople,
-        tipPercent,
-        extraServiceChargePercent,
-        rounding,
+        tipAmount,
       }),
-    [billAmount, numPeople, tipPercent, extraServiceChargePercent, rounding],
+    [billAmount, numPeople, tipAmount],
   );
 
   return (
@@ -57,75 +42,16 @@ export function SplitBillForm() {
           onChange={setNumPeople}
         />
 
-        <div>
-          <label className="block text-sm font-medium">Tip</label>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {TIP_PRESETS.map((tip) => (
-              <button
-                key={tip}
-                type="button"
-                onClick={() => setTipPercent(tip)}
-                aria-pressed={tipPercent === tip}
-                className={`min-w-12 rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                  tipPercent === tip
-                    ? "border-indigo-500 bg-indigo-500 text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                }`}
-              >
-                {tip}%
-              </button>
-            ))}
-            <input
-              type="number"
-              inputMode="decimal"
-              value={tipPercent}
-              onChange={(e) => setTipPercent(Number(e.target.value))}
-              className="w-20 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
-              min={0}
-              max={100}
-              step={0.5}
-              aria-label="Custom tip percentage"
-            />
-          </div>
-        </div>
-
         <NumberField
-          id="service"
-          label="Extra service charge"
-          suffix="%"
-          value={extraServiceChargePercent}
+          id="tip"
+          label="Tip"
+          prefix="₹"
+          value={tipAmount}
           min={0}
-          max={20}
-          step={0.5}
-          onChange={setExtraServiceChargePercent}
-          help="Some restaurants already include this in the bill — set to 0 if so."
+          step={10}
+          onChange={setTipAmount}
+          help="Optional. Leave at 0 if no tip."
         />
-
-        <div>
-          <label className="block text-sm font-medium">
-            Round each person up to
-          </label>
-          <div className="mt-2 grid grid-cols-4 gap-2">
-            {ROUNDING_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setRounding(opt.value)}
-                aria-pressed={rounding === opt.value}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
-                  rounding === opt.value
-                    ? "border-indigo-500 bg-indigo-500 text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Cleaner amounts to UPI — small excess covers tip rounding.
-          </p>
-        </div>
       </div>
 
       <div className="space-y-4">
@@ -134,12 +60,12 @@ export function SplitBillForm() {
             Each person pays
           </p>
           <p className="mt-2 text-5xl font-semibold tracking-tight tabular-nums">
-            {formatINR(result.perPerson)}
+            {formatINR(result.perPerson, 0)}
           </p>
-          {rounding !== "none" && result.roundingExcess > 0 && (
+          {result.roundingExcess > 0 && (
             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              Raw share {formatINR(result.rawPerPerson)} · rounded up by{" "}
-              {formatINR(result.roundingExcess / numPeople)}
+              Raw share {formatINR(result.rawPerPerson, 2)} · rounded up to a
+              whole rupee
             </p>
           )}
         </div>
@@ -149,23 +75,16 @@ export function SplitBillForm() {
             Breakdown
           </h3>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <Stat label="Bill" value={formatINR(result.baseAmount)} />
-            <Stat
-              label={`Tip (${tipPercent}%)`}
-              value={formatINR(result.tipAmount)}
-            />
-            {extraServiceChargePercent > 0 && (
-              <Stat
-                label={`Service (${extraServiceChargePercent}%)`}
-                value={formatINR(result.serviceCharge)}
-              />
+            <Stat label="Bill" value={formatINR(result.baseAmount, 0)} />
+            {tipAmount > 0 && (
+              <Stat label="Tip" value={formatINR(result.tipAmount, 0)} />
             )}
-            <Stat label="Grand total" value={formatINR(result.grandTotal)} />
+            <Stat label="Grand total" value={formatINR(result.grandTotal, 0)} />
             <Stat label="People" value={String(numPeople)} />
-            {rounding !== "none" && result.roundingExcess > 0 && (
+            {result.roundingExcess > 0 && (
               <Stat
                 label="Rounding excess"
-                value={`+${formatINR(result.roundingExcess)}`}
+                value={`+${formatINR(result.roundingExcess, 2)}`}
               />
             )}
           </dl>
@@ -174,7 +93,9 @@ export function SplitBillForm() {
         <button
           type="button"
           onClick={() => {
-            const text = `Each: ${formatINR(result.perPerson)}\nBill: ${formatINR(result.baseAmount)} + ${tipPercent}% tip = ${formatINR(result.grandTotal)}\nSplit ${numPeople} ways · via EasySplits`;
+            const tipText =
+              tipAmount > 0 ? ` + ${formatINR(tipAmount, 0)} tip` : "";
+            const text = `Each: ${formatINR(result.perPerson, 0)}\nBill: ${formatINR(result.baseAmount, 0)}${tipText} = ${formatINR(result.grandTotal, 0)}\nSplit ${numPeople} ways · via EasySplits`;
             if (typeof navigator !== "undefined" && navigator.share) {
               navigator.share({ title: "Split bill", text }).catch(() => {});
             } else if (typeof navigator !== "undefined" && navigator.clipboard) {

@@ -15,7 +15,7 @@ const SLUG = "/calculators/split-bill";
 export const metadata: Metadata = buildMetadata({
   title: "Split Bill Calculator — Split a Restaurant Bill in Seconds",
   description:
-    "Free split bill calculator. Add the amount, number of people, tip, and service charge — get the per-person share, round to clean UPI amounts, and share with friends.",
+    "Free split bill calculator. Enter the amount, number of people, and an optional tip — get the per-person share rounded to whole rupees, ready to share over UPI.",
   path: SLUG,
   keywords: [
     "split bill calculator",
@@ -31,27 +31,22 @@ const FAQS = [
   {
     question: "How is the per-person share calculated?",
     answer:
-      "The bill amount is multiplied by (1 + tip% + extra service charge%) to get the grand total, then divided by the number of people. If you've enabled rounding, each person's share is rounded up to the nearest ₹10/₹50/₹100 — the small excess covers tip and rounds out to a UPI-friendly number.",
+      "Bill amount + tip (if any) is divided by the number of people, then rounded up to the nearest whole rupee. The small rounding excess (less than ₹1 per person) keeps the share clean for UPI transfers — one person can pay slightly less to balance, or it acts as a small additional tip.",
   },
   {
     question: "Should I tip in India?",
     answer:
-      "Tipping is appreciated but not mandatory in India. A common range is 5-10% at casual restaurants and 10-15% at sit-down restaurants. Many bills already include a 'service charge' (usually 5-10%) — that's the restaurant's automatic tip and is a separate line from GST. If service charge is on the bill, the tip is optional.",
+      "Tipping is appreciated but not mandatory in India. A common range is ₹50–₹200 at casual restaurants and 5–15% of the bill at sit-down restaurants. Many bills already include a 'service charge' (usually 5–10%) — that's the restaurant's automatic tip. If service charge is on the bill, the tip is optional.",
   },
   {
     question: "Is service charge the same as tip?",
     answer:
-      "Effectively yes. Service charge is a restaurant-added gratuity that goes to the staff. The Department of Consumer Affairs (Government of India) has guidance that service charge is not mandatory and customers can request its removal — so it's a tip the restaurant adds for you. Most diners don't tip on top of an already-charged service charge.",
+      "Effectively yes. Service charge is a restaurant-added gratuity that goes to the staff. The Department of Consumer Affairs (Government of India) has guidance that service charge is not mandatory and customers can request its removal. If your bill already includes service charge, leave the Tip field at ₹0 here — or add a small extra tip if the service was great.",
   },
   {
     question: "Does the bill amount include GST?",
     answer:
-      "Restaurants in India typically show: food + drinks subtotal, GST (5% for non-AC, 18% for AC restaurants in some states — check your bill), and optionally a service charge. Use the GST-inclusive total as the 'Bill amount' here. Tip is usually applied to the pre-GST or inclusive amount based on personal preference; this calculator assumes you enter whichever total you want to split.",
-  },
-  {
-    question: "Why does rounding leave a small excess?",
-    answer:
-      "Rounding each person's share up to the nearest ₹10/₹50/₹100 means the sum of everyone's payment is slightly more than the bill. The 'rounding excess' shown is the leftover — usually a few rupees that can act as additional tip, or one person can pay slightly less to balance.",
+      "Restaurants in India typically show: food + drinks subtotal, GST (5% for non-AC, 18% for AC restaurants in some states — check your bill), and optionally a service charge. Use the final GST-inclusive total as the 'Bill amount' here. Whether you tip on the pre-GST or inclusive amount is personal preference — just enter whichever total you want to split.",
   },
   {
     question: "Can I split unevenly with this calculator?",
@@ -69,7 +64,7 @@ export default function SplitBillCalculatorPage() {
   const software = softwareApplicationLd({
     name: "Split Bill Calculator",
     description:
-      "Free, instant split-bill calculator with tip, service charge and clean-UPI rounding. Works offline.",
+      "Free, instant split-bill calculator with optional tip and whole-rupee rounding for clean UPI transfers. Works offline.",
     path: SLUG,
     category: "FinanceApplication",
   });
@@ -95,8 +90,8 @@ export default function SplitBillCalculatorPage() {
             Split Bill Calculator
           </h1>
           <p className="mt-3 text-base text-slate-600 dark:text-slate-400 sm:text-lg">
-            Type in the bill, tap the number of people, pick a tip — done.
-            Each person&apos;s share rounds up to a clean UPI amount.
+            Type in the bill, the number of people, an optional tip — done.
+            Each person&apos;s share rounds up to a whole rupee, ready for UPI.
           </p>
         </div>
       </section>
