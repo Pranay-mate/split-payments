@@ -11,6 +11,7 @@ import {
   Pencil,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useTripState, type ExpenseInput } from "./use-trip-state";
 import {
   equalSplits,
@@ -52,19 +53,43 @@ export function TripApp() {
         totalSpent={summary.totalSpent}
         onRename={(name) => dispatch({ type: "set-trip-name", name })}
         onReset={() => {
-          if (confirm("Clear all people and expenses for this trip?")) {
-            dispatch({ type: "reset" });
-            setEditingId(null);
-          }
+          toast("Reset this trip?", {
+            description: "All people and expenses will be cleared.",
+            action: {
+              label: "Reset",
+              onClick: () => {
+                dispatch({ type: "reset" });
+                setEditingId(null);
+                toast.success("Trip reset");
+              },
+            },
+          });
         }}
       />
 
       <PeopleSection
         people={state.people}
-        onAdd={(name) => dispatch({ type: "add-person", name })}
+        onAdd={(name) => {
+          const trimmed = name.trim();
+          if (!trimmed) return;
+          const dup = state.people.some(
+            (p) => p.name.toLowerCase() === trimmed.toLowerCase(),
+          );
+          if (dup) {
+            toast.error(`${trimmed} is already in this trip`);
+            return;
+          }
+          dispatch({ type: "add-person", name: trimmed });
+        }}
         onRemove={(id) => {
+          const person = state.people.find((p) => p.id === id);
           dispatch({ type: "remove-person", id });
           if (editingExpense?.payerId === id) setEditingId(null);
+          if (person) {
+            toast.success(`Removed ${person.name}`, {
+              description: "Their expenses and shares were cleared.",
+            });
+          }
         }}
       />
 
@@ -88,8 +113,14 @@ export function TripApp() {
                 if (editingId) {
                   dispatch({ type: "update-expense", id: editingId, expense: input });
                   setEditingId(null);
+                  toast.success("Expense updated");
                 } else {
                   dispatch({ type: "add-expense", expense: input });
+                  toast.success(
+                    input.description
+                      ? `Added “${input.description}”`
+                      : "Expense added",
+                  );
                 }
               }}
               onCancel={editingId ? () => setEditingId(null) : undefined}
@@ -112,8 +143,31 @@ export function TripApp() {
                   }, 50);
                 }}
                 onRemove={() => {
+                  const removed = e;
                   dispatch({ type: "remove-expense", id: e.id });
                   if (editingId === e.id) setEditingId(null);
+                  toast.success(
+                    removed.description
+                      ? `Removed “${removed.description}”`
+                      : "Expense removed",
+                    {
+                      action: {
+                        label: "Undo",
+                        onClick: () => {
+                          dispatch({
+                            type: "add-expense",
+                            expense: {
+                              description: removed.description,
+                              amount: removed.amount,
+                              payerId: removed.payerId,
+                              splitMode: removed.splitMode,
+                              splits: removed.splits,
+                            },
+                          });
+                        },
+                      },
+                    },
+                  );
                 }}
               />
             ))}
@@ -225,7 +279,7 @@ function PeopleSection({
           {people.map((p) => (
             <li
               key={p.id}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-3 pr-1 text-sm dark:border-slate-700 dark:bg-slate-800"
+              className="animate-row-in inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-3 pr-1 text-sm dark:border-slate-700 dark:bg-slate-800"
             >
               <span>{p.name}</span>
               <button
@@ -259,7 +313,7 @@ function ExpenseRow({
 }) {
   return (
     <li
-      className={`flex items-start justify-between gap-3 rounded-xl border p-3 transition ${
+      className={`animate-row-in flex items-start justify-between gap-3 rounded-xl border p-3 transition ${
         isEditing
           ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/30"
           : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"

@@ -2,8 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Toaster } from "sonner";
 import { SITE } from "@/lib/site";
 import { ServiceWorkerRegister } from "@/components/sw-register";
+import { SiteHeader } from "@/components/site-header";
+import { InstallPrompt } from "@/components/install-prompt";
 import "./globals.css";
 
 const sans = Geist({ variable: "--font-sans", subsets: ["latin"] });
@@ -65,7 +68,19 @@ export default function RootLayout({
       className={`${sans.variable} ${mono.variable} h-full scroll-smooth antialiased`}
     >
       <body className="min-h-full flex flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <SiteHeader />
         {children}
+        <InstallPrompt />
+        <Toaster
+          position="bottom-center"
+          richColors
+          closeButton
+          toastOptions={{
+            classNames: {
+              toast: "rounded-xl",
+            },
+          }}
+        />
         <ServiceWorkerRegister />
         <Analytics />
         <SpeedInsights />
