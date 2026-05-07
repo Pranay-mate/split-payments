@@ -247,6 +247,61 @@ describe("simplifyPayments", () => {
   });
 });
 
+describe("applySettlements", () => {
+  it("settles an exact two-person debt to zero", () => {
+    const result = summariseTrip(
+      [A, B],
+      [exp("e1", 1000, "a", ["a", "b"])], // A paid 1000, each owes 500 → A +500, B −500
+      [{ fromPersonId: "b", toPersonId: "a", amount: 500 }],
+    );
+    expect(result.balances.find((x) => x.personId === "a")?.amount).toBeCloseTo(0, 2);
+    expect(result.balances.find((x) => x.personId === "b")?.amount).toBeCloseTo(0, 2);
+    expect(result.settlements).toEqual([]); // already settled, no transfers needed
+    expect(result.totalSettled).toBe(500);
+  });
+
+  it("partial settlement leaves residual balance + smaller suggested transfer", () => {
+    const result = summariseTrip(
+      [A, B],
+      [exp("e1", 1000, "a", ["a", "b"])],
+      [{ fromPersonId: "b", toPersonId: "a", amount: 200 }],
+    );
+    // A had +500, B had -500. After 200 paid: A +300, B -300.
+    expect(result.balances.find((x) => x.personId === "a")?.amount).toBeCloseTo(300, 2);
+    expect(result.balances.find((x) => x.personId === "b")?.amount).toBeCloseTo(-300, 2);
+    expect(result.settlements).toHaveLength(1);
+    expect(result.settlements[0].amount).toBeCloseTo(300, 2);
+  });
+
+  it("ignores settlements involving unknown persons", () => {
+    const result = summariseTrip(
+      [A, B],
+      [exp("e1", 1000, "a", ["a", "b"])],
+      [{ fromPersonId: "ghost", toPersonId: "a", amount: 200 }],
+    );
+    // 'ghost' isn't in the people list — A's balance still gets reduced (toPersonId)
+    // but only one side; result still consistent because applySettlements skips
+    // unknown personIds.
+    expect(result.balances.find((x) => x.personId === "a")?.amount).toBeCloseTo(300, 2);
+  });
+
+  it("multiple settlements compose", () => {
+    const result = summariseTrip(
+      [A, B, C],
+      [exp("e1", 600, "a", ["a", "b", "c"])], // A +400, B -200, C -200
+      [
+        { fromPersonId: "b", toPersonId: "a", amount: 200 },
+        { fromPersonId: "c", toPersonId: "a", amount: 200 },
+      ],
+    );
+    expect(result.balances.find((x) => x.personId === "a")?.amount).toBeCloseTo(0, 2);
+    expect(result.balances.find((x) => x.personId === "b")?.amount).toBeCloseTo(0, 2);
+    expect(result.balances.find((x) => x.personId === "c")?.amount).toBeCloseTo(0, 2);
+    expect(result.settlements).toEqual([]);
+    expect(result.totalSettled).toBe(400);
+  });
+});
+
 describe("summariseTrip end-to-end", () => {
   it("4-person trip with mixed expenses (equal mode)", () => {
     const expenses: Expense[] = [

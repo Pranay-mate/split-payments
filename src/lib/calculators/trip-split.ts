@@ -149,14 +149,45 @@ export type TripSummary = {
   balances: Balance[];
   settlements: Settlement[];
   totalSpent: number;
+  totalSettled: number;
 };
+
+/**
+ * Apply recorded settlements (payer → receiver, amount) to a set of balances.
+ * Settling reduces the payer's debt (+= amount) and the receiver's credit
+ * (-= amount), so a fully settled group nets to zero.
+ */
+export function applySettlements(
+  balances: Balance[],
+  settlements: Settlement[],
+): Balance[] {
+  if (settlements.length === 0) return balances;
+  const map = new Map<string, number>();
+  for (const b of balances) map.set(b.personId, b.amount);
+  for (const s of settlements) {
+    if (s.amount <= 0) continue;
+    if (map.has(s.fromPersonId)) {
+      map.set(s.fromPersonId, (map.get(s.fromPersonId) ?? 0) + s.amount);
+    }
+    if (map.has(s.toPersonId)) {
+      map.set(s.toPersonId, (map.get(s.toPersonId) ?? 0) - s.amount);
+    }
+  }
+  return balances.map((b) => ({ ...b, amount: round2(map.get(b.personId) ?? 0) }));
+}
 
 export function summariseTrip(
   people: Person[],
   expenses: Expense[],
+  recordedSettlements: Settlement[] = [],
 ): TripSummary {
-  const balances = calculateBalances(people, expenses);
+  const rawBalances = calculateBalances(people, expenses);
+  const balances = applySettlements(rawBalances, recordedSettlements);
   const settlements = simplifyPayments(balances);
   const totalSpent = expenses.reduce((sum, e) => sum + Math.max(0, e.amount), 0);
-  return { balances, settlements, totalSpent };
+  const totalSettled = recordedSettlements.reduce(
+    (sum, s) => sum + Math.max(0, s.amount),
+    0,
+  );
+  return { balances, settlements, totalSpent, totalSettled };
 }

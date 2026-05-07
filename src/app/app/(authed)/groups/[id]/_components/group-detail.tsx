@@ -28,6 +28,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const groupQuery = trpc.groups.byId.useQuery({ id: groupId });
   const membersQuery = trpc.groups.members.useQuery({ groupId });
   const expensesQuery = trpc.expenses.listByGroup.useQuery({ groupId });
+  const settlementsQuery = trpc.settlements.listByGroup.useQuery({ groupId });
   const utils = trpc.useUtils();
 
   const deleteMutation = trpc.expenses.delete.useMutation({
@@ -63,8 +64,13 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         amount: s.amount,
       })),
     }));
-    return summariseTrip(people, tripExpenses);
-  }, [membersQuery.data, expensesQuery.data]);
+    const recordedSettlements = (settlementsQuery.data ?? []).map((s) => ({
+      fromPersonId: s.fromUserId,
+      toPersonId: s.toUserId,
+      amount: s.amount,
+    }));
+    return summariseTrip(people, tripExpenses, recordedSettlements);
+  }, [membersQuery.data, expensesQuery.data, settlementsQuery.data]);
 
   const copyInviteLink = async () => {
     if (!groupQuery.data) return;
@@ -141,7 +147,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         </div>
 
         {summary && summary.balances.length > 0 && (
-          <BalancesView summary={summary} memberById={memberById} />
+          <BalancesView
+            groupId={groupId}
+            summary={summary}
+            memberById={memberById}
+            recorded={settlementsQuery.data ?? []}
+          />
         )}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
