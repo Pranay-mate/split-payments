@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { trpc } from "@/lib/trpc/client";
 
 const NAV = [
   { href: "/calculators/trip", label: "Trip" },
@@ -12,6 +13,15 @@ const NAV = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const meQuery = trpc.auth.me.useQuery(undefined, {
+    staleTime: 60_000,
+    retry: false,
+  });
+  const user = meQuery.data;
+
+  // Hide site header inside the authenticated app shell — those pages
+  // get their own focused chrome (added later).
+  if (pathname.startsWith("/app/")) return null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-slate-800/80 dark:bg-slate-950/80 dark:supports-[backdrop-filter]:bg-slate-950/70">
@@ -32,7 +42,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav aria-label="Primary" className="flex items-center">
+        <nav aria-label="Primary" className="flex items-center gap-1.5 sm:gap-2">
           <ul className="flex items-center gap-0.5 sm:gap-1">
             {NAV.map(({ href, label }) => {
               const isActive =
@@ -54,6 +64,12 @@ export function SiteHeader() {
               );
             })}
           </ul>
+          <Link
+            href={user ? "/app/groups" : "/app/login"}
+            className="ml-1 inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-500"
+          >
+            {user ? "Open app" : "Sign in"}
+          </Link>
         </nav>
       </div>
     </header>
