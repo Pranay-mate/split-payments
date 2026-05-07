@@ -120,7 +120,7 @@
   <h3>1.C — Expenses</h3>
   <table><tbody>
     <tr><td class="task">Add expense (payer, amount, currency, date, who-shares)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span> (single-currency v1)</td></tr>
-    <tr><td class="task">FX conversion at entry time (free FX API)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>schema ready · UI pending</span></td></tr>
+    <tr><td class="task">FX conversion at entry time (free FX API)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span> open.er-api.com</td></tr>
     <tr><td class="task">Split modes: equal, exact, share, percent</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>equal+exact done · share+percent reserved</span></td></tr>
     <tr><td class="task">Edit expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Delete expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
@@ -272,6 +272,7 @@
       <tr><td>2026-05-07</td><td>Group detail at <code>/app/groups/[id]</code> — expenses + balances + simplify-payments. Reuses Trip Splitter algorithms (no rewrite).</td></tr>
       <tr><td>2026-05-07</td><td>Settlements router + UI: "Mark as paid" + history with undo. <code>/app/join/[token]</code> one-tap invite. <code>summariseTrip</code> extended for recorded settlements. 39 tests.</td></tr>
       <tr><td>2026-05-07</td><td>Edit expense (Pencil → prefilled form → Save changes). Refactored <code>expenses.listByGroup</code> to <code>inArray</code>.</td></tr>
+      <tr><td>2026-05-07</td><td><strong>Multi-currency expenses</strong>: currency picker (12 currencies) + live FX preview + server-side rate fetch via open.er-api.com. Splits auto-converted to primary; editing shows original amount.</td></tr>
     </tbody>
   </table>
 </div>

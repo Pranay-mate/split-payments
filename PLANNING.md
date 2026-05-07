@@ -48,8 +48,8 @@
 
 | Task | Status |
 |---|---|
-| Add expense (payer, amount, currency, date, who-shares) | ✅ (single-currency for v1; payer + sharers + amount) |
-| FX conversion at entry time (free FX API) | ⬜ (schema supports it; UI pending) |
+| Add expense (payer, amount, currency, date, who-shares) | ✅ |
+| FX conversion at entry time (free FX API) | ✅ (open.er-api.com, server-side validated, 6h cache) |
 | Split modes: equal · exact · share · percent | 🟡 (equal + exact done; share + percent reserved in enum) |
 | Edit expense | ✅ (Pencil icon → form prefills → Save changes) |
 | Delete expense | ✅ |
@@ -227,3 +227,4 @@
 | 2026-05-07 | /app/groups list + create form. Group detail at /app/groups/[id] with expenses + balances + simplify-payments — reuses existing Trip Splitter algorithms. 35 tests. |
 | 2026-05-07 | Settlements router + UI: "Mark as paid" auto-shrinks suggestions, settlement history with undo. /app/join/[token] one-tap invite landing. summariseTrip extended to fold recorded settlements. 39 tests. |
 | 2026-05-07 | Edit expense (Pencil → prefilled form → Save changes). Refactored expenses.listByGroup to use Drizzle inArray instead of raw SQL ANY. |
+| 2026-05-07 | **Multi-currency expenses**: currency picker + live FX preview + server-side rate fetch. 12 currencies via open.er-api.com (free, no key). Splits auto-converted to primary, balances stay coherent. Editing shows original amount + back-converts exact splits. |
