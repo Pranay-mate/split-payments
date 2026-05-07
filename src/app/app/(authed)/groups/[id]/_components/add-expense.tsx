@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
@@ -9,23 +9,53 @@ import { formatINR } from "@/lib/format";
 
 const EPSILON = 0.01;
 
+type EditingExpense = {
+  id: string;
+  description: string;
+  amount: number;
+  payerId: string;
+  splitMode: SplitMode;
+  splits: { userId: string; amount: number }[];
+};
+
 export function AddExpense({
   groupId,
   primaryCurrency,
   members,
+  editing,
   onSuccess,
+  onCancel,
 }: {
   groupId: string;
   primaryCurrency: string;
   members: { id: string; name: string }[];
+  editing?: EditingExpense | null;
   onSuccess: () => void;
+  onCancel?: () => void;
 }) {
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState<number | "">("");
-  const [payerId, setPayerId] = useState<string>(members[0]?.id ?? "");
-  const [splitMode, setSplitMode] = useState<SplitMode>("equal");
-  const [sharerIds, setSharerIds] = useState<string[]>(members.map((m) => m.id));
-  const [exactByPerson, setExactByPerson] = useState<Record<string, number>>({});
+  const isEditing = Boolean(editing);
+
+  const [description, setDescription] = useState(editing?.description ?? "");
+  const [amount, setAmount] = useState<number | "">(editing?.amount ?? "");
+  const [payerId, setPayerId] = useState<string>(
+    editing?.payerId ?? members[0]?.id ?? "",
+  );
+  const [splitMode, setSplitMode] = useState<SplitMode>(
+    editing?.splitMode ?? "equal",
+  );
+  const [sharerIds, setSharerIds] = useState<string[]>(
+    editing?.splits.map((s) => s.userId) ?? members.map((m) => m.id),
+  );
+  const [exactByPerson, setExactByPerson] = useState<Record<string, number>>(
+    () => {
+      if (editing && editing.splitMode === "exact") {
+        const m: Record<string, number> = {};
+        for (const s of editing.splits) m[s.userId] = s.amount;
+        return m;
+      }
+      return {};
+    },
+  );
 
   const numericAmount = typeof amount === "number" ? amount : 0;
 
@@ -46,6 +76,13 @@ export function AddExpense({
     },
     onError: (err) => toast.error(err.message),
   });
+
+  const updateMutation = trpc.expenses.update.useMutation({
+    onSuccess: () => onSuccess(),
+    onError: (err) => toast.error(err.message),
+  });
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const buildSplits = () => {
     if (splitMode === "equal") {
@@ -114,19 +151,44 @@ export function AddExpense({
 
   const handleSubmit = () => {
     if (!valid) return;
-    createMutation.mutate({
-      groupId,
-      description: description.trim(),
-      amount: numericAmount,
-      currency: primaryCurrency as "INR",
-      payerId,
-      splitMode,
-      splits: buildSplits(),
-    });
+    if (editing) {
+      updateMutation.mutate({
+        id: editing.id,
+        description: description.trim(),
+        amount: numericAmount,
+        payerId,
+        splitMode,
+        splits: buildSplits(),
+      });
+    } else {
+      createMutation.mutate({
+        groupId,
+        description: description.trim(),
+        amount: numericAmount,
+        currency: primaryCurrency as "INR",
+        payerId,
+        splitMode,
+        splits: buildSplits(),
+      });
+    }
   };
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+      {isEditing && (
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Edit expense</h3>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              <X className="h-3 w-3" aria-hidden /> Cancel
+            </button>
+          )}
+        </div>
+      )}
       <div className="grid gap-2 sm:grid-cols-[1fr_140px]">
         <input
           value={description}
@@ -311,15 +373,19 @@ export function AddExpense({
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={!valid || createMutation.isPending}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:bg-slate-300 disabled:dark:bg-slate-700 sm:w-auto"
+        disabled={!valid || isPending}
+        className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition disabled:bg-slate-300 disabled:dark:bg-slate-700 sm:w-auto ${
+          isEditing
+            ? "bg-indigo-600 hover:bg-indigo-500"
+            : "bg-emerald-600 hover:bg-emerald-500"
+        }`}
       >
-        {createMutation.isPending ? (
+        {isPending ? (
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-        ) : (
+        ) : isEditing ? null : (
           <Plus className="h-4 w-4" aria-hidden />
         )}
-        Add expense
+        {isEditing ? "Save changes" : "Add expense"}
       </button>
     </div>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
+  Pencil,
   Plus,
   Receipt,
   Share2,
@@ -24,6 +25,7 @@ import { BalancesView } from "./balances-view";
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const groupQuery = trpc.groups.byId.useQuery({ id: groupId });
   const membersQuery = trpc.groups.members.useQuery({ groupId });
@@ -163,7 +165,10 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             </h2>
             <button
               type="button"
-              onClick={() => setAdding((v) => !v)}
+              onClick={() => {
+                setEditingId(null);
+                setAdding((v) => !v);
+              }}
               className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden />
@@ -171,17 +176,38 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             </button>
           </div>
 
-          {adding && (
+          {(adding || editingId) && (
             <div className="mt-4">
               <AddExpense
+                key={editingId ?? "new"}
                 groupId={groupId}
                 primaryCurrency={group.primaryCurrency}
                 members={members.map((m) => ({ id: m.userId, name: m.displayName }))}
+                editing={
+                  editingId
+                    ? expenses.find((e) => e.id === editingId)
+                      ? {
+                          id: editingId,
+                          description: expenses.find((e) => e.id === editingId)!.description,
+                          amount: expenses.find((e) => e.id === editingId)!.convertedAmount,
+                          payerId: expenses.find((e) => e.id === editingId)!.payerId,
+                          splitMode: expenses.find((e) => e.id === editingId)!.splitMode,
+                          splits: expenses.find((e) => e.id === editingId)!.splits,
+                        }
+                      : null
+                    : null
+                }
                 onSuccess={() => {
                   utils.expenses.listByGroup.invalidate({ groupId });
-                  setAdding(false);
-                  toast.success("Expense added");
+                  if (editingId) {
+                    setEditingId(null);
+                    toast.success("Expense updated");
+                  } else {
+                    setAdding(false);
+                    toast.success("Expense added");
+                  }
                 }}
+                onCancel={editingId ? () => setEditingId(null) : undefined}
               />
             </div>
           )}
@@ -203,7 +229,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 return (
                   <li
                     key={e.id}
-                    className="animate-row-in flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/40"
+                    className={`animate-row-in flex items-start justify-between gap-3 rounded-xl border p-3 transition ${
+                      editingId === e.id
+                        ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/30"
+                        : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"
+                    }`}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
@@ -216,19 +246,38 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         {e.splits.length === 1 ? "person" : "people"}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm("Remove this expense?")) {
-                          deleteMutation.mutate({ id: e.id });
-                        }
-                      }}
-                      disabled={deleteMutation.isPending}
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      aria-label="Remove expense"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdding(false);
+                          setEditingId(e.id);
+                        }}
+                        aria-pressed={editingId === e.id}
+                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
+                          editingId === e.id
+                            ? "bg-indigo-500 text-white"
+                            : "text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        }`}
+                        aria-label="Edit expense"
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm("Remove this expense?")) {
+                            deleteMutation.mutate({ id: e.id });
+                            if (editingId === e.id) setEditingId(null);
+                          }
+                        }}
+                        disabled={deleteMutation.isPending}
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        aria-label="Remove expense"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
                   </li>
                 );
               })}

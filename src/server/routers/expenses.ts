@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
@@ -50,11 +50,7 @@ export const expensesRouter = router({
       const splitRows = await db
         .select()
         .from(expenseSplits)
-        .where(
-          sql`${expenseSplits.expenseId} = ANY(${sql.raw(
-            `ARRAY[${rows.map((r) => `'${r.id}'::uuid`).join(", ")}]`,
-          )})`,
-        );
+        .where(inArray(expenseSplits.expenseId, rows.map((r) => r.id)));
 
       const splitsByExpense = new Map<string, typeof splitRows>();
       for (const s of splitRows) {
@@ -153,6 +149,80 @@ export const expensesRouter = router({
         );
 
         return expense;
+      });
+    }),
+
+  /** Update an existing expense (description, amount, payer, splits). */
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        description: z.string().max(200).default(""),
+        amount: z.number().positive(),
+        payerId: z.string().uuid(),
+        splitMode: splitModeSchema,
+        splits: z.array(splitSchema).min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [existing] = await db
+        .select()
+        .from(expenses)
+        .where(eq(expenses.id, input.id))
+        .limit(1);
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Expense not found" });
+      }
+      await ensureMembership(existing.groupId, ctx.user.id);
+      await ensureMembership(existing.groupId, input.payerId);
+
+      const splitSum = input.splits.reduce((s, x) => s + x.amount, 0);
+      if (Math.abs(splitSum - input.amount) > 0.01) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Splits (₹${splitSum.toFixed(2)}) must sum to amount (₹${input.amount.toFixed(2)}).`,
+        });
+      }
+
+      for (const split of input.splits) {
+        await ensureMembership(existing.groupId, split.userId);
+      }
+
+      // For v1 (single-currency), keep fxRate=1 + convertedAmount=amount.
+      return await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(expenses)
+          .set({
+            description: input.description.trim(),
+            amount: input.amount.toFixed(2),
+            convertedAmount: input.amount.toFixed(2),
+            fxRate: "1",
+            payerId: input.payerId,
+            splitMode: input.splitMode,
+            updatedAt: new Date(),
+          })
+          .where(eq(expenses.id, input.id))
+          .returning();
+
+        if (!updated) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to update expense",
+          });
+        }
+
+        // Replace splits — simpler than reconciling per-row.
+        await tx.delete(expenseSplits).where(eq(expenseSplits.expenseId, input.id));
+        await tx.insert(expenseSplits).values(
+          input.splits.map((s) => ({
+            expenseId: input.id,
+            userId: s.userId,
+            amount: s.amount.toFixed(2),
+          })),
+        );
+
+        return updated;
       });
     }),
 
