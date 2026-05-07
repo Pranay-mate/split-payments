@@ -24,47 +24,49 @@
 
 ## Phase 1 — Core MVP
 
-### Phase 1.A — Auth + profile (⏸ blocked on Supabase)
+### Phase 1.A — Auth + profile
 
 | Task | Status |
 |---|---|
-| Google OAuth (one-click, Supabase Auth) | ⏸ |
-| Email magic-link (fallback) | ⏸ |
-| User profile (display name, avatar) | ⏸ |
-| Sign-out | ⏸ |
-| Delete account | ⏸ |
+| Google OAuth (one-click, Supabase Auth) | ✅ |
+| Email magic-link (fallback) | ✅ |
+| User profile (display name, avatar) | ✅ |
+| Sign-out | ✅ |
+| Delete account | ⬜ |
 
-### Phase 1.B — Groups (⏸ blocked on Supabase)
-
-| Task | Status |
-|---|---|
-| Create group (name, primary currency picker) | ⏸ |
-| Join group via shareable 32-byte link | ⏸ |
-| Group settings (rename, change currency) | ⏸ |
-| Leave group / kick members | ⏸ |
-| Members list | ⏸ |
-
-### Phase 1.C — Expenses (multi-currency) (⏸ blocked on Supabase)
+### Phase 1.B — Groups
 
 | Task | Status |
 |---|---|
-| Add expense (payer, amount, currency, date, who-shares) | ⏸ |
-| FX conversion at entry time (free FX API) | ⏸ |
-| Split modes: equal · exact · share · percent | 🟡 (equal + exact done in Trip Splitter; share + percent pending) |
-| Edit expense | ✅ (in Trip Splitter; will reuse for app) |
-| Delete expense | ✅ (in Trip Splitter; will reuse) |
-| Comments per expense | ⏸ |
-| Activity feed | ⏸ |
+| Create group (name, primary currency picker) | ✅ |
+| Join group via shareable 32-byte link | ✅ (`/app/join/[token]`) |
+| Group settings (rename, change currency) | ⬜ |
+| Leave group / kick members | ⬜ |
+| Members list | ✅ |
 
-### Phase 1.D — Balances + Simplify Payments (algorithm done)
+### Phase 1.C — Expenses
 
 | Task | Status |
 |---|---|
-| Per-person balance calculation | ✅ (`calculateBalances`) |
-| Group summary (you owe / are owed) | ✅ (in Trip Splitter UI) |
+| Add expense (payer, amount, currency, date, who-shares) | ✅ (single-currency for v1; payer + sharers + amount) |
+| FX conversion at entry time (free FX API) | ⬜ (schema supports it; UI pending) |
+| Split modes: equal · exact · share · percent | 🟡 (equal + exact done; share + percent reserved in enum) |
+| Edit expense | ✅ (Pencil icon → form prefills → Save changes) |
+| Delete expense | ✅ |
+| Comments per expense | ⬜ |
+| Activity feed | ⬜ |
+
+### Phase 1.D — Balances + Simplify Payments
+
+| Task | Status |
+|---|---|
+| Per-person balance calculation | ✅ (`calculateBalances`, reused as-is in app) |
+| Group summary (you owe / are owed) | ✅ (in Trip Splitter + group detail) |
 | Simplify Payments greedy algorithm | ✅ (`simplifyPayments`) |
-| Property tests (sum to zero, ≤ N−1 transfers) | ✅ (35 tests) |
-| Settle-up flow (record a payment) | ⏸ (needs Supabase) |
+| Apply recorded settlements before suggesting | ✅ (`applySettlements` + extended `summariseTrip`) |
+| Settle-up flow (record a payment) | ✅ ("Mark as paid" → settlements row + auto-shrink suggestions) |
+| Settlement history with undo | ✅ |
+| Property tests | ✅ (39 tests) |
 
 ### Phase 1.E — Offline / PWA
 
@@ -218,3 +220,10 @@
 | 2026-05-06 | Trip Expense Splitter live with simplify-payments algorithm. 32 total tests. |
 | 2026-05-06 | `/features` + `/about` pages live. AdSense prerequisites complete except custom domain. |
 | 2026-05-07 | Trip Splitter edit + exact-amount split mode. 35 tests. Data model rewrite (sharerIds → splits). |
+| 2026-05-07 | Polish bundle: top nav header, sonner toasts, row entrance animation, custom PWA install prompt. |
+| 2026-05-07 | Drizzle schema (7 tables) + Supabase clients (browser/server/middleware) + tRPC v11 + middleware committed as foundation. |
+| 2026-05-07 | Schema applied to Supabase (Sydney region). Google OAuth wired. db:push + dotenv-cli scripts. |
+| 2026-05-07 | Auth UI: /app/login + /auth/callback. Google sign-in + magic-link working. |
+| 2026-05-07 | /app/groups list + create form. Group detail at /app/groups/[id] with expenses + balances + simplify-payments — reuses existing Trip Splitter algorithms. 35 tests. |
+| 2026-05-07 | Settlements router + UI: "Mark as paid" auto-shrinks suggestions, settlement history with undo. /app/join/[token] one-tap invite landing. summariseTrip extended to fold recorded settlements. 39 tests. |
+| 2026-05-07 | Edit expense (Pencil → prefilled form → Save changes). Refactored expenses.listByGroup to use Drizzle inArray instead of raw SQL ANY. |
