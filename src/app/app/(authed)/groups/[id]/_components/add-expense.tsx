@@ -1,20 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
+import { COMMON_CURRENCIES, getRate } from "@/lib/fx";
 
 const EPSILON = 0.01;
 
 type EditingExpense = {
   id: string;
   description: string;
+  /** Original amount (in `currency`). */
   amount: number;
+  currency: string;
+  /** Stored FX rate at time of original entry — used to back-convert splits. */
+  fxRate: number;
   payerId: string;
   splitMode: SplitMode;
+  /** Splits in primary currency (as stored in DB). */
   splits: { userId: string; amount: number }[];
 };
 
@@ -37,6 +43,9 @@ export function AddExpense({
 
   const [description, setDescription] = useState(editing?.description ?? "");
   const [amount, setAmount] = useState<number | "">(editing?.amount ?? "");
+  const [currency, setCurrency] = useState<string>(
+    editing?.currency ?? primaryCurrency,
+  );
   const [payerId, setPayerId] = useState<string>(
     editing?.payerId ?? members[0]?.id ?? "",
   );
@@ -50,12 +59,49 @@ export function AddExpense({
     () => {
       if (editing && editing.splitMode === "exact") {
         const m: Record<string, number> = {};
-        for (const s of editing.splits) m[s.userId] = s.amount;
+        // Stored splits are in primary currency. Back-convert to the
+        // expense's original currency so the form shows what the user
+        // typed originally (with small rounding artefacts at 2dp).
+        const rate = editing.fxRate || 1;
+        for (const s of editing.splits) {
+          m[s.userId] = Math.round((s.amount / rate) * 100) / 100;
+        }
         return m;
       }
       return {};
     },
   );
+
+  // Live FX preview for non-primary expenses. We only render once the rate
+  // has been fetched — no loading state in between, the API is fast (~150ms).
+  const [livePreview, setLivePreview] = useState<{
+    rate: number;
+    converted: number;
+  } | null>(null);
+  const numericForFx = typeof amount === "number" ? amount : 0;
+
+  useEffect(() => {
+    // Stale livePreview is harmless — the display gates on currency !== primary
+    // && numericForFx > 0, so a previous rate isn't shown for the wrong amount.
+    if (currency === primaryCurrency || numericForFx <= 0) return;
+    let cancelled = false;
+    getRate(currency, primaryCurrency)
+      .then((rate) => {
+        if (!cancelled) {
+          setLivePreview({
+            rate,
+            converted: Math.round(numericForFx * rate * 100) / 100,
+          });
+        }
+      })
+      .catch(() => {
+        // Network/API failure — preview just stays at its last value (or null
+        // initial). Submit will surface a server-side error if needed.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currency, primaryCurrency, numericForFx]);
 
   const numericAmount = typeof amount === "number" ? amount : 0;
 
@@ -156,6 +202,7 @@ export function AddExpense({
         id: editing.id,
         description: description.trim(),
         amount: numericAmount,
+        currency,
         payerId,
         splitMode,
         splits: buildSplits(),
@@ -165,7 +212,7 @@ export function AddExpense({
         groupId,
         description: description.trim(),
         amount: numericAmount,
-        currency: primaryCurrency as "INR",
+        currency,
         payerId,
         splitMode,
         splits: buildSplits(),
@@ -189,7 +236,7 @@ export function AddExpense({
           )}
         </div>
       )}
-      <div className="grid gap-2 sm:grid-cols-[1fr_140px]">
+      <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
         <input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -197,10 +244,7 @@ export function AddExpense({
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
           aria-label="Expense description"
         />
-        <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-          <span className="text-sm text-slate-500 dark:text-slate-400">
-            {primaryCurrency === "INR" ? "₹" : primaryCurrency}
-          </span>
+        <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white pr-2 dark:border-slate-700 dark:bg-slate-900">
           <input
             type="number"
             inputMode="decimal"
@@ -211,11 +255,31 @@ export function AddExpense({
               setAmount(e.target.value === "" ? "" : Number(e.target.value))
             }
             placeholder="0"
-            className="w-full bg-transparent text-base outline-none tabular-nums"
+            className="w-full bg-transparent px-3 py-2 text-base outline-none tabular-nums"
             aria-label="Amount"
           />
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="border-l border-slate-300 bg-transparent py-2 pl-2 text-xs font-semibold text-slate-600 outline-none dark:border-slate-700 dark:text-slate-300"
+            aria-label="Currency"
+          >
+            {COMMON_CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
+
+      {currency !== primaryCurrency && numericForFx > 0 && (
+        <p className="-mt-1 text-xs text-slate-500 dark:text-slate-400">
+          {livePreview
+            ? `≈ ${formatINR(livePreview.converted, 0)} ${primaryCurrency} (1 ${currency} = ${livePreview.rate.toFixed(2)} ${primaryCurrency})`
+            : `Fetching ${currency} → ${primaryCurrency} rate…`}
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">

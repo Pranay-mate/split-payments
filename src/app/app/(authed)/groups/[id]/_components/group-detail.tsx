@@ -178,25 +178,33 @@ export function GroupDetail({ groupId }: { groupId: string }) {
 
           {(adding || editingId) && (
             <div className="mt-4">
-              <AddExpense
-                key={editingId ?? "new"}
-                groupId={groupId}
-                primaryCurrency={group.primaryCurrency}
-                members={members.map((m) => ({ id: m.userId, name: m.displayName }))}
-                editing={
-                  editingId
-                    ? expenses.find((e) => e.id === editingId)
-                      ? {
-                          id: editingId,
-                          description: expenses.find((e) => e.id === editingId)!.description,
-                          amount: expenses.find((e) => e.id === editingId)!.convertedAmount,
-                          payerId: expenses.find((e) => e.id === editingId)!.payerId,
-                          splitMode: expenses.find((e) => e.id === editingId)!.splitMode,
-                          splits: expenses.find((e) => e.id === editingId)!.splits,
-                        }
-                      : null
-                    : null
-                }
+              {(() => {
+                const ed = editingId
+                  ? expenses.find((e) => e.id === editingId)
+                  : null;
+                return (
+                  <AddExpense
+                    key={editingId ?? "new"}
+                    groupId={groupId}
+                    primaryCurrency={group.primaryCurrency}
+                    members={members.map((m) => ({
+                      id: m.userId,
+                      name: m.displayName,
+                    }))}
+                    editing={
+                      ed
+                        ? {
+                            id: ed.id,
+                            description: ed.description,
+                            amount: ed.amount, // original currency amount
+                            currency: ed.currency,
+                            fxRate: ed.fxRate,
+                            payerId: ed.payerId,
+                            splitMode: ed.splitMode,
+                            splits: ed.splits,
+                          }
+                        : null
+                    }
                 onSuccess={() => {
                   utils.expenses.listByGroup.invalidate({ groupId });
                   if (editingId) {
@@ -209,6 +217,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 }}
                 onCancel={editingId ? () => setEditingId(null) : undefined}
               />
+                );
+              })()}
             </div>
           )}
 
@@ -226,6 +236,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             <ul className="mt-4 space-y-2">
               {expenses.map((e) => {
                 const payerName = memberById.get(e.payerId)?.name ?? "?";
+                const showOriginal = e.currency !== group.primaryCurrency;
                 return (
                   <li
                     key={e.id}
@@ -240,7 +251,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         {e.description || "Expense"}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {payerName} paid {formatINR(e.convertedAmount, 0)} ·{" "}
+                        {payerName} paid{" "}
+                        {showOriginal
+                          ? `${e.amount.toFixed(0)} ${e.currency} (≈ ${formatINR(e.convertedAmount, 0)})`
+                          : formatINR(e.convertedAmount, 0)}{" "}
+                        ·{" "}
                         {e.splitMode === "exact" ? "exact" : "equal"} split
                         among {e.splits.length}{" "}
                         {e.splits.length === 1 ? "person" : "people"}
