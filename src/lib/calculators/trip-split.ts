@@ -3,7 +3,7 @@ export type Person = {
   name: string;
 };
 
-export type SplitMode = "equal" | "exact";
+export type SplitMode = "equal" | "exact" | "share" | "percent";
 
 export type Split = {
   personId: string;
