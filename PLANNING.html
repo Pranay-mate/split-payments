@@ -99,42 +99,44 @@
 
   <h2>Phase 1 — Core MVP</h2>
 
-  <h3>1.A — Auth + profile <span class="badge badge-warn">blocked on Supabase</span></h3>
+  <h3>1.A — Auth + profile</h3>
   <table><tbody>
-    <tr><td class="task">Google OAuth (one-click, Supabase Auth)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Email magic-link (fallback)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">User profile (display name, avatar)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Sign-out</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Delete account</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Google OAuth (one-click, Supabase Auth)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Email magic-link (fallback)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">User profile (display name, avatar)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Sign-out</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Delete account</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
   </tbody></table>
 
-  <h3>1.B — Groups <span class="badge badge-warn">blocked on Supabase</span></h3>
+  <h3>1.B — Groups</h3>
   <table><tbody>
-    <tr><td class="task">Create group (name, primary currency picker)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Join group via shareable 32-byte link</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Group settings (rename, change currency)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Leave group / kick members</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Members list</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Create group (name, primary currency picker)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Join group via shareable 32-byte link (<code>/app/join/[token]</code>)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Group settings (rename, change currency)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Leave group / kick members</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Members list</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
   </tbody></table>
 
-  <h3>1.C — Expenses (multi-currency) <span class="badge badge-warn">mostly blocked</span></h3>
+  <h3>1.C — Expenses</h3>
   <table><tbody>
-    <tr><td class="task">Add expense (payer, amount, currency, date, who-shares)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">FX conversion at entry time (free FX API)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Split modes: equal, exact, share, percent</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>equal+exact done · share+percent pending</span></td></tr>
-    <tr><td class="task">Edit expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done in Trip Splitter</span></td></tr>
-    <tr><td class="task">Delete expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done in Trip Splitter</span></td></tr>
-    <tr><td class="task">Comments per expense</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
-    <tr><td class="task">Activity feed</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>blocked</span></td></tr>
+    <tr><td class="task">Add expense (payer, amount, currency, date, who-shares)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span> (single-currency v1)</td></tr>
+    <tr><td class="task">FX conversion at entry time (free FX API)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>schema ready · UI pending</span></td></tr>
+    <tr><td class="task">Split modes: equal, exact, share, percent</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>equal+exact done · share+percent reserved</span></td></tr>
+    <tr><td class="task">Edit expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Delete expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Comments per expense</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Activity feed</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
   </tbody></table>
 
-  <h3>1.D — Balances + Simplify Payments <span class="badge badge-ok">algorithm done</span></h3>
+  <h3>1.D — Balances + Simplify Payments <span class="badge badge-ok">complete</span></h3>
   <table><tbody>
     <tr><td class="task">Per-person balance calculation</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Group summary (you owe / are owed)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Simplify Payments greedy algorithm</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">Property tests (sum-to-zero, ≤ N−1 transfers)</td><td class="status"><span class="status-cell"><span class="dot done"></span>35 tests passing</span></td></tr>
-    <tr><td class="task">Settle-up flow (record a payment)</td><td class="status"><span class="status-cell"><span class="dot blocked"></span>needs Supabase</span></td></tr>
+    <tr><td class="task">Apply recorded settlements before suggesting</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Settle-up flow (record a payment)</td><td class="status"><span class="status-cell"><span class="dot done"></span>"Mark as paid" buttons</span></td></tr>
+    <tr><td class="task">Settlement history with undo</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Property tests</td><td class="status"><span class="status-cell"><span class="dot done"></span>39 tests passing</span></td></tr>
   </tbody></table>
 
   <h3>1.E — Offline / PWA</h3>
