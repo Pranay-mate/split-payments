@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Activity,
   Loader2,
@@ -14,6 +15,8 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { trpc } from "@/lib/trpc/client";
+
+const RECENT_ACTIVITY_COUNT = 5;
 
 type EventStyle = {
   label: string;
@@ -106,8 +109,10 @@ export function ActivityFeed({
   groupId: string;
   memberById: Map<string, { id: string; name: string }>;
 }) {
-  const eventsQuery = trpc.events.listByGroup.useQuery({ groupId, limit: 20 });
+  const [showAll, setShowAll] = useState(false);
+  const eventsQuery = trpc.events.listByGroup.useQuery({ groupId, limit: 30 });
   const items = eventsQuery.data ?? [];
+  const visible = showAll ? items : items.slice(0, RECENT_ACTIVITY_COUNT);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
@@ -125,8 +130,9 @@ export function ActivityFeed({
           Nothing yet — activity will appear here as you and others act.
         </p>
       ) : (
+        <>
         <ul className="mt-3 space-y-3">
-          {items.map((e) => {
+          {visible.map((e) => {
             const actor = memberById.get(e.actorId)?.name ?? "Former member";
             const style = EVENT_STYLES[e.eventType] ?? {
               label: e.eventType,
@@ -168,6 +174,18 @@ export function ActivityFeed({
             );
           })}
         </ul>
+        {items.length > RECENT_ACTIVITY_COUNT && (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            {showAll
+              ? `Show recent ${RECENT_ACTIVITY_COUNT}`
+              : `View all ${items.length} activity items`}
+          </button>
+        )}
+        </>
       )}
     </section>
   );

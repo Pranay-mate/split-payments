@@ -29,10 +29,13 @@ import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
+const RECENT_EXPENSE_COUNT = 10;
+
 export function GroupDetail({ groupId }: { groupId: string }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
+  const [showAllExpenses, setShowAllExpenses] = useState(false);
 
   const meQuery = trpc.profiles.me.useQuery();
   const groupQuery = trpc.groups.byId.useQuery({ id: groupId });
@@ -265,8 +268,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               </p>
             )
           ) : (
+            <>
             <ul className="mt-4 space-y-2">
-              {expenses.map((e) => {
+              {(showAllExpenses
+                ? expenses
+                : expenses.slice(0, RECENT_EXPENSE_COUNT)
+              ).map((e) => {
                 const payerName = memberById.get(e.payerId)?.name ?? "?";
                 const showOriginal = e.currency !== group.primaryCurrency;
                 const pending = (e as unknown as { _pending?: boolean })._pending;
@@ -369,6 +376,18 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 );
               })}
             </ul>
+            {expenses.length > RECENT_EXPENSE_COUNT && (
+              <button
+                type="button"
+                onClick={() => setShowAllExpenses((v) => !v)}
+                className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                {showAllExpenses
+                  ? `Show recent ${RECENT_EXPENSE_COUNT}`
+                  : `View all ${expenses.length} expenses`}
+              </button>
+            )}
+            </>
           )}
         </section>
 
