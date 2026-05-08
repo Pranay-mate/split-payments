@@ -157,9 +157,13 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         </Link>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-          {/* Brand strip — gradient header so the card has visual weight */}
+          {/* SR-only h1 keeps the page accessible without visually duplicating
+              the name (which is already in the top-nav GroupSwitcher). */}
+          <h1 className="sr-only">{group.name}</h1>
+          {/* Brand strip — gradient header. Avatar gives visual identity;
+              tagline gives context (currency + member count). */}
           <div className="relative bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 px-5 py-4 sm:px-6">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <span
                   className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/15 text-base font-bold text-white shadow-sm backdrop-blur"
@@ -167,15 +171,10 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 >
                   {group.name.slice(0, 2).toUpperCase()}
                 </span>
-                <div className="min-w-0">
-                  <h1 className="truncate text-xl font-semibold tracking-tight text-white sm:text-2xl">
-                    {group.name}
-                  </h1>
-                  <p className="text-xs font-medium text-white/80">
-                    {group.primaryCurrency} ·{" "}
-                    {members.length} {members.length === 1 ? "member" : "members"}
-                  </p>
-                </div>
+                <p className="min-w-0 truncate text-sm font-medium text-white/95">
+                  {group.primaryCurrency} ·{" "}
+                  {members.length} {members.length === 1 ? "member" : "members"}
+                </p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
