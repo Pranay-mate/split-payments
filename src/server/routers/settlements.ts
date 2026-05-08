@@ -49,6 +49,7 @@ export const settlementsRouter = router({
         amount: z.number().positive(),
         note: z.string().max(200).default(""),
         occurredAt: z.date().optional(),
+        clientEventId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -62,9 +63,20 @@ export const settlementsRouter = router({
       await ensureMembership(input.groupId, input.fromUserId);
       await ensureMembership(input.groupId, input.toUserId);
 
+      // Idempotency check
+      if (input.clientEventId) {
+        const [existing] = await db
+          .select()
+          .from(settlements)
+          .where(eq(settlements.id, input.clientEventId))
+          .limit(1);
+        if (existing) return { ...existing, amount: Number(existing.amount) };
+      }
+
       const [created] = await db
         .insert(settlements)
         .values({
+          ...(input.clientEventId && { id: input.clientEventId }),
           groupId: input.groupId,
           fromUserId: input.fromUserId,
           toUserId: input.toUserId,

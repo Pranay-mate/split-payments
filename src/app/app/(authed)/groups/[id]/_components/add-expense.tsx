@@ -155,7 +155,37 @@ export function AddExpense({
       });
     },
   });
-  const submitUpdate = useMutationWithQueue("expenses.update", updateMutation);
+  const submitUpdate = useMutationWithQueue("expenses.update", updateMutation, {
+    onQueued: (rawInput) => {
+      const i = rawInput as {
+        id: string;
+        description: string;
+        amount: number;
+        currency: string;
+        payerId: string;
+        splitMode: SplitMode;
+        splits: { userId: string; amount: number }[];
+      };
+      utils.expenses.listByGroup.setData({ groupId }, (old) => {
+        if (!old) return old;
+        return old.map((e) =>
+          e.id === i.id
+            ? ({
+                ...e,
+                description: i.description,
+                amount: i.amount,
+                currency: i.currency,
+                convertedAmount: i.amount,
+                payerId: i.payerId,
+                splitMode: i.splitMode,
+                splits: i.splits,
+                _pending: true,
+              } as typeof e)
+            : e,
+        );
+      });
+    },
+  });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 

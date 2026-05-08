@@ -123,9 +123,9 @@ export const expensesRouter = router({
 
   /**
    * Create an expense + its splits in a single transaction.
-   * For v1, the entered currency is assumed to equal the group's primary
-   * currency (FX is wired but rate=1). Cross-currency support comes in a
-   * follow-up.
+   * Accepts an optional clientEventId — when present, used as the row id.
+   * This makes offline-queued creates idempotent and lets follow-up
+   * updates/deletes reference the same id the client used optimistically.
    */
   create: protectedProcedure
     .input(
@@ -142,6 +142,7 @@ export const expensesRouter = router({
         splitMode: splitModeSchema.default("equal"),
         splits: z.array(splitSchema).min(1),
         occurredAt: z.date().optional(),
+        clientEventId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -162,6 +163,18 @@ export const expensesRouter = router({
         await ensureMembership(input.groupId, split.userId);
       }
 
+      // Idempotency: if an expense with this clientEventId already exists,
+      // return it instead of creating a duplicate. Handles drainQueue
+      // re-replays after a partial failure.
+      if (input.clientEventId) {
+        const [existing] = await db
+          .select()
+          .from(expenses)
+          .where(eq(expenses.id, input.clientEventId))
+          .limit(1);
+        if (existing) return existing;
+      }
+
       const primaryCurrency = await getGroupPrimaryCurrency(input.groupId);
       const { fxRate, convertedAmount } = await resolveConversion(
         input.amount,
@@ -169,8 +182,6 @@ export const expensesRouter = router({
         primaryCurrency,
       );
 
-      // Rescale per-person split amounts (entered in original currency) to
-      // primary currency for storage. We keep the precision at 2 decimals.
       const splitsInPrimary = input.splits.map((s) => ({
         userId: s.userId,
         amount: Math.round(s.amount * fxRate * 100) / 100,
@@ -180,6 +191,7 @@ export const expensesRouter = router({
         const [expense] = await tx
           .insert(expenses)
           .values({
+            ...(input.clientEventId && { id: input.clientEventId }),
             groupId: input.groupId,
             description: input.description.trim(),
             amount: input.amount.toFixed(2),

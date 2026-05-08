@@ -40,22 +40,31 @@ export function useMutationWithQueue<I>(
 
   return useCallback(
     async (input: I): Promise<{ queued: boolean }> => {
+      // Generate a clientEventId UPFRONT and inject it into the mutation
+      // input. The server uses it as the row's id (for create) or for
+      // idempotency checks (for update/delete). This makes offline
+      // create→update and create→delete sequences work correctly: after
+      // sync, the server-side id matches the optimistic id we showed.
+      const clientEventId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
+      const augmentedInput = { ...(input as object), clientEventId } as I;
+
       const queueLocally = async () => {
-        const id = await enqueue(path, input);
-        if (onQueued) onQueued(input, id);
+        await enqueue(path, augmentedInput);
+        if (onQueued) onQueued(augmentedInput, clientEventId);
         await refreshCount();
         toast.success("Saved offline · syncs when you reconnect");
         return { queued: true } as const;
       };
 
-      // Short-circuit if the browser knows we're offline. Otherwise the
-      // fetch can hang ~30s waiting for DNS before the catch path runs.
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         return queueLocally();
       }
 
       try {
-        await mutation.mutateAsync(input);
+        await mutation.mutateAsync(augmentedInput);
         return { queued: false };
       } catch (err) {
         if (isOfflineError(err)) return queueLocally();

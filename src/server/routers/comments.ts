@@ -52,14 +52,26 @@ export const commentsRouter = router({
       z.object({
         expenseId: z.string().uuid(),
         body: z.string().min(1).max(1000),
+        clientEventId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const groupId = await ensureExpenseAccess(input.expenseId, ctx.user.id);
 
+      // Idempotent if clientEventId supplied
+      if (input.clientEventId) {
+        const [existing] = await db
+          .select()
+          .from(expenseComments)
+          .where(eq(expenseComments.id, input.clientEventId))
+          .limit(1);
+        if (existing) return existing;
+      }
+
       const [created] = await db
         .insert(expenseComments)
         .values({
+          ...(input.clientEventId && { id: input.clientEventId }),
           expenseId: input.expenseId,
           userId: ctx.user.id,
           body: input.body.trim(),
