@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
+import { getServerCaller } from "@/server/server-caller";
 import { GroupsView } from "./_components/groups-view";
 
 export const metadata: Metadata = buildMetadata({
@@ -9,7 +10,12 @@ export const metadata: Metadata = buildMetadata({
   noIndex: true,
 });
 
-export default function GroupsPage() {
+export default async function GroupsPage() {
+  // Server-prefetch the groups list so the client hydrates with data
+  // already available — saves one round-trip after the SSR pass.
+  const caller = await getServerCaller();
+  const initialGroups = await caller.groups.list().catch(() => []);
+
   return (
     <main className="flex-1">
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
@@ -20,7 +26,7 @@ export default function GroupsPage() {
           </p>
         </header>
 
-        <GroupsView />
+        <GroupsView initialGroups={initialGroups} />
       </div>
     </main>
   );

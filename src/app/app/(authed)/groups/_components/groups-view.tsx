@@ -8,9 +8,20 @@ import { trpc } from "@/lib/trpc/client";
 
 const COMMON_CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD", "JPY"] as const;
 
-export function GroupsView() {
+type ServerGroup = {
+  id: string;
+  name: string;
+  primaryCurrency: string;
+  inviteToken: string;
+  createdAt: Date;
+};
+
+export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) {
   const [creating, setCreating] = useState(false);
-  const groupsQuery = trpc.groups.list.useQuery();
+  const groupsQuery = trpc.groups.list.useQuery(undefined, {
+    initialData: initialGroups,
+    staleTime: 30_000,
+  });
 
   return (
     <div className="space-y-6">
