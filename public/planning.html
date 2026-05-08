@@ -234,6 +234,12 @@
   <table><tbody>
     <tr><td class="task">Receipt photo upload (Supabase Storage)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">Categories (Food, Travel, Stay, Misc, custom)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task"><strong>Charts &amp; visualisations</strong> (Recharts) — see UX principles below</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">↳ Per-member contribution bar at top of group page</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">↳ Balance bars (green = gets · red = owes) replacing text rows</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">↳ Settlement progress ring ("65% settled")</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">↳ Spend-by-category donut (depends on Categories)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">↳ Daily-spend sparkline (depends on Trip mode)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">Recurring expenses (rent, subs)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">Bulk-split (one bill, multiple line items)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">Export to CSV / PDF</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
@@ -241,6 +247,17 @@
     <tr><td class="task">Historical FX rates (lock per-expense at entry)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done (in 1.C)</span></td></tr>
     <tr><td class="task">View balances in any currency</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
   </tbody></table>
+
+  <h3>Charts UX principles (when Phase 2 charts ship)</h3>
+  <table><tbody>
+    <tr><td class="task">Mobile-first; render correctly at 375px</td><td class="status">90% of usage is phone</td></tr>
+    <tr><td class="task">Always show underlying numbers next to charts</td><td class="status">Chart is supplementary, not source-of-truth</td></tr>
+    <tr><td class="task">Colour-blind safe palette (≥ 4 distinct hues)</td><td class="status">8% of men can't distinguish red/green</td></tr>
+    <tr><td class="task">Hide chart entirely when data is too small (1 expense, 1 person)</td><td class="status">Avoid noise</td></tr>
+    <tr><td class="task">No reveal animation &gt; 250ms</td><td class="status">Don't make people wait</td></tr>
+    <tr><td class="task">Tap segments to drill in</td><td class="status">Touch UX</td></tr>
+  </tbody></table>
+  <p class="meta">Skipped: heatmap calendars · expense-by-member pie (redundant with balance bars) · time-series line for ongoing rent groups (noise).</p>
 
   <h2>Phase 3 — Power features</h2>
   <table><tbody>
