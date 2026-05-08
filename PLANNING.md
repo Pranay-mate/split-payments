@@ -149,12 +149,31 @@
 |---|---|
 | Receipt photo upload (Supabase Storage) | ⏸ |
 | Categories (Food, Travel, Stay, Misc, custom) | ⏸ |
+| **Charts & visualisations** (Recharts; UX principles below) | ⏸ |
+| ↳ Per-member contribution bar at top of group page | ⏸ |
+| ↳ Balance bars (green = gets · red = owes) replacing text rows | ⏸ |
+| ↳ Settlement progress ring ("65% settled") | ⏸ |
+| ↳ Spend-by-category donut (depends on Categories) | ⏸ |
+| ↳ Daily-spend sparkline (depends on Trip mode) | ⏸ |
 | Recurring expenses (rent, subs) | ⏸ |
 | Bulk-split: one bill across multiple line items | ⏸ |
 | Export group to CSV / PDF | ⏸ |
 | Trip mode: daily summary, per-day spend | ⏸ |
-| Historical FX rates (lock per-expense at entry) | ⏸ |
+| Historical FX rates (lock per-expense at entry) | ✅ done in 1.C |
 | View balances in any currency (not just primary) | ⏸ |
+
+### Charts UX principles (when Phase 2 charts ship)
+
+| Principle | Why |
+|---|---|
+| Mobile-first; render correctly at 375px | 90% of usage is phone |
+| Always show underlying numbers next to charts | Chart is supplementary, not source-of-truth |
+| Colour-blind safe palette (≥ 4 distinct hues) | 8% of men can't distinguish red/green |
+| Hide chart entirely when data is too small (1 expense, 1 person) | Avoid noise |
+| No reveal animation > 250ms | Don't make people wait |
+| Tap segments to drill in | Touch UX |
+
+Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars), time-series line for ongoing rent groups (noise).
 
 ## Phase 3 — Power features
 
