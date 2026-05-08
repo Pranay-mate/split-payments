@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -36,6 +36,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
   const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const formRef = useRef<HTMLDivElement | null>(null);
+
+  const focusForm = () => {
+    // Run after the panel has expanded — give React a microtask + paint.
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  };
 
   const meQuery = trpc.profiles.me.useQuery();
   const groupQuery = trpc.groups.byId.useQuery({ id: groupId });
@@ -148,37 +156,63 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> All groups
         </Link>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {group.name}
-              </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                <span className="inline-flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" aria-hidden />
-                  {members.length} {members.length === 1 ? "member" : "members"}
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          {/* Brand strip — gradient header so the card has visual weight */}
+          <div className="relative bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 px-5 py-4 sm:px-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span
+                  className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/15 text-base font-bold text-white shadow-sm backdrop-blur"
+                  aria-hidden
+                >
+                  {group.name.slice(0, 2).toUpperCase()}
                 </span>
-                <span>{expenses.length} {expenses.length === 1 ? "expense" : "expenses"}</span>
-                <span>{formatINR(summary?.totalSpent ?? 0, 0)} total · {group.primaryCurrency}</span>
+                <div className="min-w-0">
+                  <h1 className="truncate text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                    {group.name}
+                  </h1>
+                  <p className="text-xs font-medium text-white/80">
+                    {group.primaryCurrency} ·{" "}
+                    {members.length} {members.length === 1 ? "member" : "members"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={copyInviteLink}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-white/25"
+                >
+                  <Share2 className="h-3.5 w-3.5" aria-hidden /> Invite
+                </button>
+                <GroupSettings
+                  group={{
+                    id: group.id,
+                    name: group.name,
+                    primaryCurrency: group.primaryCurrency,
+                  }}
+                  expenseCount={expenses.length}
+                />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={copyInviteLink}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                <Share2 className="h-3.5 w-3.5" aria-hidden /> Invite
-              </button>
-              <GroupSettings
-                group={{
-                  id: group.id,
-                  name: group.name,
-                  primaryCurrency: group.primaryCurrency,
-                }}
-                expenseCount={expenses.length}
-              />
+          </div>
+          {/* Stats row — split out of the gradient for legibility */}
+          <div className="grid grid-cols-2 divide-x divide-slate-200 px-5 py-4 sm:px-6 dark:divide-slate-800">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Total spent
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
+                {formatINR(summary?.totalSpent ?? 0, 0)}
+              </p>
+            </div>
+            <div className="pl-5 sm:pl-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Expenses
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
+                {expenses.length}
+              </p>
             </div>
           </div>
         </div>
@@ -202,7 +236,9 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               type="button"
               onClick={() => {
                 setEditingId(null);
-                setAdding((v) => !v);
+                const next = !adding;
+                setAdding(next);
+                if (next) focusForm();
               }}
               className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
             >
@@ -212,7 +248,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </div>
 
           {(adding || editingId) && (
-            <div className="mt-4">
+            <div ref={formRef} className="mt-4 scroll-mt-20">
               {(() => {
                 const ed = editingId
                   ? expenses.find((e) => e.id === editingId)
@@ -332,6 +368,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         onClick={() => {
                           setAdding(false);
                           setEditingId(e.id);
+                          focusForm();
                         }}
                         aria-pressed={editingId === e.id}
                         className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
