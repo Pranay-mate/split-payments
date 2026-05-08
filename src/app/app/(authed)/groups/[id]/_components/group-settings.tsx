@@ -15,9 +15,12 @@ type GroupForSettings = {
 export function GroupSettings({
   group,
   expenseCount,
+  isCreator,
 }: {
   group: GroupForSettings;
   expenseCount: number;
+  /** Only the group creator can delete the whole group. */
+  isCreator: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -151,18 +154,20 @@ export function GroupSettings({
                   >
                     <LogOut className="h-3.5 w-3.5" aria-hidden /> Leave group
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm(`Delete "${group.name}"? Everyone loses access. This cannot be undone.`)) {
-                        deleteMutation.mutate({ id: group.id });
-                      }
-                    }}
-                    disabled={deleteMutation.isPending}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete group
-                  </button>
+                  {isCreator && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Delete "${group.name}"? Everyone loses access. This cannot be undone.`)) {
+                          deleteMutation.mutate({ id: group.id });
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete group
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

@@ -170,6 +170,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const group = groupQuery.data;
   const members = membersQuery.data ?? [];
   const expenses = expensesQuery.data ?? [];
+  const isCreator = !!meQuery.data && group.createdBy === meQuery.data.id;
 
   return (
     <main className="flex-1">
@@ -216,6 +217,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     primaryCurrency: group.primaryCurrency,
                   }}
                   expenseCount={expenses.length}
+                  isCreator={isCreator}
                 />
               </div>
             </div>
@@ -489,7 +491,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       </span>
                     )}
                   </span>
-                  {isGuest && (
+                  {isGuest && isCreator && (
                     <button
                       type="button"
                       onClick={() =>
@@ -506,7 +508,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       <Link2 className="h-3 w-3" aria-hidden />
                     </button>
                   )}
-                  {!isSelf && (
+                  {!isSelf && (isGuest || isCreator) && (
                     <button
                       type="button"
                       onClick={() => {

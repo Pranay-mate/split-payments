@@ -35,6 +35,30 @@ async function ensureMembership(groupId: string, userId: string) {
   }
 }
 
+/**
+ * Check that `userId` is the group's creator. Used for destructive /
+ * identity-sensitive actions (removing real members, deleting the group,
+ * generating claim links). Membership is implied — if you're the creator
+ * you're a member.
+ */
+async function requireCreator(groupId: string, userId: string) {
+  const [grp] = await db
+    .select({ createdBy: groups.createdBy })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1);
+  if (!grp) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Group not found" });
+  }
+  if (grp.createdBy !== userId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Only the group creator can do this.",
+    });
+  }
+  return grp.createdBy;
+}
+
 export const groupsRouter = router({
   /** Lists all groups the current user is a member of. */
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -215,11 +239,11 @@ export const groupsRouter = router({
       return updated;
     }),
 
-  /** Soft-delete a group. Any member can delete; cascades drop on the DB side. */
+  /** Soft-delete a group. Creator-only; cascades drop on the DB side. */
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await ensureMembership(input.id, ctx.user.id);
+      await requireCreator(input.id, ctx.user.id);
       await db
         .update(groups)
         .set({ deletedAt: new Date() })
@@ -233,7 +257,13 @@ export const groupsRouter = router({
       return { ok: true };
     }),
 
-  /** Remove a member from a group. Cannot remove yourself (use `leave` instead). */
+  /**
+   * Remove a member from a group. Trust model:
+   *   - real auth users → creator only
+   *   - guest (shadow) profiles → any group member (no real identity to
+   *     protect; trivially re-addable by name).
+   * Self-removal is rejected — use `leave` instead.
+   */
   removeMember: protectedProcedure
     .input(
       z.object({
@@ -249,8 +279,18 @@ export const groupsRouter = router({
           message: "Use 'Leave group' to remove yourself.",
         });
       }
-      // Don't allow removing the only other member if the group needs ≥1.
-      // For v1, no minimum-members rule; just hard-delete the membership row.
+
+      const [target] = await db
+        .select({ isGuest: profiles.isGuest })
+        .from(profiles)
+        .where(eq(profiles.id, input.userId))
+        .limit(1);
+
+      // Guests can be removed by any member; auth users only by creator.
+      if (!target?.isGuest) {
+        await requireCreator(input.groupId, ctx.user.id);
+      }
+
       await db
         .delete(groupMembers)
         .where(
@@ -263,7 +303,7 @@ export const groupsRouter = router({
         groupId: input.groupId,
         eventType: "member.removed",
         actorId: ctx.user.id,
-        payload: { removedUserId: input.userId },
+        payload: { removedUserId: input.userId, wasGuest: !!target?.isGuest },
       });
       return { ok: true };
     }),
@@ -337,9 +377,9 @@ export const groupsRouter = router({
     }),
 
   /**
-   * Create a single-use claim token for a guest. The caller copies the
-   * resulting token (or full URL via window.location.origin + /claim/<token>)
-   * and shares it out-of-band with the real person.
+   * Create a single-use claim token for a guest. Creator-only — clicking
+   * a claim link absorbs the guest's history into the clicker's account,
+   * which is identity-sensitive enough to gate on group ownership.
    */
   createClaimToken: protectedProcedure
     .input(
@@ -349,7 +389,7 @@ export const groupsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await ensureMembership(input.groupId, ctx.user.id);
+      await requireCreator(input.groupId, ctx.user.id);
 
       const [shadow] = await db
         .select({ id: profiles.id, isGuest: profiles.isGuest })
