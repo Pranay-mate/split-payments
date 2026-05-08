@@ -50,13 +50,13 @@ const GroupCharts = dynamic(
   },
 );
 
-const RECENT_EXPENSE_COUNT = 10;
+const PAGE_SIZE = 5;
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
-  const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
   const [showCharts, setShowCharts] = useState(false);
   const [guestName, setGuestName] = useState("");
@@ -198,9 +198,10 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     | { kind: "day"; key: string; label: string; total: number; count: number }
     | { kind: "expense"; expense: ExpenseRow };
 
-  const visibleExpenses = showAllExpenses
-    ? expenses
-    : expenses.slice(0, RECENT_EXPENSE_COUNT);
+  // Pagination only applies in Recent mode — By day mode is already
+  // visually broken up by date headers so truncating there fights the layout.
+  const visibleExpenses =
+    viewMode === "byDay" ? expenses : expenses.slice(0, visibleCount);
 
   const displayItems: DisplayItem[] = (() => {
     if (viewMode === "recent") {
@@ -617,17 +618,39 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 );
               })}
             </ul>
-            {expenses.length > RECENT_EXPENSE_COUNT && (
-              <button
-                type="button"
-                onClick={() => setShowAllExpenses((v) => !v)}
-                className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                {showAllExpenses
-                  ? `Show recent ${RECENT_EXPENSE_COUNT}`
-                  : `View all ${expenses.length} expenses`}
-              </button>
+            {viewMode === "recent" && expenses.length > visibleCount && (
+              <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleCount((n) =>
+                      Math.min(n + PAGE_SIZE, expenses.length),
+                    )
+                  }
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
+                >
+                  Show {Math.min(PAGE_SIZE, expenses.length - visibleCount)} more
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(expenses.length)}
+                  className="text-xs font-medium text-emerald-600 transition hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                >
+                  Show all {expenses.length}
+                </button>
+              </div>
             )}
+            {viewMode === "recent" &&
+              visibleCount > PAGE_SIZE &&
+              visibleCount >= expenses.length && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(PAGE_SIZE)}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Show recent {PAGE_SIZE}
+                </button>
+              )}
             </>
           )}
         </section>
