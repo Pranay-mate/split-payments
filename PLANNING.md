@@ -2,7 +2,7 @@
 
 > Phased roadmap with **per-task status**. Updated as we ship. PLANNING.html mirrors this — keep them in sync.
 
-**Last updated:** 2026-05-09
+**Last updated:** 2026-05-09 (latest push)
 **Live:** https://split-payments-sigma.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 **Status legend:** ✅ done · 🟡 in progress · ⬜ not started · ⏸ blocked (waiting on something)
@@ -43,8 +43,8 @@
 | Group settings (rename, change currency) | ✅ |
 | Leave group / kick members | ✅ |
 | Members list | ✅ |
-| Guest members (no-signup) + single-use claim links | ✅ (`/app/claim/[token]`, transactional shadow→auth migration) |
-| Creator-only permissions for remove/delete/claim | ✅ (auth-user removal, group delete, claim-link generation) |
+| Guest members (no-signup) + single-use claim links | 🟡 needs manual verify (shipped — needs end-to-end test with two real Google accounts) |
+| Creator-only permissions for remove/delete/claim | 🟡 needs manual verify (shipped — verify a non-creator member's UI hides the gated buttons) |
 
 ### Phase 1.C — Expenses
 
@@ -53,7 +53,7 @@
 | Add expense (payer, amount, currency, date, who-shares) | ✅ |
 | FX conversion at entry time (free FX API) | ✅ (open.er-api.com, server-side validated, 6h cache) |
 | Split modes: equal · exact · share · percent | 🟡 (equal + exact done; share + percent reserved in enum) |
-| Itemized bill split (one expense, many line items) | 🟡 (schema + server done; UI in flight) |
+| Itemized bill split (one expense, many line items) | 🟡 needs manual verify (shipped) |
 | Categories (7 predefined: Food/Travel/Stay/Groceries/Bills/Entertainment/Other) | ✅ |
 | Edit expense | ✅ (Pencil icon → form prefills → Save changes) |
 | Delete expense | ✅ |
@@ -157,23 +157,85 @@
 
 ## Phase 2 — UX wins
 
+> **Status note (2026-05-09):** several items below are marked ✅ because the
+> code shipped + CI passed, but the user hasn't yet manually verified them in
+> production. Items needing real-device / multi-account verification are
+> tagged `🟡 needs manual verify` so they don't get forgotten.
+
 | Task | Status |
 |---|---|
-| Receipt photo upload (Supabase Storage) | ⏸ |
 | Categories (7 predefined buckets) | ✅ (Phase 1.C) |
-| **Charts & visualisations** (Recharts; UX principles below) | ✅ |
-| ↳ Per-member contribution bar at top of group page | ✅ ("Who's paying" custom HTML list with gradient bars) |
-| ↳ Balance bars (green = gets · red = owes) replacing text rows | ⏸ |
-| ↳ Settlement progress ring ("65% settled") | ⏸ |
-| ↳ Spend-by-category donut | ✅ (donut with center emoji + percentage) |
-| ↳ Daily-spend area chart with peak callout | ✅ |
-| ↳ Hero KPI band (total · expenses · days · daily avg) | ✅ |
-| Recurring expenses (rent, subs) | ⏸ (deferred per user) |
-| Bulk-split: one bill across multiple line items | 🟡 (Phase 1.C — itemized; UI in flight) |
-| Export group to CSV / PDF | ⏸ |
-| Trip mode: daily summary, per-day spend | ✅ ("By day" toggle on expense list with per-day totals) |
+| Auto-detect category from description (local keywords, ~150 rules) | ✅ |
+| **Charts & visualisations** (Recharts; UX principles below) | 🟡 needs manual verify |
+| ↳ Per-member contribution bar at top of group page | ✅ |
+| ↳ Balance bars (green = gets · red = owes) replacing text rows | ✅ |
+| ↳ Settlement progress ring ("65% settled") | ✅ |
+| ↳ Spend-by-category donut | 🟡 needs manual verify |
+| ↳ Daily-spend area chart with peak callout | 🟡 needs manual verify |
+| ↳ Hero KPI band (total · expenses · days · daily avg) | 🟡 needs manual verify |
+| ↳ Hero KPI band on group landing | ✅ (shipped via Charts redesign) |
+| Bulk-split: one bill across multiple line items (itemized) | 🟡 needs manual verify (shipped, awaiting end-to-end test on real group) |
+| Export group to CSV / PDF | 🟡 needs manual verify |
+| Trip mode: daily summary, per-day spend | ✅ |
 | Historical FX rates (lock per-expense at entry) | ✅ done in 1.C |
-| View balances in any currency (not just primary) | ⏸ |
+
+### Future scope (Phase 2 deferred / Phase 3 candidates)
+
+> Explicitly carried over from Phase 2 by user decision. Not on the
+> active roadmap — captured here so they aren't lost.
+
+| Task | Note |
+|---|---|
+| Receipt photo upload (Supabase Storage) | Future scope. Storage bucket + thumbnail in expense row. Likely ~2h. |
+| Recurring expenses (rent, subs) | Future scope (deferred per user). Needs cron-triggered materialization OR on-open generation; template UI for editing rules; handles membership changes. ~3–4h. |
+| View balances in any currency (not just primary) | Future scope. Per-user currency preference + on-the-fly conversion of balance display via cached FX. ~1h. |
+
+---
+
+## Phase 2.5 — Personal Finance Tracker (planned)
+
+> A second product inside EasySplits: track *your own* monthly income +
+> expenses + investments, separately from the group splitting. Insights
+> about spending patterns + wealth creation. Reuses existing categories,
+> charts, and offline-queue infrastructure.
+
+### Data model (proposed)
+
+| Table | Purpose | Status |
+|---|---|---|
+| `personal_entries` | user_id · type (income/expense/investment) · amount · currency · category · occurred_at · note · recurring_id? | ⬜ |
+| `personal_recurrences` | user_id · kind (salary/rent/sip/etc.) · schedule · next_due · amount · category | ⬜ |
+| `personal_holdings` (optional) | mutual fund / FD / stock positions: symbol/AMC · units · NAV-as-of | ⬜ Phase 3 candidate |
+| Reuse existing `profiles` + `categories` (extend with Income, Investment, Tax) | | ⬜ |
+
+### Routes + UI (proposed)
+
+| Route | Purpose | Status |
+|---|---|---|
+| `/app/personal` | Dashboard: this month's spend vs income, savings rate, top categories | ⬜ |
+| `/app/personal/transactions` | Full ledger, monthly grouping, filters by category/type | ⬜ |
+| `/app/personal/insights` | Auto-generated narratives ("food up 35% MoM", "savings rate 22%"), goal tracking | ⬜ |
+| `/app/personal/wealth` | Net-worth tracker, investment positions, growth chart | ⬜ Phase 3 candidate |
+
+### Insights to surface (planned)
+
+- Monthly summary card — income · expenses · savings · savings %
+- Category drift — "Food spending +35% vs 6-month avg"
+- Recurring-vs-discretionary split (rent + bills + subs vs everything else)
+- Wealth trajectory — net-worth chart, savings goal progress *(Phase 3 candidate)*
+- Smart nudges — "You'd hit your goal 4mo earlier if you cut Entertainment by 20%" *(LLM-driven, Phase 3)*
+
+### Reused infra (free wins)
+
+- Categories (extend with Income / Investment / Tax) — already shipped
+- Recharts panel (donut · area · bars) — already shipped
+- CSV / PDF export — already shipped
+- Offline queue + clientEventId idempotency — already shipped
+- Auto-detect category (~150 keyword rules) — already shipped
+
+**Effort:** ~2 weeks for v1 (transactions + dashboard + monthly insights). Wealth tracking is a separate Phase 3 push.
+
+---
 
 ### Charts UX principles (when Phase 2 charts ship)
 
@@ -277,3 +339,9 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-09 | **Charts panel** (recharts, lazy-loaded): pie of categories, bar of daily spend, paid-by horizontal bars. Default-collapsed. |
 | 2026-05-09 | **Charts redesign for hierarchy + delight**: hero KPI band (total + 3 frosted tiles), donut with center emoji + percentage, gradient area chart with peak callout, custom HTML "Who's paying" list with per-payer gradient bars + Top badge. |
 | 2026-05-09 | Bug fix: `expenses.update` was rejecting any expense that included an ex-member in its splits or payer with a misleading FORBIDDEN. Now grandfathers existing split userIds + the original payer through. |
+| 2026-05-09 | **Itemized bill split**: new `expense_items` table (with `sharer_ids uuid[]` so a single table covers it). `splitsFromItems` helper (server + client mirrored) computes per-user totals with paisa-residual adjustment. AddExpense gains an "Itemized" mode alongside Equal / Exact ₹. |
+| 2026-05-09 | Expense list: progressive 5-at-a-time pagination — default 5 visible, "Show 5 more" / "Show all N", "Show recent 5" reset link. Recent-mode only; By-day mode unchanged. |
+| 2026-05-09 | **Group export**: CSV (multi-section, no deps) + PDF (jspdf, lazy-loaded). Buttons in their own section card. |
+| 2026-05-09 | **Group page UX trio**: contribution bar (stacked horizontal, who paid what %), balance bars replacing text rows (green/red gradient widths), and settlement progress ring inside BalancesView (% settled). |
+| 2026-05-09 | **Auto-detect category** from description: ~150 keyword rules in `category-detect.ts` covering Indian brands (Swiggy, Zomato, Blinkit, Ola, IRCTC, BookMyShow…). User's manual chip click locks in their pick. |
+| 2026-05-09 | Planning: added **Phase 2.5 — Personal Finance Tracker** section. Separate product within EasySplits for individual income/expense tracking + wealth-creation insights. Carried Receipt photos, Recurring expenses, "View balances in any currency" into a dedicated Future scope block. |

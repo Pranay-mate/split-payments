@@ -92,7 +92,7 @@
   <h1>EasySplits — PLANNING</h1>
   <p class="lead">Splitwise alternative. Free + ads, India-default + multi-currency, offline-capable PWA, SEO-first.</p>
   <p class="meta">
-    Updated <strong>2026-05-09</strong> ·
+    Updated <strong>2026-05-09</strong> (latest push) ·
     <span class="badge badge-ok">Phase 1 ~95% done</span> ·
     <span class="badge badge-info">Live: <a href="https://split-payments-sigma.vercel.app" style="color:inherit">split-payments-sigma.vercel.app</a></span>
   </p>
@@ -143,8 +143,8 @@
     <tr><td class="task">Leave group / kick members</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Members list</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Top-app group switcher</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">Guest members (no-signup) + single-use claim links (<code>/app/claim/[token]</code>)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">Creator-only permissions for remove/delete/claim</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Guest members (no-signup) + single-use claim links (<code>/app/claim/[token]</code>)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify (two real Google accounts)</span></td></tr>
+    <tr><td class="task">Creator-only permissions for remove/delete/claim</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify (non-creator UI)</span></td></tr>
   </tbody></table>
 
   <h3>1.C — Expenses <span class="badge badge-ok">~95%</span></h3>
@@ -158,7 +158,8 @@
     <tr><td class="task">Per-expense history (events.listByExpense)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Activity feed (group-level, mobile-redesigned)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Categories (7 predefined: Food/Travel/Stay/Groceries/Bills/Entertainment/Other)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">Itemized bill split (one expense, many line items)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>schema + server done · UI in flight</span></td></tr>
+    <tr><td class="task">Itemized bill split (one expense, many line items)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify (end-to-end on a real bill)</span></td></tr>
+    <tr><td class="task">Auto-detect category from description (~150 keyword rules)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
   </tbody></table>
 
   <h3>1.D — Balances + Simplify Payments <span class="badge badge-ok">complete</span></h3>
@@ -239,22 +240,64 @@
 
   <h2>Phase 2 — UX wins (gated until Phase 1 fully ships)</h2>
   <table><tbody>
-    <tr><td class="task">Receipt photo upload (Supabase Storage)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">Categories (7 predefined buckets — done in 1.C)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task"><strong>Charts &amp; visualisations</strong> (Recharts, lazy-loaded; redesigned with hero KPI + donut + area + custom payer list)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>Charts &amp; visualisations</strong> (Recharts, lazy-loaded; redesigned with hero KPI + donut + area + custom payer list)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify</span></td></tr>
     <tr><td class="task">↳ Per-member contribution bar at top of group page</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">↳ Balance bars (green = gets · red = owes) replacing text rows</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">↳ Settlement progress ring ("65% settled")</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">↳ Spend-by-category donut</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">↳ Daily-spend area chart with peak callout</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">↳ Hero KPI band (total · expenses · days · daily avg)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">Recurring expenses (rent, subs) — deferred per user</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Bulk-split (one bill, multiple line items)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>schema + server done · UI in flight</span></td></tr>
-    <tr><td class="task">Export to CSV / PDF</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">↳ Per-member contribution bar at top of group page</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">↳ Balance bars (green = gets · red = owes) replacing text rows</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">↳ Settlement progress ring (% settled)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">↳ Spend-by-category donut</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify</span></td></tr>
+    <tr><td class="task">↳ Daily-spend area chart with peak callout</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify</span></td></tr>
+    <tr><td class="task">↳ Hero KPI band (total · expenses · days · daily avg)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify</span></td></tr>
+    <tr><td class="task">Bulk-split (one bill, multiple line items — itemized)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify</span></td></tr>
+    <tr><td class="task">Export to CSV / PDF</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify</span></td></tr>
     <tr><td class="task">Trip mode (daily summary, per-day spend) — &quot;By day&quot; toggle on expense list</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Historical FX rates (lock per-expense at entry)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done (in 1.C)</span></td></tr>
-    <tr><td class="task">View balances in any currency</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
   </tbody></table>
+
+  <h3>Future scope (Phase 2 deferred / Phase 3 candidates)</h3>
+  <p class="meta">Carried over from Phase 2 by user decision. Not on the active roadmap — captured here so they aren't lost.</p>
+  <table><tbody>
+    <tr><td class="task">Receipt photo upload (Supabase Storage)</td><td class="status">Future scope. Storage bucket + thumbnail in expense row. ~2h.</td></tr>
+    <tr><td class="task">Recurring expenses (rent, subs)</td><td class="status">Future scope (deferred per user). Cron OR on-open materialization; template UI; membership-change handling. ~3–4h.</td></tr>
+    <tr><td class="task">View balances in any currency (not just primary)</td><td class="status">Future scope. Per-user currency preference + on-the-fly conversion of balance display via cached FX. ~1h.</td></tr>
+  </tbody></table>
+
+  <h2>Phase 2.5 — Personal Finance Tracker <span class="badge">planned</span></h2>
+  <p class="meta">A second product inside EasySplits: track <em>your own</em> monthly income + expenses + investments, separately from the group splitting. Insights about spending patterns + wealth creation. Reuses existing categories, charts, and offline-queue infrastructure.</p>
+  <h3>Data model (proposed)</h3>
+  <table><tbody>
+    <tr><td class="task">New table: <code>personal_entries</code> (user_id, type=income/expense/investment, amount, currency, category, occurred_at, note, recurring_id?)</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task">New table: <code>personal_recurrences</code> (user_id, kind=salary/rent/sip/etc., schedule, next_due, amount, category)</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task">Optional: <code>personal_holdings</code> for investment tracking (mutual funds, FDs, stocks — symbol/AMC, units, NAV-as-of)</td><td class="status">⬜ phase 3 candidate</td></tr>
+    <tr><td class="task">Reuse existing <code>profiles</code>, <code>categories</code> (extend with Income, Investment, Tax)</td><td class="status">⬜ not started</td></tr>
+  </tbody></table>
+  <h3>Routes + UI (proposed)</h3>
+  <table><tbody>
+    <tr><td class="task"><code>/app/personal</code> — dashboard: this month's spend vs income, savings rate, top categories</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task"><code>/app/personal/transactions</code> — full ledger, by month, filters by category/type</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task"><code>/app/personal/insights</code> — auto-generated narratives ("food up 35% MoM", "savings rate 22%"), goal tracking</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task"><code>/app/personal/wealth</code> — net-worth tracker, investment positions, growth chart over time</td><td class="status">⬜ phase 3 candidate</td></tr>
+  </tbody></table>
+  <h3>Insights to surface (planned)</h3>
+  <table><tbody>
+    <tr><td class="task">Monthly summary card — income · expenses · savings · savings %</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task">Category drift — &quot;Food spending +35% vs 6-month avg&quot;</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task">Recurring-vs-discretionary split (rent + bills + subs vs everything else)</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task">Wealth trajectory — net-worth chart, savings goal progress</td><td class="status">⬜ phase 3 candidate</td></tr>
+    <tr><td class="task">Smart nudges — &quot;You'd hit your goal 4mo earlier if you cut Entertainment by 20%&quot;</td><td class="status">⬜ phase 3 candidate (LLM-driven)</td></tr>
+  </tbody></table>
+  <h3>Reused infra (free wins)</h3>
+  <table><tbody>
+    <tr><td class="task">Categories (with Income / Investment / Tax added)</td><td class="status">✅ existing</td></tr>
+    <tr><td class="task">Recharts panel (donut · area · bars)</td><td class="status">✅ existing</td></tr>
+    <tr><td class="task">CSV / PDF export</td><td class="status">✅ existing</td></tr>
+    <tr><td class="task">Offline queue + clientEventId idempotency</td><td class="status">✅ existing</td></tr>
+    <tr><td class="task">Auto-detect category (~150 keyword rules)</td><td class="status">✅ existing</td></tr>
+  </tbody></table>
+  <p class="meta">Effort estimate: <strong>~2 weeks</strong> for v1 (transactions + dashboard + monthly insights). Wealth tracking is a separate Phase 3 push.</p>
 
   <h3>Charts UX principles (when Phase 2 charts ship)</h3>
   <table><tbody>
@@ -331,6 +374,12 @@
       <tr><td>2026-05-09</td><td><strong>Charts panel</strong> (recharts, lazy-loaded): pie of categories, bar of daily spend, paid-by horizontal bars. Default-collapsed.</td></tr>
       <tr><td>2026-05-09</td><td><strong>Charts redesign for hierarchy + delight</strong>: hero KPI band, donut with center emoji + percentage, gradient area chart with peak callout, custom HTML "Who's paying" list with per-payer gradient bars + Top badge.</td></tr>
       <tr><td>2026-05-09</td><td>Bug fix: <code>expenses.update</code> was rejecting any expense whose splits/payer included an ex-member with a misleading FORBIDDEN. Now grandfathers existing split userIds + the original payer through.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Itemized bill split</strong>: new <code>expense_items</code> table (with <code>sharer_ids uuid[]</code>). <code>splitsFromItems</code> helper (server + client mirrored) computes per-user totals with paisa-residual adjustment. AddExpense gains an &quot;Itemized&quot; mode alongside Equal / Exact ₹.</td></tr>
+      <tr><td>2026-05-09</td><td>Expense list: progressive 5-at-a-time pagination — default 5 visible, &quot;Show 5 more&quot; / &quot;Show all N&quot;, &quot;Show recent 5&quot; reset link. Recent-mode only.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Group export</strong>: CSV (multi-section, no deps) + PDF (jspdf, lazy-loaded). Buttons in their own section card.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Group page UX trio</strong>: contribution bar (stacked horizontal, who paid what %), balance bars replacing text rows (green/red gradient widths), and settlement progress ring inside BalancesView (% settled).</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Auto-detect category</strong> from description: ~150 keyword rules in <code>category-detect.ts</code> covering Indian brands (Swiggy, Zomato, Blinkit, Ola, IRCTC, BookMyShow…). User's manual chip click locks in their pick.</td></tr>
+      <tr><td>2026-05-09</td><td>Planning: added <strong>Phase 2.5 — Personal Finance Tracker</strong> section. Separate product within EasySplits for individual income/expense tracking + wealth-creation insights. Carried Receipt photos, Recurring expenses, &quot;View balances in any currency&quot; into a dedicated Future Scope block.</td></tr>
     </tbody>
   </table>
 </div>
