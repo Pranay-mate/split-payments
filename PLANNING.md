@@ -228,3 +228,7 @@
 | 2026-05-07 | Settlements router + UI: "Mark as paid" auto-shrinks suggestions, settlement history with undo. /app/join/[token] one-tap invite landing. summariseTrip extended to fold recorded settlements. 39 tests. |
 | 2026-05-07 | Edit expense (Pencil → prefilled form → Save changes). Refactored expenses.listByGroup to use Drizzle inArray instead of raw SQL ANY. |
 | 2026-05-07 | **Multi-currency expenses**: currency picker + live FX preview + server-side rate fetch. 12 currencies via open.er-api.com (free, no key). Splits auto-converted to primary, balances stay coherent. Editing shows original amount + back-converts exact splits. |
+| 2026-05-08 | Server-render groups list (saves a round-trip on /app/groups). |
+| 2026-05-08 | **6 quick-wins**: group settings, members kick/leave, group switcher, delete-account, comments, activity feed. New `expense_comments` table. Event log writes on every mutation. |
+| 2026-05-08 | 4 use-case SEO pages: split-rent, trip-expenses, roommate-utilities, group-dinner. |
+| 2026-05-08 | **Phase 1.E offline event queue** (MVP): IndexedDB queue via Dexie, online/offline detection, replay-on-reconnect, UI indicator. Wired into expense add/edit. |

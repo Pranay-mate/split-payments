@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc/client";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
 import { COMMON_CURRENCIES, getRate } from "@/lib/fx";
+import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 const EPSILON = 0.01;
 
@@ -111,24 +112,21 @@ export function AddExpense({
   );
   const exactDelta = numericAmount - exactTotal;
 
-  const createMutation = trpc.expenses.create.useMutation({
-    onSuccess: () => {
-      setDescription("");
-      setAmount("");
-      setExactByPerson({});
-      setSplitMode("equal");
-      setSharerIds(members.map((m) => m.id));
-      onSuccess();
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  const createMutation = trpc.expenses.create.useMutation();
+  const updateMutation = trpc.expenses.update.useMutation();
 
-  const updateMutation = trpc.expenses.update.useMutation({
-    onSuccess: () => onSuccess(),
-    onError: (err) => toast.error(err.message),
-  });
+  const submitCreate = useMutationWithQueue("expenses.create", createMutation);
+  const submitUpdate = useMutationWithQueue("expenses.update", updateMutation);
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const resetForm = () => {
+    setDescription("");
+    setAmount("");
+    setExactByPerson({});
+    setSplitMode("equal");
+    setSharerIds(members.map((m) => m.id));
+  };
 
   const buildSplits = () => {
     if (splitMode === "equal") {
@@ -195,28 +193,35 @@ export function AddExpense({
     if (allSelected) setExactByPerson({});
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!valid) return;
-    if (editing) {
-      updateMutation.mutate({
-        id: editing.id,
-        description: description.trim(),
-        amount: numericAmount,
-        currency,
-        payerId,
-        splitMode,
-        splits: buildSplits(),
-      });
-    } else {
-      createMutation.mutate({
-        groupId,
-        description: description.trim(),
-        amount: numericAmount,
-        currency,
-        payerId,
-        splitMode,
-        splits: buildSplits(),
-      });
+    try {
+      if (editing) {
+        await submitUpdate({
+          id: editing.id,
+          description: description.trim(),
+          amount: numericAmount,
+          currency,
+          payerId,
+          splitMode,
+          splits: buildSplits(),
+        });
+      } else {
+        await submitCreate({
+          groupId,
+          description: description.trim(),
+          amount: numericAmount,
+          currency,
+          payerId,
+          splitMode,
+          splits: buildSplits(),
+        });
+        resetForm();
+      }
+      onSuccess();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Save failed";
+      toast.error(message);
     }
   };
 

@@ -7,7 +7,9 @@ import { SITE } from "@/lib/site";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { SiteHeader } from "@/components/site-header";
 import { InstallPrompt } from "@/components/install-prompt";
+import { OfflineIndicator } from "@/components/offline-indicator";
 import { TrpcProvider } from "@/lib/trpc/client";
+import { OfflineProvider } from "@/lib/offline/use-offline";
 import "./globals.css";
 
 const sans = Geist({ variable: "--font-sans", subsets: ["latin"] });
@@ -70,15 +72,18 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <TrpcProvider>
-          <SiteHeader />
-          {children}
-          <InstallPrompt />
-          <Toaster
-            position="bottom-center"
-            richColors
-            closeButton
-            toastOptions={{ classNames: { toast: "rounded-xl" } }}
-          />
+          <OfflineProvider>
+            <SiteHeader />
+            {children}
+            <OfflineIndicator />
+            <InstallPrompt />
+            <Toaster
+              position="bottom-center"
+              richColors
+              closeButton
+              toastOptions={{ classNames: { toast: "rounded-xl" } }}
+            />
+          </OfflineProvider>
         </TrpcProvider>
         <ServiceWorkerRegister />
         <Analytics />
