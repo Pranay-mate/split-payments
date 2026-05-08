@@ -155,6 +155,26 @@ export const expenseSplits = pgTable(
   ],
 );
 
+export const expenseComments = pgTable(
+  "expense_comments",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    expenseId: uuid("expense_id")
+      .notNull()
+      .references(() => expenses.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("expense_comments_expense_idx").on(t.expenseId),
+  ],
+);
+
 export const settlements = pgTable(
   "settlements",
   {
@@ -219,5 +239,6 @@ export type Group = typeof groups.$inferSelect;
 export type GroupMember = typeof groupMembers.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type ExpenseSplit = typeof expenseSplits.$inferSelect;
+export type ExpenseComment = typeof expenseComments.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
 export type Event = typeof events.$inferSelect;

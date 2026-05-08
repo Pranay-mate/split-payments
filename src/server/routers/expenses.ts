@@ -10,6 +10,7 @@ import {
   groups,
 } from "@/lib/db/schema";
 import { getRate, isReasonableRate } from "@/lib/fx";
+import { logEvent } from "../events";
 
 const splitSchema = z.object({
   userId: z.string().uuid(),
@@ -207,6 +208,18 @@ export const expensesRouter = router({
           })),
         );
 
+        await logEvent({
+          groupId: input.groupId,
+          eventType: "expense.added",
+          actorId: ctx.user.id,
+          payload: {
+            expenseId: expense.id,
+            description: expense.description,
+            amount: input.amount,
+            currency: input.currency,
+          },
+        });
+
         return expense;
       });
     }),
@@ -297,6 +310,18 @@ export const expensesRouter = router({
           })),
         );
 
+        await logEvent({
+          groupId: existing.groupId,
+          eventType: "expense.updated",
+          actorId: ctx.user.id,
+          payload: {
+            expenseId: input.id,
+            description: input.description,
+            amount: input.amount,
+            currency: input.currency,
+          },
+        });
+
         return updated;
       });
     }),
@@ -319,6 +344,14 @@ export const expensesRouter = router({
 
       // Anyone in the group can delete for v1; tighten later if needed.
       await db.delete(expenses).where(eq(expenses.id, input.id));
+
+      await logEvent({
+        groupId: expense.groupId,
+        eventType: "expense.deleted",
+        actorId: ctx.user.id,
+        payload: { expenseId: input.id, description: expense.description },
+      });
+
       return { ok: true };
     }),
 });

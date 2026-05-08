@@ -5,12 +5,14 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
+  MessageSquare,
   Pencil,
   Plus,
   Receipt,
   Share2,
   Trash2,
   Users,
+  UserMinus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -22,16 +24,29 @@ import {
 import { formatINR } from "@/lib/format";
 import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
+import { GroupSettings } from "./group-settings";
+import { CommentsThread } from "./comments-thread";
+import { ActivityFeed } from "./activity-feed";
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [commentingOn, setCommentingOn] = useState<string | null>(null);
 
+  const meQuery = trpc.profiles.me.useQuery();
   const groupQuery = trpc.groups.byId.useQuery({ id: groupId });
   const membersQuery = trpc.groups.members.useQuery({ groupId });
   const expensesQuery = trpc.expenses.listByGroup.useQuery({ groupId });
   const settlementsQuery = trpc.settlements.listByGroup.useQuery({ groupId });
   const utils = trpc.useUtils();
+
+  const removeMemberMutation = trpc.groups.removeMember.useMutation({
+    onSuccess: () => {
+      utils.groups.members.invalidate({ groupId });
+      toast.success("Member removed");
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const deleteMutation = trpc.expenses.delete.useMutation({
     onSuccess: () => {
@@ -138,13 +153,23 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 <span>{formatINR(summary?.totalSpent ?? 0, 0)} total · {group.primaryCurrency}</span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={copyInviteLink}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <Share2 className="h-3.5 w-3.5" aria-hidden /> Invite
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={copyInviteLink}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Share2 className="h-3.5 w-3.5" aria-hidden /> Invite
+              </button>
+              <GroupSettings
+                group={{
+                  id: group.id,
+                  name: group.name,
+                  primaryCurrency: group.primaryCurrency,
+                }}
+                expenseCount={expenses.length}
+              />
+            </div>
           </div>
         </div>
 
@@ -240,12 +265,13 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 return (
                   <li
                     key={e.id}
-                    className={`animate-row-in flex items-start justify-between gap-3 rounded-xl border p-3 transition ${
+                    className={`animate-row-in rounded-xl border p-3 transition ${
                       editingId === e.id
                         ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/30"
                         : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"
                     }`}
                   >
+                    <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         {e.description || "Expense"}
@@ -262,6 +288,21 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCommentingOn((id) => (id === e.id ? null : e.id))
+                        }
+                        aria-pressed={commentingOn === e.id}
+                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
+                          commentingOn === e.id
+                            ? "bg-violet-500 text-white"
+                            : "text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        }`}
+                        aria-label="Show comments"
+                      >
+                        <MessageSquare className="h-4 w-4" aria-hidden />
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -293,6 +334,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         <Trash2 className="h-4 w-4" aria-hidden />
                       </button>
                     </div>
+                    </div>
+                    {commentingOn === e.id && meQuery.data?.id && (
+                      <CommentsThread
+                        expenseId={e.id}
+                        currentUserId={meQuery.data.id}
+                        memberById={memberById}
+                      />
+                    )}
                   </li>
                 );
               })}
@@ -306,25 +355,48 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             Members
           </h2>
           <ul className="mt-4 flex flex-wrap gap-2">
-            {members.map((m) => (
-              <li
-                key={m.userId}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm dark:border-slate-700 dark:bg-slate-800"
-              >
-                <span
-                  className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 text-[10px] font-semibold text-white"
-                  aria-hidden
+            {members.map((m) => {
+              const isSelf = m.userId === meQuery.data?.id;
+              return (
+                <li
+                  key={m.userId}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-3 pr-1 text-sm dark:border-slate-700 dark:bg-slate-800"
                 >
-                  {m.displayName.slice(0, 1).toUpperCase()}
-                </span>
-                {m.displayName}
-              </li>
-            ))}
+                  <span
+                    className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 text-[10px] font-semibold text-white"
+                    aria-hidden
+                  >
+                    {m.displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span>{m.displayName}{isSelf ? " (you)" : ""}</span>
+                  {!isSelf && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Remove ${m.displayName} from this group?`)) {
+                          removeMemberMutation.mutate({
+                            groupId,
+                            userId: m.userId,
+                          });
+                        }
+                      }}
+                      disabled={removeMemberMutation.isPending}
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-rose-600 dark:hover:bg-slate-700"
+                      aria-label={`Remove ${m.displayName}`}
+                    >
+                      <UserMinus className="h-3 w-3" aria-hidden />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
             Tap <strong>Invite</strong> above to add others — they sign in once and join the group.
           </p>
         </section>
+
+        <ActivityFeed groupId={groupId} memberById={memberById} />
       </div>
     </main>
   );

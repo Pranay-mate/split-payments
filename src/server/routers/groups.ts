@@ -1,9 +1,16 @@
 import { z } from "zod";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
-import { groupMembers, groups, profiles } from "@/lib/db/schema";
+import {
+  expenses,
+  groupMembers,
+  groups,
+  profiles,
+  settlements,
+} from "@/lib/db/schema";
+import { logEvent } from "../events";
 
 const currencySchema = z
   .string()
@@ -130,7 +137,153 @@ export const groupsRouter = router({
         userId: ctx.user.id,
       });
 
+      await logEvent({
+        groupId: created.id,
+        eventType: "group.created",
+        actorId: ctx.user.id,
+        payload: { name: created.name, currency: created.primaryCurrency },
+      });
+
       return created;
+    }),
+
+  /** Update a group's name. Only group members can rename. */
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string().min(1).max(80).optional(),
+        primaryCurrency: currencySchema.optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.id, ctx.user.id);
+
+      // Block currency change if any expense or settlement exists — would
+      // invalidate stored convertedAmount values. Allowed only on empty groups.
+      if (input.primaryCurrency) {
+        const [{ value: expCount }] = await db
+          .select({ value: count() })
+          .from(expenses)
+          .where(eq(expenses.groupId, input.id));
+        const [{ value: setCount }] = await db
+          .select({ value: count() })
+          .from(settlements)
+          .where(eq(settlements.groupId, input.id));
+        if (expCount + setCount > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "Can't change currency once expenses or settlements exist. Create a new group instead.",
+          });
+        }
+      }
+
+      const [updated] = await db
+        .update(groups)
+        .set({
+          ...(input.name !== undefined && { name: input.name.trim() }),
+          ...(input.primaryCurrency !== undefined && {
+            primaryCurrency: input.primaryCurrency,
+          }),
+          updatedAt: new Date(),
+        })
+        .where(eq(groups.id, input.id))
+        .returning();
+
+      if (!updated) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to update group",
+        });
+      }
+
+      await logEvent({
+        groupId: input.id,
+        eventType: "group.updated",
+        actorId: ctx.user.id,
+        payload: {
+          ...(input.name && { newName: input.name.trim() }),
+          ...(input.primaryCurrency && { newCurrency: input.primaryCurrency }),
+        },
+      });
+
+      return updated;
+    }),
+
+  /** Soft-delete a group. Any member can delete; cascades drop on the DB side. */
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.id, ctx.user.id);
+      await db
+        .update(groups)
+        .set({ deletedAt: new Date() })
+        .where(eq(groups.id, input.id));
+      await logEvent({
+        groupId: input.id,
+        eventType: "group.deleted",
+        actorId: ctx.user.id,
+        payload: {},
+      });
+      return { ok: true };
+    }),
+
+  /** Remove a member from a group. Cannot remove yourself (use `leave` instead). */
+  removeMember: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string().uuid(),
+        userId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.groupId, ctx.user.id);
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Use 'Leave group' to remove yourself.",
+        });
+      }
+      // Don't allow removing the only other member if the group needs ≥1.
+      // For v1, no minimum-members rule; just hard-delete the membership row.
+      await db
+        .delete(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, input.groupId),
+            eq(groupMembers.userId, input.userId),
+          ),
+        );
+      await logEvent({
+        groupId: input.groupId,
+        eventType: "member.removed",
+        actorId: ctx.user.id,
+        payload: { removedUserId: input.userId },
+      });
+      return { ok: true };
+    }),
+
+  /** Leave a group. Removes the current user's membership. */
+  leave: protectedProcedure
+    .input(z.object({ groupId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.groupId, ctx.user.id);
+      await db
+        .delete(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, input.groupId),
+            eq(groupMembers.userId, ctx.user.id),
+          ),
+        );
+      await logEvent({
+        groupId: input.groupId,
+        eventType: "member.left",
+        actorId: ctx.user.id,
+        payload: {},
+      });
+      return { ok: true };
     }),
 
   /** Join an existing group via its invite token. */
@@ -157,10 +310,20 @@ export const groupsRouter = router({
         .onConflictDoNothing();
 
       // Idempotent join.
-      await db
+      const inserted = await db
         .insert(groupMembers)
         .values({ groupId: group.id, userId: ctx.user.id })
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning();
+
+      if (inserted.length > 0) {
+        await logEvent({
+          groupId: group.id,
+          eventType: "member.joined",
+          actorId: ctx.user.id,
+          payload: {},
+        });
+      }
 
       return group;
     }),

@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { groupMembers, settlements } from "@/lib/db/schema";
+import { logEvent } from "../events";
 
 async function ensureMembership(groupId: string, userId: string) {
   const m = await db
@@ -80,6 +81,18 @@ export const settlementsRouter = router({
         });
       }
 
+      await logEvent({
+        groupId: input.groupId,
+        eventType: "settlement.recorded",
+        actorId: ctx.user.id,
+        payload: {
+          settlementId: created.id,
+          fromUserId: input.fromUserId,
+          toUserId: input.toUserId,
+          amount: input.amount,
+        },
+      });
+
       return { ...created, amount: Number(created.amount) };
     }),
 
@@ -97,6 +110,12 @@ export const settlementsRouter = router({
       }
       await ensureMembership(row.groupId, ctx.user.id);
       await db.delete(settlements).where(eq(settlements.id, input.id));
+      await logEvent({
+        groupId: row.groupId,
+        eventType: "settlement.deleted",
+        actorId: ctx.user.id,
+        payload: { settlementId: input.id },
+      });
       return { ok: true };
     }),
 });

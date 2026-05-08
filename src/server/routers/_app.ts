@@ -4,6 +4,8 @@ import { groupsRouter } from "./groups";
 import { expensesRouter } from "./expenses";
 import { profilesRouter } from "./profiles";
 import { settlementsRouter } from "./settlements";
+import { commentsRouter } from "./comments";
+import { eventsRouter } from "./eventsRouter";
 
 export const appRouter = router({
   auth: authRouter,
@@ -11,6 +13,8 @@ export const appRouter = router({
   expenses: expensesRouter,
   profiles: profilesRouter,
   settlements: settlementsRouter,
+  comments: commentsRouter,
+  events: eventsRouter,
 });
 
 export type AppRouter = typeof appRouter;
