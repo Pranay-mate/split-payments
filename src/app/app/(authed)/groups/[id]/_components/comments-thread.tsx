@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, MessageSquare, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 export function CommentsThread({
   expenseId,
@@ -21,18 +22,16 @@ export function CommentsThread({
 
   const addMutation = trpc.comments.add.useMutation({
     onSuccess: () => {
-      setDraft("");
       utils.comments.listByExpense.invalidate({ expenseId });
     },
-    onError: (err) => toast.error(err.message),
   });
-
   const deleteMutation = trpc.comments.delete.useMutation({
     onSuccess: () => {
       utils.comments.listByExpense.invalidate({ expenseId });
     },
-    onError: (err) => toast.error(err.message),
   });
+  const submitAdd = useMutationWithQueue("comments.add", addMutation);
+  const submitDelete = useMutationWithQueue("comments.delete", deleteMutation);
 
   const comments = listQuery.data ?? [];
 
@@ -71,7 +70,15 @@ export function CommentsThread({
               {c.userId === currentUserId && (
                 <button
                   type="button"
-                  onClick={() => deleteMutation.mutate({ id: c.id })}
+                  onClick={async () => {
+                    try {
+                      await submitDelete({ id: c.id });
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error ? err.message : "Failed",
+                      );
+                    }
+                  }}
                   disabled={deleteMutation.isPending}
                   className="opacity-0 transition group-hover:opacity-100"
                   aria-label="Delete comment"
@@ -85,10 +92,17 @@ export function CommentsThread({
       )}
 
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           if (!draft.trim()) return;
-          addMutation.mutate({ expenseId, body: draft.trim() });
+          const body = draft.trim();
+          setDraft("");
+          try {
+            await submitAdd({ expenseId, body });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed");
+            setDraft(body);
+          }
         }}
         className="mt-2 flex gap-1.5"
       >

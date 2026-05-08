@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import type { TripSummary } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
+import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 type RecordedSettlement = {
   id: string;
@@ -31,17 +32,21 @@ export function BalancesView({
   const recordMutation = trpc.settlements.create.useMutation({
     onSuccess: () => {
       utils.settlements.listByGroup.invalidate({ groupId });
-      toast.success("Settlement recorded");
     },
-    onError: (err) => toast.error(err.message),
   });
   const deleteMutation = trpc.settlements.delete.useMutation({
     onSuccess: () => {
       utils.settlements.listByGroup.invalidate({ groupId });
-      toast.success("Settlement removed");
     },
-    onError: (err) => toast.error(err.message),
   });
+  const submitRecord = useMutationWithQueue(
+    "settlements.create",
+    recordMutation,
+  );
+  const submitDelete = useMutationWithQueue(
+    "settlements.delete",
+    deleteMutation,
+  );
 
   return (
     <div className="space-y-4">
@@ -114,14 +119,21 @@ export function BalancesView({
                   </div>
                   <button
                     type="button"
-                    onClick={() =>
-                      recordMutation.mutate({
-                        groupId,
-                        fromUserId: s.fromPersonId,
-                        toUserId: s.toPersonId,
-                        amount: s.amount,
-                      })
-                    }
+                    onClick={async () => {
+                      try {
+                        const { queued } = await submitRecord({
+                          groupId,
+                          fromUserId: s.fromPersonId,
+                          toUserId: s.toPersonId,
+                          amount: s.amount,
+                        });
+                        if (!queued) toast.success("Settlement recorded");
+                      } catch (err) {
+                        toast.error(
+                          err instanceof Error ? err.message : "Failed",
+                        );
+                      }
+                    }}
                     disabled={recordMutation.isPending}
                     className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
                   >
@@ -174,9 +186,15 @@ export function BalancesView({
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (confirm("Undo this settlement?")) {
-                      deleteMutation.mutate({ id: r.id });
+                  onClick={async () => {
+                    if (!confirm("Undo this settlement?")) return;
+                    try {
+                      const { queued } = await submitDelete({ id: r.id });
+                      if (!queued) toast.success("Settlement removed");
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error ? err.message : "Failed",
+                      );
                     }
                   }}
                   disabled={deleteMutation.isPending}

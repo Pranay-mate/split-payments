@@ -27,6 +27,7 @@ import { BalancesView } from "./balances-view";
 import { GroupSettings } from "./group-settings";
 import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
+import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const [adding, setAdding] = useState(false);
@@ -51,10 +52,9 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const deleteMutation = trpc.expenses.delete.useMutation({
     onSuccess: () => {
       utils.expenses.listByGroup.invalidate({ groupId });
-      toast.success("Expense removed");
     },
-    onError: (err) => toast.error(err.message),
   });
+  const submitDelete = useMutationWithQueue("expenses.delete", deleteMutation);
 
   const memberById = useMemo(() => {
     const m = new Map<string, { id: string; name: string }>();
@@ -321,10 +321,16 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm("Remove this expense?")) {
-                            deleteMutation.mutate({ id: e.id });
-                            if (editingId === e.id) setEditingId(null);
+                        onClick={async () => {
+                          if (!confirm("Remove this expense?")) return;
+                          if (editingId === e.id) setEditingId(null);
+                          try {
+                            const { queued } = await submitDelete({ id: e.id });
+                            if (!queued) toast.success("Expense removed");
+                          } catch (err) {
+                            toast.error(
+                              err instanceof Error ? err.message : "Delete failed",
+                            );
                           }
                         }}
                         disabled={deleteMutation.isPending}

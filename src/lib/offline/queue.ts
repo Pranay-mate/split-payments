@@ -76,6 +76,21 @@ type AnyMutateClient = {
  * on the first transient error (network) so we don't burn the queue
  * during a partial outage. Returns counts for the UI.
  */
+/**
+ * Detect tRPC errors that mean "this mutation will never succeed" — we
+ * should drop them from the queue rather than retry forever.
+ */
+function isPermanentError(err: unknown): boolean {
+  const code =
+    err && typeof err === "object" && "data" in err
+      ? (err as { data?: { code?: string } }).data?.code
+      : undefined;
+  if (!code) return false;
+  // FORBIDDEN: lost group access; UNAUTHORIZED: session expired;
+  // BAD_REQUEST / NOT_FOUND: stale or invalid input.
+  return ["UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "BAD_REQUEST"].includes(code);
+}
+
 export async function drainQueue(client: AnyMutateClient): Promise<DrainResult> {
   if (typeof window === "undefined") return { synced: 0, failed: 0, remaining: 0 };
   const db = getOfflineDb();
@@ -92,13 +107,36 @@ export async function drainQueue(client: AnyMutateClient): Promise<DrainResult> 
       synced++;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+
+      if (isPermanentError(err)) {
+        // Drop it — retrying won't help. Log + drop so the queue can drain.
+        await db.queue.delete(item.id!);
+        failed++;
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`[offline] dropping permanently-failed ${item.path}:`, message);
+        }
+        continue;
+      }
+
+      if (!isOfflineError(err)) {
+        // Unknown server error — keep it but increment attempts. Drop after 5.
+        const attempts = item.attempts + 1;
+        if (attempts >= 5) {
+          await db.queue.delete(item.id!);
+          failed++;
+          continue;
+        }
+        await db.queue.update(item.id!, { attempts, lastError: message });
+        failed++;
+        break;
+      }
+
+      // Network error — preserve order, stop the drain.
       await db.queue.update(item.id!, {
         attempts: item.attempts + 1,
         lastError: message,
       });
       failed++;
-      // Stop draining on first failure — preserves order + avoids retries
-      // hammering the network if we're flapping.
       break;
     }
   }
