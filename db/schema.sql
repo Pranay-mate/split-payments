@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   fx_rate          numeric(18,8) NOT NULL,                  -- amount * fx_rate = converted_amount
   payer_id         uuid          NOT NULL,
   split_mode       split_mode    NOT NULL DEFAULT 'equal',
+  category         text          NOT NULL DEFAULT 'other',
   occurred_at      timestamptz   NOT NULL DEFAULT now(),
   created_by       uuid          NOT NULL,
   created_at       timestamptz   NOT NULL DEFAULT now(),
@@ -162,3 +163,6 @@ ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS is_guest boolean NOT NULL DEFAULT false;
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS claimed_by uuid;
+
+ALTER TABLE expenses
+  ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'other';

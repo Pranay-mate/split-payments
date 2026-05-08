@@ -24,6 +24,7 @@ import {
   type Person,
 } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
+import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
 import { GroupSettings } from "./group-settings";
@@ -298,6 +299,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                             fxRate: ed.fxRate,
                             payerId: ed.payerId,
                             splitMode: ed.splitMode,
+                            category: (ed as unknown as { category?: string })
+                              .category,
                             splits: ed.splits,
                           }
                         : null
@@ -356,6 +359,23 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         <span className="truncate">
                           {e.description || "Expense"}
                         </span>
+                        {(() => {
+                          const cat =
+                            CATEGORIES[
+                              toCategoryKey(
+                                (e as unknown as { category?: string }).category,
+                              )
+                            ];
+                          return (
+                            <span
+                              className={`shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${cat.chipClass}`}
+                              title={cat.label}
+                            >
+                              <span aria-hidden>{cat.emoji}</span>
+                              {cat.label}
+                            </span>
+                          );
+                        })()}
                         {pending && (
                           <span className="shrink-0 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
                             Pending sync

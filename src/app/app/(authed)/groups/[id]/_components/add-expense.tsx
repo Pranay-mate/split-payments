@@ -7,6 +7,13 @@ import { trpc } from "@/lib/trpc/client";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
 import { COMMON_CURRENCIES, getRate } from "@/lib/fx";
+import {
+  CATEGORIES,
+  CATEGORY_KEYS,
+  DEFAULT_CATEGORY,
+  toCategoryKey,
+  type CategoryKey,
+} from "@/lib/categories";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 const EPSILON = 0.01;
@@ -21,6 +28,7 @@ type EditingExpense = {
   fxRate: number;
   payerId: string;
   splitMode: SplitMode;
+  category?: string | null;
   /** Splits in primary currency (as stored in DB). */
   splits: { userId: string; amount: number }[];
 };
@@ -52,6 +60,9 @@ export function AddExpense({
   );
   const [splitMode, setSplitMode] = useState<SplitMode>(
     editing?.splitMode ?? "equal",
+  );
+  const [category, setCategory] = useState<CategoryKey>(
+    toCategoryKey(editing?.category),
   );
   const [sharerIds, setSharerIds] = useState<string[]>(
     editing?.splits.map((s) => s.userId) ?? members.map((m) => m.id),
@@ -126,6 +137,7 @@ export function AddExpense({
         currency: string;
         payerId: string;
         splitMode: SplitMode;
+        category: CategoryKey;
         splits: { userId: string; amount: number }[];
       };
       // Optimistically add to the expenses list so the user sees their
@@ -144,6 +156,7 @@ export function AddExpense({
           fxRate: 1,
           payerId: i.payerId,
           splitMode: i.splitMode,
+          category: i.category,
           occurredAt: new Date(),
           createdBy: i.payerId,
           createdAt: new Date(),
@@ -164,6 +177,7 @@ export function AddExpense({
         currency: string;
         payerId: string;
         splitMode: SplitMode;
+        category: CategoryKey;
         splits: { userId: string; amount: number }[];
       };
       utils.expenses.listByGroup.setData({ groupId }, (old) => {
@@ -178,6 +192,7 @@ export function AddExpense({
                 convertedAmount: i.amount,
                 payerId: i.payerId,
                 splitMode: i.splitMode,
+                category: i.category,
                 splits: i.splits,
                 _pending: true,
               } as typeof e)
@@ -194,6 +209,7 @@ export function AddExpense({
     setAmount("");
     setExactByPerson({});
     setSplitMode("equal");
+    setCategory(DEFAULT_CATEGORY);
     setSharerIds(members.map((m) => m.id));
   };
 
@@ -274,6 +290,7 @@ export function AddExpense({
           currency,
           payerId,
           splitMode,
+          category,
           splits: buildSplits(),
           // For last-write-wins conflict resolution. The server compares
           // this against the row's current updated_at; if a newer edit
@@ -288,6 +305,7 @@ export function AddExpense({
           currency,
           payerId,
           splitMode,
+          category,
           splits: buildSplits(),
         });
         resetForm();
@@ -359,6 +377,34 @@ export function AddExpense({
             : `Fetching ${currency} → ${primaryCurrency} rate…`}
         </p>
       )}
+
+      <div>
+        <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+          Category
+        </span>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {CATEGORY_KEYS.map((key) => {
+            const meta = CATEGORIES[key];
+            const active = category === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setCategory(key)}
+                aria-pressed={active}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  active
+                    ? `${meta.chipClass} border-current/20 ring-2 ring-current/20`
+                    : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                }`}
+              >
+                <span aria-hidden>{meta.emoji}</span>
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">

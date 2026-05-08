@@ -154,6 +154,8 @@ export const expenses = pgTable(
     fxRate: numeric("fx_rate", { precision: 18, scale: 8 }).notNull(),
     payerId: uuid("payer_id").notNull(),
     splitMode: splitModeEnum("split_mode").notNull().default("equal"),
+    /** Predefined category key — see src/lib/categories.ts. */
+    category: text("category").notNull().default("other"),
     occurredAt: timestamp("occurred_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

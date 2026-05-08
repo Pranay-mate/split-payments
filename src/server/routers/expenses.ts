@@ -10,6 +10,7 @@ import {
   groups,
 } from "@/lib/db/schema";
 import { getRate, isReasonableRate } from "@/lib/fx";
+import { CATEGORY_KEYS } from "@/lib/categories";
 import { logEvent } from "../events";
 
 const splitSchema = z.object({
@@ -18,6 +19,7 @@ const splitSchema = z.object({
 });
 
 const splitModeSchema = z.enum(["equal", "exact", "share", "percent"]);
+const categorySchema = z.enum(CATEGORY_KEYS);
 
 async function ensureMembership(groupId: string, userId: string) {
   const membership = await db
@@ -140,6 +142,7 @@ export const expensesRouter = router({
           .default("INR"),
         payerId: z.string().uuid(),
         splitMode: splitModeSchema.default("equal"),
+        category: categorySchema.default("other"),
         splits: z.array(splitSchema).min(1),
         occurredAt: z.date().optional(),
         clientEventId: z.string().uuid().optional(),
@@ -200,6 +203,7 @@ export const expensesRouter = router({
             fxRate: fxRate.toString(),
             payerId: input.payerId,
             splitMode: input.splitMode,
+            category: input.category,
             occurredAt: input.occurredAt ?? new Date(),
             createdBy: ctx.user.id,
           })
@@ -251,6 +255,7 @@ export const expensesRouter = router({
           .default("INR"),
         payerId: z.string().uuid(),
         splitMode: splitModeSchema,
+        category: categorySchema.default("other"),
         splits: z.array(splitSchema).min(1),
         /**
          * Client wall-clock at the moment the user submitted the edit.
@@ -324,6 +329,7 @@ export const expensesRouter = router({
             fxRate: fxRate.toString(),
             payerId: input.payerId,
             splitMode: input.splitMode,
+            category: input.category,
             updatedAt: new Date(),
           })
           .where(eq(expenses.id, input.id))
