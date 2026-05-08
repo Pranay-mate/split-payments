@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   BarChart3,
   ChevronDown,
+  Download,
+  FileText,
   Loader2,
   Link2,
   MessageSquare,
@@ -34,6 +36,7 @@ import { GroupSettings } from "./group-settings";
 import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
+import { downloadCsv, downloadPdf, type ExportInput } from "@/lib/export";
 
 // Recharts is heavy (~100kb gz). Lazy-load so the default group view stays
 // snappy; only paid for once the user expands the Charts panel.
@@ -59,6 +62,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
   const [showCharts, setShowCharts] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [guestName, setGuestName] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
@@ -364,6 +368,120 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 />
               </div>
             )}
+          </section>
+        )}
+
+        {expenses.length > 0 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <Download className="h-4 w-4 text-sky-500" aria-hidden />
+              Export
+            </h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Download a snapshot of this group&apos;s expenses, settlements,
+              and balances.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const data: ExportInput = {
+                    groupName: group.name,
+                    primaryCurrency: group.primaryCurrency,
+                    members: members.map((m) => ({
+                      id: m.userId,
+                      name: m.displayName,
+                    })),
+                    expenses: expenses.map((e) => ({
+                      description: e.description,
+                      amount: e.amount,
+                      currency: e.currency,
+                      convertedAmount: e.convertedAmount,
+                      payerId: e.payerId,
+                      category: (e as unknown as { category?: string | null })
+                        .category,
+                      occurredAt: e.occurredAt,
+                      splits: e.splits,
+                    })),
+                    settlements: (settlementsQuery.data ?? []).map((s) => ({
+                      fromUserId: s.fromUserId,
+                      toUserId: s.toUserId,
+                      amount: s.amount,
+                      note: s.note,
+                      occurredAt: s.occurredAt,
+                    })),
+                    balances: (summary?.balances ?? []).map((b) => ({
+                      userId: b.personId,
+                      net: b.amount,
+                    })),
+                  };
+                  try {
+                    downloadCsv(data);
+                  } catch (err) {
+                    toast.error(
+                      err instanceof Error ? err.message : "Export failed",
+                    );
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden /> CSV
+              </button>
+              <button
+                type="button"
+                disabled={exportingPdf}
+                onClick={async () => {
+                  setExportingPdf(true);
+                  try {
+                    const data: ExportInput = {
+                      groupName: group.name,
+                      primaryCurrency: group.primaryCurrency,
+                      members: members.map((m) => ({
+                        id: m.userId,
+                        name: m.displayName,
+                      })),
+                      expenses: expenses.map((e) => ({
+                        description: e.description,
+                        amount: e.amount,
+                        currency: e.currency,
+                        convertedAmount: e.convertedAmount,
+                        payerId: e.payerId,
+                        category: (e as unknown as { category?: string | null })
+                          .category,
+                        occurredAt: e.occurredAt,
+                        splits: e.splits,
+                      })),
+                      settlements: (settlementsQuery.data ?? []).map((s) => ({
+                        fromUserId: s.fromUserId,
+                        toUserId: s.toUserId,
+                        amount: s.amount,
+                        note: s.note,
+                        occurredAt: s.occurredAt,
+                      })),
+                      balances: (summary?.balances ?? []).map((b) => ({
+                        userId: b.personId,
+                        net: b.amount,
+                      })),
+                    };
+                    await downloadPdf(data);
+                  } catch (err) {
+                    toast.error(
+                      err instanceof Error ? err.message : "PDF export failed",
+                    );
+                  } finally {
+                    setExportingPdf(false);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                {exportingPdf ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <FileText className="h-3.5 w-3.5" aria-hidden />
+                )}
+                PDF
+              </button>
+            </div>
           </section>
         )}
 
