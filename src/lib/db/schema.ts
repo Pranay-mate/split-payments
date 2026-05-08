@@ -30,6 +30,7 @@ import {
   index,
   unique,
   boolean,
+  integer,
 } from "drizzle-orm/pg-core";
 
 export const splitModeEnum = pgEnum("split_mode", [
@@ -189,6 +190,41 @@ export const expenseSplits = pgTable(
   ],
 );
 
+/**
+ * Itemized bill split: one expense can carry many line items, each with
+ * its own subset of group members sharing that line. The expense's
+ * `expense_splits` rows are still the source of truth for "what each
+ * member owes" — they're computed server-side from items when items are
+ * provided. Items live alongside as a record so the breakdown can be
+ * shown back to the user.
+ *
+ * sharerIds is a uuid[] (Postgres array) instead of a junction table —
+ * we never query "items where I'm a sharer" across expenses, so the
+ * extra normalization buys us nothing.
+ */
+export const expenseItems = pgTable(
+  "expense_items",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    expenseId: uuid("expense_id")
+      .notNull()
+      .references(() => expenses.id, { onDelete: "cascade" }),
+    description: text("description").notNull().default(""),
+    /** Item amount in the expense's original currency. */
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    /** Group members sharing this item — splits equally between them. */
+    sharerIds: uuid("sharer_ids").array().notNull().default(sql`'{}'::uuid[]`),
+    /** Display order; client emits sequential positions on save. */
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("expense_items_expense_idx").on(t.expenseId)],
+);
+
 export const expenseComments = pgTable(
   "expense_comments",
   {
@@ -276,6 +312,7 @@ export type Group = typeof groups.$inferSelect;
 export type GroupMember = typeof groupMembers.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type ExpenseSplit = typeof expenseSplits.$inferSelect;
+export type ExpenseItem = typeof expenseItems.$inferSelect;
 export type ExpenseComment = typeof expenseComments.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
 export type Event = typeof events.$inferSelect;

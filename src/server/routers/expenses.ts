@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import {
+  expenseItems,
   expenses,
   expenseSplits,
   groupMembers,
@@ -20,6 +21,47 @@ const splitSchema = z.object({
 
 const splitModeSchema = z.enum(["equal", "exact", "share", "percent"]);
 const categorySchema = z.enum(CATEGORY_KEYS);
+
+const itemSchema = z.object({
+  description: z.string().max(200).default(""),
+  amount: z.number().positive(),
+  sharerIds: z.array(z.string().uuid()).min(1),
+});
+
+/**
+ * Given itemized lines (in original currency), produce per-user totals.
+ * Each item is split equally between its sharers; per-user totals are
+ * the sum of their share across items, rounded to 2dp at the end.
+ */
+function splitsFromItems(
+  items: { amount: number; sharerIds: string[] }[],
+): { userId: string; amount: number }[] {
+  const perUser = new Map<string, number>();
+  for (const item of items) {
+    const per = item.amount / item.sharerIds.length;
+    for (const id of item.sharerIds) {
+      perUser.set(id, (perUser.get(id) ?? 0) + per);
+    }
+  }
+  const out = Array.from(perUser.entries()).map(([userId, amount]) => ({
+    userId,
+    amount: Math.round(amount * 100) / 100,
+  }));
+  // Penny-rounding adjustment: if 2dp totals don't quite match the items'
+  // sum, push the residual onto the highest-share user. Keeps per_user_sum
+  // === sum_of_items to within a paisa.
+  const itemTotal = items.reduce((s, i) => s + i.amount, 0);
+  const splitTotal = out.reduce((s, x) => s + x.amount, 0);
+  const delta = Math.round((itemTotal - splitTotal) * 100) / 100;
+  if (Math.abs(delta) >= 0.01 && out.length > 0) {
+    const biggest = out.reduce(
+      (best, cur) => (cur.amount > best.amount ? cur : best),
+      out[0],
+    );
+    biggest.amount = Math.round((biggest.amount + delta) * 100) / 100;
+  }
+  return out;
+}
 
 async function ensureMembership(groupId: string, userId: string) {
   const membership = await db
@@ -99,16 +141,31 @@ export const expensesRouter = router({
 
       if (rows.length === 0) return [];
 
-      const splitRows = await db
-        .select()
-        .from(expenseSplits)
-        .where(inArray(expenseSplits.expenseId, rows.map((r) => r.id)));
+      const expenseIds = rows.map((r) => r.id);
+
+      const [splitRows, itemRows] = await Promise.all([
+        db
+          .select()
+          .from(expenseSplits)
+          .where(inArray(expenseSplits.expenseId, expenseIds)),
+        db
+          .select()
+          .from(expenseItems)
+          .where(inArray(expenseItems.expenseId, expenseIds))
+          .orderBy(expenseItems.position),
+      ]);
 
       const splitsByExpense = new Map<string, typeof splitRows>();
       for (const s of splitRows) {
         const list = splitsByExpense.get(s.expenseId) ?? [];
         list.push(s);
         splitsByExpense.set(s.expenseId, list);
+      }
+      const itemsByExpense = new Map<string, typeof itemRows>();
+      for (const it of itemRows) {
+        const list = itemsByExpense.get(it.expenseId) ?? [];
+        list.push(it);
+        itemsByExpense.set(it.expenseId, list);
       }
 
       return rows.map((e) => ({
@@ -119,6 +176,13 @@ export const expensesRouter = router({
         splits: (splitsByExpense.get(e.id) ?? []).map((s) => ({
           userId: s.userId,
           amount: Number(s.amount),
+        })),
+        items: (itemsByExpense.get(e.id) ?? []).map((it) => ({
+          id: it.id,
+          description: it.description,
+          amount: Number(it.amount),
+          sharerIds: it.sharerIds,
+          position: it.position,
         })),
       }));
     }),
@@ -144,6 +208,11 @@ export const expensesRouter = router({
         splitMode: splitModeSchema.default("equal"),
         category: categorySchema.default("other"),
         splits: z.array(splitSchema).min(1),
+        /**
+         * Itemized split: when present, server recomputes splits + amount
+         * from these items and ignores the client-supplied splits/amount.
+         */
+        items: z.array(itemSchema).optional(),
         occurredAt: z.date().optional(),
         clientEventId: z.string().uuid().optional(),
       }),
@@ -152,18 +221,37 @@ export const expensesRouter = router({
       await ensureMembership(input.groupId, ctx.user.id);
       await ensureMembership(input.groupId, input.payerId);
 
+      // Itemized mode: derive amount + splits from items (server-trusted),
+      // discarding client values to keep them in sync with the items table.
+      let workingAmount = input.amount;
+      let workingSplits = input.splits;
+      if (input.items && input.items.length > 0) {
+        for (const item of input.items) {
+          for (const id of item.sharerIds) {
+            await ensureMembership(input.groupId, id);
+          }
+        }
+        workingAmount =
+          Math.round(
+            input.items.reduce((s, i) => s + i.amount, 0) * 100,
+          ) / 100;
+        workingSplits = splitsFromItems(input.items);
+      }
+
       // Validate splits sum within 1 paisa of amount (in original currency).
-      const splitSum = input.splits.reduce((s, x) => s + x.amount, 0);
-      if (Math.abs(splitSum - input.amount) > 0.01) {
+      const splitSum = workingSplits.reduce((s, x) => s + x.amount, 0);
+      if (Math.abs(splitSum - workingAmount) > 0.01) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Splits (${splitSum.toFixed(2)}) must sum to amount (${input.amount.toFixed(2)}).`,
+          message: `Splits (${splitSum.toFixed(2)}) must sum to amount (${workingAmount.toFixed(2)}).`,
         });
       }
 
-      // Validate every split is a group member.
-      for (const split of input.splits) {
-        await ensureMembership(input.groupId, split.userId);
+      // Validate every split is a group member (skipped for items, already done above).
+      if (!input.items || input.items.length === 0) {
+        for (const split of workingSplits) {
+          await ensureMembership(input.groupId, split.userId);
+        }
       }
 
       // Idempotency: if an expense with this clientEventId already exists,
@@ -180,12 +268,12 @@ export const expensesRouter = router({
 
       const primaryCurrency = await getGroupPrimaryCurrency(input.groupId);
       const { fxRate, convertedAmount } = await resolveConversion(
-        input.amount,
+        workingAmount,
         input.currency,
         primaryCurrency,
       );
 
-      const splitsInPrimary = input.splits.map((s) => ({
+      const splitsInPrimary = workingSplits.map((s) => ({
         userId: s.userId,
         amount: Math.round(s.amount * fxRate * 100) / 100,
       }));
@@ -197,7 +285,7 @@ export const expensesRouter = router({
             ...(input.clientEventId && { id: input.clientEventId }),
             groupId: input.groupId,
             description: input.description.trim(),
-            amount: input.amount.toFixed(2),
+            amount: workingAmount.toFixed(2),
             currency: input.currency,
             convertedAmount: convertedAmount.toFixed(2),
             fxRate: fxRate.toString(),
@@ -223,6 +311,18 @@ export const expensesRouter = router({
             amount: s.amount.toFixed(2),
           })),
         );
+
+        if (input.items && input.items.length > 0) {
+          await tx.insert(expenseItems).values(
+            input.items.map((item, idx) => ({
+              expenseId: expense.id,
+              description: item.description.trim(),
+              amount: item.amount.toFixed(2),
+              sharerIds: item.sharerIds,
+              position: idx,
+            })),
+          );
+        }
 
         await logEvent({
           groupId: input.groupId,
@@ -257,6 +357,13 @@ export const expensesRouter = router({
         splitMode: splitModeSchema,
         category: categorySchema.default("other"),
         splits: z.array(splitSchema).min(1),
+        /**
+         * Itemized split: when present, server recomputes amount + splits
+         * from items and replaces the expense's items rows in the same
+         * transaction. Pass an empty array to clear an expense's items
+         * (i.e. switch back to flat-split mode).
+         */
+        items: z.array(itemSchema).optional(),
         /**
          * Client wall-clock at the moment the user submitted the edit.
          * Used for last-write-wins conflict resolution: a stale update
@@ -298,11 +405,30 @@ export const expensesRouter = router({
         }
       }
 
-      const splitSum = input.splits.reduce((s, x) => s + x.amount, 0);
-      if (Math.abs(splitSum - input.amount) > 0.01) {
+      // Itemized mode: derive amount + splits from items.
+      let workingAmount = input.amount;
+      let workingSplits = input.splits;
+      const replaceItems = Array.isArray(input.items);
+      if (input.items && input.items.length > 0) {
+        for (const item of input.items) {
+          for (const id of item.sharerIds) {
+            // Items use current-membership rules; new items can't include
+            // ex-members. (Existing splits stay grandfathered separately.)
+            await ensureMembership(existing.groupId, id);
+          }
+        }
+        workingAmount =
+          Math.round(
+            input.items.reduce((s, i) => s + i.amount, 0) * 100,
+          ) / 100;
+        workingSplits = splitsFromItems(input.items);
+      }
+
+      const splitSum = workingSplits.reduce((s, x) => s + x.amount, 0);
+      if (Math.abs(splitSum - workingAmount) > 0.01) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Splits (${splitSum.toFixed(2)}) must sum to amount (${input.amount.toFixed(2)}).`,
+          message: `Splits (${splitSum.toFixed(2)}) must sum to amount (${workingAmount.toFixed(2)}).`,
         });
       }
 
@@ -318,19 +444,19 @@ export const expensesRouter = router({
             .where(eq(expenseSplits.expenseId, input.id))
         ).map((r) => r.userId),
       );
-      for (const split of input.splits) {
+      for (const split of workingSplits) {
         if (existingSplitUserIds.has(split.userId)) continue;
         await ensureMembership(existing.groupId, split.userId);
       }
 
       const primaryCurrency = await getGroupPrimaryCurrency(existing.groupId);
       const { fxRate, convertedAmount } = await resolveConversion(
-        input.amount,
+        workingAmount,
         input.currency,
         primaryCurrency,
       );
 
-      const splitsInPrimary = input.splits.map((s) => ({
+      const splitsInPrimary = workingSplits.map((s) => ({
         userId: s.userId,
         amount: Math.round(s.amount * fxRate * 100) / 100,
       }));
@@ -340,7 +466,7 @@ export const expensesRouter = router({
           .update(expenses)
           .set({
             description: input.description.trim(),
-            amount: input.amount.toFixed(2),
+            amount: workingAmount.toFixed(2),
             currency: input.currency,
             convertedAmount: convertedAmount.toFixed(2),
             fxRate: fxRate.toString(),
@@ -367,6 +493,25 @@ export const expensesRouter = router({
             amount: s.amount.toFixed(2),
           })),
         );
+
+        // If the client supplied items[], replace the items rows wholesale.
+        // (input.items === undefined means "leave items untouched".)
+        if (replaceItems) {
+          await tx
+            .delete(expenseItems)
+            .where(eq(expenseItems.expenseId, input.id));
+          if (input.items && input.items.length > 0) {
+            await tx.insert(expenseItems).values(
+              input.items.map((item, idx) => ({
+                expenseId: input.id,
+                description: item.description.trim(),
+                amount: item.amount.toFixed(2),
+                sharerIds: item.sharerIds,
+                position: idx,
+              })),
+            );
+          }
+        }
 
         await logEvent({
           groupId: existing.groupId,

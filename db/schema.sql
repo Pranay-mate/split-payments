@@ -90,6 +90,19 @@ CREATE TABLE IF NOT EXISTS expense_splits (
 CREATE INDEX IF NOT EXISTS expense_splits_user_idx ON expense_splits(user_id);
 
 
+-- expense_items: line items inside one expense (itemized bill split)
+CREATE TABLE IF NOT EXISTS expense_items (
+  id          uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  expense_id  uuid          NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+  description text          NOT NULL DEFAULT '',
+  amount      numeric(14,2) NOT NULL,                    -- in expense's original currency
+  sharer_ids  uuid[]        NOT NULL DEFAULT '{}'::uuid[],
+  position    integer       NOT NULL DEFAULT 0,
+  created_at  timestamptz   NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS expense_items_expense_idx ON expense_items(expense_id);
+
+
 -- expense_comments: thread-style comments on an expense
 CREATE TABLE IF NOT EXISTS expense_comments (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -166,3 +179,5 @@ ALTER TABLE profiles
 
 ALTER TABLE expenses
   ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'other';
+
+-- expense_items is new in this schema rev; CREATE TABLE above is idempotent.

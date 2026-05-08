@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
@@ -31,7 +31,26 @@ type EditingExpense = {
   category?: string | null;
   /** Splits in primary currency (as stored in DB). */
   splits: { userId: string; amount: number }[];
+  /** Optional line items if the expense was created in itemized mode. */
+  items?: {
+    id: string;
+    description: string;
+    amount: number;
+    sharerIds: string[];
+  }[];
 };
+
+type ItemDraft = {
+  description: string;
+  amount: number | "";
+  sharerIds: string[];
+};
+
+const blankItem = (sharerIds: string[]): ItemDraft => ({
+  description: "",
+  amount: "",
+  sharerIds,
+});
 
 export function AddExpense({
   groupId,
@@ -82,6 +101,20 @@ export function AddExpense({
       }
       return {};
     },
+  );
+
+  // Itemized mode — each row in `items` is a line of the bill.
+  const [mode, setMode] = useState<"single" | "items">(
+    editing?.items && editing.items.length > 0 ? "items" : "single",
+  );
+  const [items, setItems] = useState<ItemDraft[]>(
+    editing?.items && editing.items.length > 0
+      ? editing.items.map((it) => ({
+          description: it.description,
+          amount: it.amount,
+          sharerIds: it.sharerIds,
+        }))
+      : [blankItem(members.map((m) => m.id))],
   );
 
   // Live FX preview for non-primary expenses. We only render once the rate
@@ -204,6 +237,17 @@ export function AddExpense({
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const itemsTotal = useMemo(
+    () =>
+      Math.round(
+        items.reduce(
+          (s, it) => s + (typeof it.amount === "number" ? it.amount : 0),
+          0,
+        ) * 100,
+      ) / 100,
+    [items],
+  );
+
   const resetForm = () => {
     setDescription("");
     setAmount("");
@@ -211,9 +255,53 @@ export function AddExpense({
     setSplitMode("equal");
     setCategory(DEFAULT_CATEGORY);
     setSharerIds(members.map((m) => m.id));
+    setMode("single");
+    setItems([blankItem(members.map((m) => m.id))]);
+  };
+
+  /**
+   * Itemized splits: each item is split equally among its sharers; per-user
+   * totals are the sum across items. Mirrors the server-side splitsFromItems
+   * — same penny-rounding adjustment so client + server agree to the rupee.
+   */
+  const splitsFromItems = (
+    list: { amount: number; sharerIds: string[] }[],
+  ): { userId: string; amount: number }[] => {
+    const perUser = new Map<string, number>();
+    for (const item of list) {
+      if (item.sharerIds.length === 0) continue;
+      const per = item.amount / item.sharerIds.length;
+      for (const id of item.sharerIds) {
+        perUser.set(id, (perUser.get(id) ?? 0) + per);
+      }
+    }
+    const out = Array.from(perUser.entries()).map(([userId, amount]) => ({
+      userId,
+      amount: Math.round(amount * 100) / 100,
+    }));
+    const itemTotal = list.reduce((s, i) => s + i.amount, 0);
+    const splitTotal = out.reduce((s, x) => s + x.amount, 0);
+    const delta = Math.round((itemTotal - splitTotal) * 100) / 100;
+    if (Math.abs(delta) >= 0.01 && out.length > 0) {
+      const biggest = out.reduce(
+        (best, cur) => (cur.amount > best.amount ? cur : best),
+        out[0],
+      );
+      biggest.amount = Math.round((biggest.amount + delta) * 100) / 100;
+    }
+    return out;
   };
 
   const buildSplits = () => {
+    if (mode === "items") {
+      return splitsFromItems(
+        items
+          .filter(
+            (it) => typeof it.amount === "number" && it.amount > 0 && it.sharerIds.length > 0,
+          )
+          .map((it) => ({ amount: it.amount as number, sharerIds: it.sharerIds })),
+      );
+    }
     if (splitMode === "equal") {
       return equalSplits(numericAmount, sharerIds).map((s) => ({
         userId: s.personId,
@@ -227,6 +315,16 @@ export function AddExpense({
   };
 
   const valid = (() => {
+    if (mode === "items") {
+      if (!payerId) return false;
+      if (items.length === 0) return false;
+      if (itemsTotal <= 0) return false;
+      for (const it of items) {
+        if (typeof it.amount !== "number" || it.amount <= 0) return false;
+        if (it.sharerIds.length === 0) return false;
+      }
+      return true;
+    }
     if (numericAmount <= 0) return false;
     if (!payerId) return false;
     if (sharerIds.length === 0) return false;
@@ -242,6 +340,43 @@ export function AddExpense({
       setExactByPerson(fresh);
     }
     setSplitMode(mode);
+  };
+
+  const updateItem = (idx: number, patch: Partial<ItemDraft>) => {
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)),
+    );
+  };
+
+  const removeItem = (idx: number) => {
+    setItems((prev) =>
+      prev.length === 1 ? prev : prev.filter((_, i) => i !== idx),
+    );
+  };
+
+  const addItem = () => {
+    // Seed the new row's sharers from the previous row so adding another
+    // line in a "shared by everyone" bill doesn't make you re-pick.
+    const last = items[items.length - 1];
+    setItems((prev) => [
+      ...prev,
+      blankItem(last?.sharerIds ?? members.map((m) => m.id)),
+    ]);
+  };
+
+  const toggleItemSharer = (idx: number, id: string) => {
+    setItems((prev) =>
+      prev.map((it, i) => {
+        if (i !== idx) return it;
+        const has = it.sharerIds.includes(id);
+        return {
+          ...it,
+          sharerIds: has
+            ? it.sharerIds.filter((x) => x !== id)
+            : [...it.sharerIds, id],
+        };
+      }),
+    );
   };
 
   const balanceToLast = () => {
@@ -282,16 +417,31 @@ export function AddExpense({
     if (!valid) return;
     try {
       let result: { queued: boolean };
+      const submittingItems = mode === "items";
+      const payloadAmount = submittingItems ? itemsTotal : numericAmount;
+      const payloadSplitMode: SplitMode = submittingItems ? "exact" : splitMode;
+      const payloadItems = submittingItems
+        ? items.map((it) => ({
+            description: it.description.trim(),
+            amount: typeof it.amount === "number" ? it.amount : 0,
+            sharerIds: it.sharerIds,
+          }))
+        : // Empty array tells the server "this is no longer itemized" on update;
+          // server clears existing items rows. Sending undefined would leave them.
+          editing && (editing.items?.length ?? 0) > 0
+          ? []
+          : undefined;
       if (editing) {
         result = await submitUpdate({
           id: editing.id,
           description: description.trim(),
-          amount: numericAmount,
+          amount: payloadAmount,
           currency,
           payerId,
-          splitMode,
+          splitMode: payloadSplitMode,
           category,
           splits: buildSplits(),
+          ...(payloadItems !== undefined && { items: payloadItems }),
           // For last-write-wins conflict resolution. The server compares
           // this against the row's current updated_at; if a newer edit
           // exists, our update is rejected with CONFLICT.
@@ -301,12 +451,13 @@ export function AddExpense({
         result = await submitCreate({
           groupId,
           description: description.trim(),
-          amount: numericAmount,
+          amount: payloadAmount,
           currency,
           payerId,
-          splitMode,
+          splitMode: payloadSplitMode,
           category,
           splits: buildSplits(),
+          ...(payloadItems !== undefined && { items: payloadItems }),
         });
         resetForm();
       }
@@ -341,19 +492,27 @@ export function AddExpense({
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
           aria-label="Expense description"
         />
-        <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white pr-2 dark:border-slate-700 dark:bg-slate-900">
+        <div
+          className={`flex items-center gap-1 rounded-lg border pr-2 dark:border-slate-700 ${
+            mode === "items"
+              ? "border-slate-200 bg-slate-100/60 dark:bg-slate-800/40"
+              : "border-slate-300 bg-white dark:bg-slate-900"
+          }`}
+        >
           <input
             type="number"
             inputMode="decimal"
             min={0}
             step={1}
-            value={amount}
+            value={mode === "items" ? itemsTotal || "" : amount}
             onChange={(e) =>
               setAmount(e.target.value === "" ? "" : Number(e.target.value))
             }
+            disabled={mode === "items"}
             placeholder="0"
-            className="w-full bg-transparent px-3 py-2 text-base outline-none tabular-nums"
+            className="w-full bg-transparent px-3 py-2 text-base outline-none tabular-nums disabled:cursor-not-allowed disabled:text-slate-500"
             aria-label="Amount"
+            title={mode === "items" ? "Computed from items" : undefined}
           />
           <select
             value={currency}
@@ -428,26 +587,38 @@ export function AddExpense({
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
             Split mode
           </span>
-          <div className="mt-1 grid grid-cols-2 gap-1.5 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
-            {(["equal", "exact"] as SplitMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => onSplitModeChange(mode)}
-                aria-pressed={splitMode === mode}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                  splitMode === mode
-                    ? "bg-emerald-500 text-white"
-                    : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                }`}
-              >
-                {mode === "equal" ? "Equal" : "Exact ₹"}
-              </button>
-            ))}
+          <div className="mt-1 grid grid-cols-3 gap-1.5 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+            {(["equal", "exact", "items"] as const).map((opt) => {
+              const active =
+                opt === "items" ? mode === "items" : mode === "single" && splitMode === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    if (opt === "items") {
+                      setMode("items");
+                    } else {
+                      setMode("single");
+                      onSplitModeChange(opt);
+                    }
+                  }}
+                  aria-pressed={active}
+                  className={`rounded-md px-2 py-1.5 text-sm font-medium transition ${
+                    active
+                      ? "bg-emerald-500 text-white"
+                      : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  {opt === "equal" ? "Equal" : opt === "exact" ? "Exact ₹" : "Itemized"}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
+      {mode === "single" ? (
       <div>
         <div className="flex items-baseline justify-between">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -558,6 +729,100 @@ export function AddExpense({
           </div>
         )}
       </div>
+      ) : (
+      <div>
+        <div className="flex items-baseline justify-between">
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+            Line items
+          </span>
+          <span className="text-xs tabular-nums text-slate-600 dark:text-slate-300">
+            Total: {formatINR(itemsTotal, 0)}
+          </span>
+        </div>
+        <ul className="mt-2 space-y-3">
+          {items.map((it, idx) => (
+            <li
+              key={idx}
+              className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  value={it.description}
+                  onChange={(e) =>
+                    updateItem(idx, { description: e.target.value })
+                  }
+                  placeholder={`Item ${idx + 1}`}
+                  className="flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-950"
+                  aria-label={`Item ${idx + 1} description`}
+                />
+                <div className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 dark:border-slate-700 dark:bg-slate-950">
+                  <span className="text-xs text-slate-400">
+                    {currency === "INR" ? "₹" : currency}
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step={1}
+                    value={it.amount}
+                    onChange={(e) =>
+                      updateItem(idx, {
+                        amount:
+                          e.target.value === "" ? "" : Number(e.target.value),
+                      })
+                    }
+                    placeholder="0"
+                    className="w-20 bg-transparent py-1.5 text-right text-sm outline-none tabular-nums"
+                    aria-label={`Item ${idx + 1} amount`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeItem(idx)}
+                  disabled={items.length === 1}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-slate-800"
+                  aria-label={`Remove item ${idx + 1}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {members.map((m) => {
+                  const selected = it.sharerIds.includes(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => toggleItemSharer(idx, m.id)}
+                      aria-pressed={selected}
+                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition ${
+                        selected
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {it.sharerIds.length === 0 && (
+                <p className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400">
+                  Pick at least one sharer for this item.
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          onClick={addItem}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-dashed border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-emerald-400 hover:bg-emerald-50/40 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden /> Add item
+        </button>
+      </div>
+      )}
 
       <button
         type="button"

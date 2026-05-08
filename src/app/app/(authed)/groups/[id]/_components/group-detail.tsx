@@ -415,6 +415,16 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                             category: (ed as unknown as { category?: string })
                               .category,
                             splits: ed.splits,
+                            items: (
+                              ed as unknown as {
+                                items?: {
+                                  id: string;
+                                  description: string;
+                                  amount: number;
+                                  sharerIds: string[];
+                                }[];
+                              }
+                            ).items,
                           }
                         : null
                     }
@@ -530,9 +540,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                           ? `${e.amount.toFixed(0)} ${e.currency} (≈ ${formatINR(e.convertedAmount, 0)})`
                           : formatINR(e.convertedAmount, 0)}{" "}
                         ·{" "}
-                        {e.splitMode === "exact" ? "exact" : "equal"} split
-                        among {e.splits.length}{" "}
-                        {e.splits.length === 1 ? "person" : "people"}
+                        {(() => {
+                          const itemCount =
+                            (e as unknown as { items?: unknown[] }).items
+                              ?.length ?? 0;
+                          if (itemCount > 0) {
+                            return `${itemCount} ${itemCount === 1 ? "item" : "items"}, ${e.splits.length} ${e.splits.length === 1 ? "person" : "people"}`;
+                          }
+                          return `${e.splitMode === "exact" ? "exact" : "equal"} split among ${e.splits.length} ${e.splits.length === 1 ? "person" : "people"}`;
+                        })()}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
