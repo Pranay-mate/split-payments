@@ -32,6 +32,7 @@ import { formatINR } from "@/lib/format";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
+import { ContributionBar } from "./contribution-bar";
 import { GroupSettings } from "./group-settings";
 import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
@@ -324,6 +325,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             </div>
           </div>
         </div>
+
+        <ContributionBar
+          expenses={expenses.map((e) => ({
+            payerId: e.payerId,
+            convertedAmount: e.convertedAmount,
+          }))}
+          members={members.map((m) => ({ id: m.userId, name: m.displayName }))}
+        />
 
         {summary && summary.balances.length > 0 && (
           <BalancesView

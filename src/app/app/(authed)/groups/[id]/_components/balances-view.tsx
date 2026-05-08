@@ -17,6 +17,101 @@ type RecordedSettlement = {
   occurredAt: Date;
 };
 
+/**
+ * Settlement progress ring + headline. Ring is the headline KPI: at a
+ * glance you see how close the group is to "fully settled". Math:
+ *
+ *   settled    = sum of recorded settlements (in primary currency)
+ *   remaining  = sum of remaining positive balances (the amount still
+ *                owed across the group)
+ *   progress   = settled / (settled + remaining)
+ *
+ * remaining is the positive sum specifically because positives ≡ |negatives|
+ * after summariseTrip closes the books — counting both would double-count.
+ *
+ * Hides itself for the no-expenses case (totalToSettle === 0) so we don't
+ * flash a misleading 100% on an empty group.
+ */
+function BalancesHeader({
+  summary,
+  recorded,
+}: {
+  summary: TripSummary;
+  recorded: RecordedSettlement[];
+}) {
+  const settled = recorded.reduce((s, r) => s + r.amount, 0);
+  const remaining = summary.balances.reduce(
+    (s, b) => s + Math.max(0, b.amount),
+    0,
+  );
+  const totalToSettle = settled + remaining;
+  const progress = totalToSettle > 0 ? settled / totalToSettle : null;
+  const pct = progress === null ? 0 : Math.round(progress * 100);
+
+  if (progress === null) {
+    return (
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        Balances
+      </h2>
+    );
+  }
+
+  const size = 56;
+  const stroke = 6;
+  const r = (size - stroke) / 2;
+  const C = 2 * Math.PI * r;
+  const offset = C * (1 - (progress ?? 0));
+  const ringColor = pct >= 100 ? "#10b981" : "#6366f1";
+
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className="relative shrink-0 text-slate-200 dark:text-slate-700"
+        style={{ width: size, height: size }}
+      >
+        <svg width={size} height={size}>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth={stroke}
+            strokeDasharray={C}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            className="transition-[stroke-dashoffset] duration-700"
+          />
+        </svg>
+        <span className="absolute inset-0 grid place-items-center text-[11px] font-bold tabular-nums">
+          {pct}%
+        </span>
+      </div>
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Balances
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+          {pct >= 100
+            ? "All settled — nice."
+            : settled === 0
+              ? `${formatINR(remaining, 0)} to settle across the group`
+              : `${formatINR(settled, 0)} settled · ${formatINR(remaining, 0)} to go`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function BalancesView({
   groupId,
   summary,
@@ -85,39 +180,56 @@ export function BalancesView({
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Balances
-        </h2>
-        <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
-          {summary.balances.map((b) => {
-            const isOwed = b.amount > 0.01;
-            const owes = b.amount < -0.01;
-            return (
-              <li
-                key={b.personId}
-                className="flex items-center justify-between py-2 text-sm"
-              >
-                <span className="font-medium">
-                  {memberById.get(b.personId)?.name ?? "?"}
-                </span>
-                <span
-                  className={`tabular-nums ${
-                    isOwed
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : owes
-                      ? "text-rose-600 dark:text-rose-400"
-                      : "text-slate-500 dark:text-slate-400"
-                  }`}
-                >
-                  {isOwed
-                    ? `gets ${formatINR(b.amount, 0)}`
-                    : owes
-                    ? `owes ${formatINR(-b.amount, 0)}`
-                    : "settled"}
-                </span>
-              </li>
+        <BalancesHeader summary={summary} recorded={recorded} />
+        <ul className="mt-4 space-y-3">
+          {(() => {
+            const maxAbs = Math.max(
+              0.01,
+              ...summary.balances.map((b) => Math.abs(b.amount)),
             );
-          })}
+            return summary.balances.map((b) => {
+              const isOwed = b.amount > 0.01;
+              const owes = b.amount < -0.01;
+              const abs = Math.abs(b.amount);
+              const pct = (abs / maxAbs) * 100;
+              return (
+                <li key={b.personId} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-medium">
+                      {memberById.get(b.personId)?.name ?? "?"}
+                    </span>
+                    <span
+                      className={`tabular-nums text-xs font-semibold ${
+                        isOwed
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : owes
+                            ? "text-rose-700 dark:text-rose-400"
+                            : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      {isOwed
+                        ? `+${formatINR(abs, 0)} · gets`
+                        : owes
+                          ? `−${formatINR(abs, 0)} · owes`
+                          : "settled"}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    {(isOwed || owes) && (
+                      <div
+                        className={`h-full rounded-full transition-[width] duration-700 ${
+                          isOwed
+                            ? "bg-gradient-to-r from-emerald-400 to-emerald-600"
+                            : "bg-gradient-to-r from-rose-400 to-rose-600"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    )}
+                  </div>
+                </li>
+              );
+            });
+          })()}
         </ul>
       </section>
 

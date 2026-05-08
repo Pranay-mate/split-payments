@@ -14,6 +14,7 @@ import {
   toCategoryKey,
   type CategoryKey,
 } from "@/lib/categories";
+import { detectCategory } from "@/lib/category-detect";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 const EPSILON = 0.01;
@@ -83,6 +84,11 @@ export function AddExpense({
   const [category, setCategory] = useState<CategoryKey>(
     toCategoryKey(editing?.category),
   );
+  // True once the user has explicitly clicked a category chip. Once they
+  // have, we stop auto-applying detected categories — their pick wins.
+  const [categoryTouched, setCategoryTouched] = useState<boolean>(
+    Boolean(editing?.category),
+  );
   const [sharerIds, setSharerIds] = useState<string[]>(
     editing?.splits.map((s) => s.userId) ?? members.map((m) => m.id),
   );
@@ -116,6 +122,22 @@ export function AddExpense({
         }))
       : [blankItem(members.map((m) => m.id))],
   );
+
+  // Local keyword-based category detection. Runs on every description
+  // change but skips once the user has clicked a chip — their pick wins.
+  // Synchronous regex match, no debounce needed.
+  const detectedCategory = useMemo(
+    () => detectCategory(description),
+    [description],
+  );
+  useEffect(() => {
+    if (categoryTouched) return;
+    if (!detectedCategory) return;
+    if (detectedCategory === category) return;
+    // Deferred to a microtask so React 19's set-state-in-effect lint
+    // is satisfied — matches the convention used elsewhere in the app.
+    queueMicrotask(() => setCategory(detectedCategory));
+  }, [detectedCategory, categoryTouched, category]);
 
   // Live FX preview for non-primary expenses. We only render once the rate
   // has been fetched — no loading state in between, the API is fast (~150ms).
@@ -254,6 +276,7 @@ export function AddExpense({
     setExactByPerson({});
     setSplitMode("equal");
     setCategory(DEFAULT_CATEGORY);
+    setCategoryTouched(false);
     setSharerIds(members.map((m) => m.id));
     setMode("single");
     setItems([blankItem(members.map((m) => m.id))]);
@@ -538,9 +561,16 @@ export function AddExpense({
       )}
 
       <div>
-        <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
-          Category
-        </span>
+        <div className="flex items-baseline justify-between">
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+            Category
+          </span>
+          {!categoryTouched && detectedCategory && (
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              Auto-detected from description
+            </span>
+          )}
+        </div>
         <div className="mt-1 flex flex-wrap gap-1.5">
           {CATEGORY_KEYS.map((key) => {
             const meta = CATEGORIES[key];
@@ -549,7 +579,10 @@ export function AddExpense({
               <button
                 key={key}
                 type="button"
-                onClick={() => setCategory(key)}
+                onClick={() => {
+                  setCategory(key);
+                  setCategoryTouched(true);
+                }}
                 aria-pressed={active}
                 className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
                   active
