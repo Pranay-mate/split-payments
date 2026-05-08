@@ -118,6 +118,25 @@ function isPermanentError(err: unknown): boolean {
   return ["UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "BAD_REQUEST", "CONFLICT"].includes(code);
 }
 
+/**
+ * Returns the entity key for an item — items sharing a key are sequenced;
+ * items with different keys can run in parallel without ordering issues.
+ *
+ * Why: a create-then-update for the same expense MUST run in order, but
+ * an unrelated create on a different group can fire concurrently. With
+ * tRPC's httpBatchLink, parallel calls within a microtask window also
+ * get batched into a single HTTP request — a meaningful Mumbai→Sydney
+ * latency win.
+ */
+function entityKey(item: QueuedMutation): string {
+  const input = item.input as { id?: string; clientEventId?: string };
+  const entityId = input.id ?? input.clientEventId ?? item.clientEventId;
+  if (item.path.startsWith("expenses.")) return `expense:${entityId}`;
+  if (item.path.startsWith("settlements.")) return `settlement:${entityId}`;
+  if (item.path.startsWith("comments.")) return `comment:${entityId}`;
+  return `${item.path}:${entityId}`;
+}
+
 export async function drainQueue(client: AnyMutateClient): Promise<DrainResult> {
   if (typeof window === "undefined") {
     return { synced: 0, failed: 0, remaining: 0, conflicts: [] };
@@ -125,56 +144,70 @@ export async function drainQueue(client: AnyMutateClient): Promise<DrainResult> 
   const db = getOfflineDb();
   const items = await db.queue.orderBy("createdAt").toArray();
 
+  // Bucket items by entity so each entity's chain runs sequentially but
+  // distinct entities run in parallel.
+  const groups = new Map<string, QueuedMutation[]>();
+  for (const item of items) {
+    const key = entityKey(item);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(item);
+  }
+
   let synced = 0;
   let failed = 0;
   const permanentFailures: { path: string; message: string }[] = [];
+  // If any entity hits a network error, others can still finish — but we
+  // shouldn't keep hammering. A shared flag short-circuits remaining items.
+  let sawNetworkError = false;
 
-  for (const item of items) {
-    const [router, procedure] = item.path.split(".") as [string, string];
-    try {
-      await client[router][procedure].mutate(item.input);
-      await db.queue.delete(item.id!);
-      synced++;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-
-      if (isPermanentError(err)) {
-        // Drop it — retrying won't help. Log + drop so the queue can drain.
-        await db.queue.delete(item.id!);
-        failed++;
-        if (process.env.NODE_ENV !== "production") {
-          console.warn(`[offline] dropping permanently-failed ${item.path}:`, message);
-        }
-        // Surface last-write-wins conflicts to the user — they specifically
-        // want to know their offline edit was overwritten by a newer one.
-        if (getErrorCode(err) === "CONFLICT") {
-          permanentFailures.push({ path: item.path, message });
-        }
-        continue;
-      }
-
-      if (!isOfflineError(err)) {
-        // Unknown server error — keep it but increment attempts. Drop after 5.
-        const attempts = item.attempts + 1;
-        if (attempts >= 5) {
+  await Promise.all(
+    Array.from(groups.values()).map(async (group) => {
+      for (const item of group) {
+        if (sawNetworkError) return; // give up; we're offline again
+        const [router, procedure] = item.path.split(".") as [string, string];
+        try {
+          await client[router][procedure].mutate(item.input);
           await db.queue.delete(item.id!);
-          failed++;
-          continue;
-        }
-        await db.queue.update(item.id!, { attempts, lastError: message });
-        failed++;
-        break;
-      }
+          synced++;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
 
-      // Network error — preserve order, stop the drain.
-      await db.queue.update(item.id!, {
-        attempts: item.attempts + 1,
-        lastError: message,
-      });
-      failed++;
-      break;
-    }
-  }
+          if (isPermanentError(err)) {
+            await db.queue.delete(item.id!);
+            failed++;
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(`[offline] dropping permanently-failed ${item.path}:`, message);
+            }
+            if (getErrorCode(err) === "CONFLICT") {
+              permanentFailures.push({ path: item.path, message });
+            }
+            continue;
+          }
+
+          if (!isOfflineError(err)) {
+            const attempts = item.attempts + 1;
+            if (attempts >= 5) {
+              await db.queue.delete(item.id!);
+              failed++;
+              continue;
+            }
+            await db.queue.update(item.id!, { attempts, lastError: message });
+            failed++;
+            return; // stop this entity's chain to preserve ordering
+          }
+
+          // Network error — the rest of this entity's chain must wait too.
+          sawNetworkError = true;
+          await db.queue.update(item.id!, {
+            attempts: item.attempts + 1,
+            lastError: message,
+          });
+          failed++;
+          return;
+        }
+      }
+    }),
+  );
 
   const remaining = await db.queue.count();
   return { synced, failed, remaining, conflicts: permanentFailures };
