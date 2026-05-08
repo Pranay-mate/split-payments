@@ -6,6 +6,7 @@ import { profilesRouter } from "./profiles";
 import { settlementsRouter } from "./settlements";
 import { commentsRouter } from "./comments";
 import { eventsRouter } from "./eventsRouter";
+import { claimRouter } from "./claim";
 
 export const appRouter = router({
   auth: authRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   settlements: settlementsRouter,
   comments: commentsRouter,
   events: eventsRouter,
+  claim: claimRouter,
 });
 
 export type AppRouter = typeof appRouter;

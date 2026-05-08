@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { randomBytes, randomUUID } from "node:crypto";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import {
+  claimTokens,
   expenses,
   groupMembers,
   groups,
@@ -85,6 +87,7 @@ export const groupsRouter = router({
           joinedAt: groupMembers.joinedAt,
           displayName: profiles.displayName,
           avatarUrl: profiles.avatarUrl,
+          isGuest: profiles.isGuest,
         })
         .from(groupMembers)
         .leftJoin(profiles, eq(profiles.id, groupMembers.userId))
@@ -96,6 +99,7 @@ export const groupsRouter = router({
         joinedAt: r.joinedAt,
         displayName: r.displayName ?? "Member",
         avatarUrl: r.avatarUrl,
+        isGuest: r.isGuest ?? false,
       }));
     }),
 
@@ -284,6 +288,100 @@ export const groupsRouter = router({
         payload: {},
       });
       return { ok: true };
+    }),
+
+  /**
+   * Add a non-signup ("guest") member to a group. Creates a shadow profile
+   * with a generated UUID and adds it to group_members. Anyone in the group
+   * can do this — same trust model as sharing the group's invite link.
+   */
+  addGuest: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string().uuid(),
+        name: z.string().min(1).max(60),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.groupId, ctx.user.id);
+
+      const shadowId = randomUUID();
+      const trimmed = input.name.trim();
+
+      await db.transaction(async (tx) => {
+        await tx.insert(profiles).values({
+          id: shadowId,
+          displayName: trimmed,
+          isGuest: true,
+        });
+        await tx.insert(groupMembers).values({
+          groupId: input.groupId,
+          userId: shadowId,
+        });
+      });
+
+      await logEvent({
+        groupId: input.groupId,
+        eventType: "guest.added",
+        actorId: ctx.user.id,
+        payload: { shadowProfileId: shadowId, displayName: trimmed },
+      });
+
+      return {
+        userId: shadowId,
+        joinedAt: new Date(),
+        displayName: trimmed,
+        avatarUrl: null,
+        isGuest: true,
+      };
+    }),
+
+  /**
+   * Create a single-use claim token for a guest. The caller copies the
+   * resulting token (or full URL via window.location.origin + /claim/<token>)
+   * and shares it out-of-band with the real person.
+   */
+  createClaimToken: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string().uuid(),
+        shadowProfileId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.groupId, ctx.user.id);
+
+      const [shadow] = await db
+        .select({ id: profiles.id, isGuest: profiles.isGuest })
+        .from(profiles)
+        .innerJoin(groupMembers, eq(groupMembers.userId, profiles.id))
+        .where(
+          and(
+            eq(profiles.id, input.shadowProfileId),
+            eq(groupMembers.groupId, input.groupId),
+          ),
+        )
+        .limit(1);
+
+      if (!shadow || !shadow.isGuest) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "That member is not a guest.",
+        });
+      }
+
+      const token = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      await db.insert(claimTokens).values({
+        token,
+        shadowProfileId: input.shadowProfileId,
+        groupId: input.groupId,
+        createdBy: ctx.user.id,
+        expiresAt,
+      });
+
+      return { token, expiresAt };
     }),
 
   /** Join an existing group via its invite token. */

@@ -116,6 +116,21 @@ CREATE INDEX IF NOT EXISTS settlements_from_idx  ON settlements(from_user_id);
 CREATE INDEX IF NOT EXISTS settlements_to_idx    ON settlements(to_user_id);
 
 
+-- claim_tokens: single-use token that lets a real auth user claim a shadow
+-- profile's history. Token is shared out-of-band by the group creator.
+CREATE TABLE IF NOT EXISTS claim_tokens (
+  token             text        PRIMARY KEY,
+  shadow_profile_id uuid        NOT NULL,
+  group_id          uuid        NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  created_by        uuid        NOT NULL,
+  expires_at        timestamptz NOT NULL,
+  used_at           timestamptz,
+  created_at        timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS claim_tokens_shadow_idx ON claim_tokens(shadow_profile_id);
+CREATE INDEX IF NOT EXISTS claim_tokens_group_idx  ON claim_tokens(group_id);
+
+
 -- events: append-only audit log (also drives offline replay + per-expense history)
 CREATE TABLE IF NOT EXISTS events (
   id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -142,3 +157,8 @@ CREATE INDEX IF NOT EXISTS events_expense_idx  ON events(expense_id);
 ALTER TABLE events
   ADD COLUMN IF NOT EXISTS expense_id uuid;
 CREATE INDEX IF NOT EXISTS events_expense_idx ON events(expense_id);
+
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS is_guest boolean NOT NULL DEFAULT false;
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS claimed_by uuid;
