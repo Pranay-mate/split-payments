@@ -54,7 +54,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       utils.expenses.listByGroup.invalidate({ groupId });
     },
   });
-  const submitDelete = useMutationWithQueue("expenses.delete", deleteMutation);
+  const submitDelete = useMutationWithQueue("expenses.delete", deleteMutation, {
+    onQueued: (rawInput) => {
+      const i = rawInput as { id: string };
+      utils.expenses.listByGroup.setData({ groupId }, (old) =>
+        old ? old.filter((e) => e.id !== i.id) : old,
+      );
+    },
+  });
 
   const memberById = useMemo(() => {
     const m = new Map<string, { id: string; name: string }>();
@@ -230,14 +237,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                           }
                         : null
                     }
-                onSuccess={() => {
-                  utils.expenses.listByGroup.invalidate({ groupId });
+                onSuccess={(queued) => {
+                  if (!queued) utils.expenses.listByGroup.invalidate({ groupId });
                   if (editingId) {
                     setEditingId(null);
-                    toast.success("Expense updated");
+                    if (!queued) toast.success("Expense updated");
                   } else {
                     setAdding(false);
-                    toast.success("Expense added");
+                    if (!queued) toast.success("Expense added");
                   }
                 }}
                 onCancel={editingId ? () => setEditingId(null) : undefined}
@@ -262,19 +269,29 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               {expenses.map((e) => {
                 const payerName = memberById.get(e.payerId)?.name ?? "?";
                 const showOriginal = e.currency !== group.primaryCurrency;
+                const pending = (e as unknown as { _pending?: boolean })._pending;
                 return (
                   <li
                     key={e.id}
                     className={`animate-row-in rounded-xl border p-3 transition ${
                       editingId === e.id
                         ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/30"
+                        : pending
+                        ? "border-amber-200 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/20"
                         : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {e.description || "Expense"}
+                      <p className="flex items-center gap-2 truncate text-sm font-medium">
+                        <span className="truncate">
+                          {e.description || "Expense"}
+                        </span>
+                        {pending && (
+                          <span className="shrink-0 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
+                            Pending sync
+                          </span>
+                        )}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                         {payerName} paid{" "}

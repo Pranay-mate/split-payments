@@ -37,7 +37,7 @@ export function AddExpense({
   primaryCurrency: string;
   members: { id: string; name: string }[];
   editing?: EditingExpense | null;
-  onSuccess: () => void;
+  onSuccess: (queued: boolean) => void;
   onCancel?: () => void;
 }) {
   const isEditing = Boolean(editing);
@@ -112,10 +112,49 @@ export function AddExpense({
   );
   const exactDelta = numericAmount - exactTotal;
 
+  const utils = trpc.useUtils();
+
   const createMutation = trpc.expenses.create.useMutation();
   const updateMutation = trpc.expenses.update.useMutation();
 
-  const submitCreate = useMutationWithQueue("expenses.create", createMutation);
+  const submitCreate = useMutationWithQueue("expenses.create", createMutation, {
+    onQueued: (rawInput, clientEventId) => {
+      const i = rawInput as {
+        groupId: string;
+        description: string;
+        amount: number;
+        currency: string;
+        payerId: string;
+        splitMode: SplitMode;
+        splits: { userId: string; amount: number }[];
+      };
+      // Optimistically add to the expenses list so the user sees their
+      // change immediately. convertedAmount is wrong if currency != primary;
+      // sync will correct it.
+      utils.expenses.listByGroup.setData({ groupId: i.groupId }, (old) => {
+        if (!old) return old;
+        const optimistic = {
+          id: clientEventId,
+          groupId: i.groupId,
+          description: i.description,
+          amount: i.amount,
+          currency: i.currency,
+          convertedAmount:
+            i.currency === primaryCurrency ? i.amount : i.amount,
+          fxRate: 1,
+          payerId: i.payerId,
+          splitMode: i.splitMode,
+          occurredAt: new Date(),
+          createdBy: i.payerId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          splits: i.splits,
+          _pending: true,
+        } as unknown as (typeof old)[number];
+        return [optimistic, ...old];
+      });
+    },
+  });
   const submitUpdate = useMutationWithQueue("expenses.update", updateMutation);
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -196,8 +235,9 @@ export function AddExpense({
   const handleSubmit = async () => {
     if (!valid) return;
     try {
+      let result: { queued: boolean };
       if (editing) {
-        await submitUpdate({
+        result = await submitUpdate({
           id: editing.id,
           description: description.trim(),
           amount: numericAmount,
@@ -207,7 +247,7 @@ export function AddExpense({
           splits: buildSplits(),
         });
       } else {
-        await submitCreate({
+        result = await submitCreate({
           groupId,
           description: description.trim(),
           amount: numericAmount,
@@ -218,7 +258,7 @@ export function AddExpense({
         });
         resetForm();
       }
-      onSuccess();
+      onSuccess(result.queued);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Save failed";
       toast.error(message);

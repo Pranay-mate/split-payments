@@ -30,8 +30,31 @@ export function CommentsThread({
       utils.comments.listByExpense.invalidate({ expenseId });
     },
   });
-  const submitAdd = useMutationWithQueue("comments.add", addMutation);
-  const submitDelete = useMutationWithQueue("comments.delete", deleteMutation);
+  const submitAdd = useMutationWithQueue("comments.add", addMutation, {
+    onQueued: (rawInput, clientEventId) => {
+      const i = rawInput as { expenseId: string; body: string };
+      utils.comments.listByExpense.setData({ expenseId: i.expenseId }, (old) => {
+        if (!old) return old;
+        const optimistic = {
+          id: clientEventId,
+          expenseId: i.expenseId,
+          userId: currentUserId,
+          body: i.body,
+          createdAt: new Date(),
+          _pending: true,
+        } as unknown as (typeof old)[number];
+        return [...old, optimistic];
+      });
+    },
+  });
+  const submitDelete = useMutationWithQueue("comments.delete", deleteMutation, {
+    onQueued: (rawInput) => {
+      const i = rawInput as { id: string };
+      utils.comments.listByExpense.setData({ expenseId }, (old) =>
+        old ? old.filter((c) => c.id !== i.id) : old,
+      );
+    },
+  });
 
   const comments = listQuery.data ?? [];
 
@@ -54,14 +77,25 @@ export function CommentsThread({
         </p>
       ) : (
         <ul className="mt-2 space-y-1.5">
-          {comments.map((c) => (
+          {comments.map((c) => {
+            const pending = (c as unknown as { _pending?: boolean })._pending;
+            return (
             <li
               key={c.id}
-              className="group flex items-start justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-xs dark:bg-slate-800/60"
+              className={`group flex items-start justify-between gap-2 rounded-lg px-2 py-1.5 text-xs ${
+                pending
+                  ? "bg-amber-50 dark:bg-amber-950/30"
+                  : "bg-slate-50 dark:bg-slate-800/60"
+              }`}
             >
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-slate-700 dark:text-slate-200">
-                  {memberById.get(c.userId)?.name ?? "Former member"}
+                <p className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
+                  <span>{memberById.get(c.userId)?.name ?? "Former member"}</span>
+                  {pending && (
+                    <span className="rounded-full border border-amber-300 bg-amber-100 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
+                      Pending
+                    </span>
+                  )}
                 </p>
                 <p className="mt-0.5 break-words text-slate-700 dark:text-slate-200">
                   {c.body}
@@ -87,7 +121,8 @@ export function CommentsThread({
                 </button>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
 
