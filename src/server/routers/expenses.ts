@@ -278,7 +278,11 @@ export const expensesRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Expense not found" });
       }
       await ensureMembership(existing.groupId, ctx.user.id);
-      await ensureMembership(existing.groupId, input.payerId);
+      // Grandfather the original payer: if you're not changing them, no
+      // need to verify they're still in the group.
+      if (input.payerId !== existing.payerId) {
+        await ensureMembership(existing.groupId, input.payerId);
+      }
 
       // Last-write-wins: if the client's edit is older than the row's
       // current updated_at (someone else edited more recently), reject.
@@ -302,7 +306,20 @@ export const expensesRouter = router({
         });
       }
 
+      // Splits may reference members who have since left the group (or guests
+      // who were removed). Grandfather them through: a userId is allowed if
+      // it was already on this expense, OR is a current group member. This
+      // lets you edit legacy expenses without first re-adding ex-members.
+      const existingSplitUserIds = new Set(
+        (
+          await db
+            .select({ userId: expenseSplits.userId })
+            .from(expenseSplits)
+            .where(eq(expenseSplits.expenseId, input.id))
+        ).map((r) => r.userId),
+      );
       for (const split of input.splits) {
+        if (existingSplitUserIds.has(split.userId)) continue;
         await ensureMembership(existing.groupId, split.userId);
       }
 
