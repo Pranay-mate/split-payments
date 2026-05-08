@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowLeft,
+  BarChart3,
+  ChevronDown,
   Loader2,
   Link2,
   MessageSquare,
@@ -32,6 +35,21 @@ import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
+// Recharts is heavy (~100kb gz). Lazy-load so the default group view stays
+// snappy; only paid for once the user expands the Charts panel.
+const GroupCharts = dynamic(
+  () => import("./group-charts").then((m) => m.GroupCharts),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-32 items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> Loading
+        charts…
+      </div>
+    ),
+  },
+);
+
 const RECENT_EXPENSE_COUNT = 10;
 
 export function GroupDetail({ groupId }: { groupId: string }) {
@@ -40,6 +58,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
   const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
+  const [showCharts, setShowCharts] = useState(false);
   const [guestName, setGuestName] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
@@ -308,6 +327,43 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             memberById={memberById}
             recorded={settlementsQuery.data ?? []}
           />
+        )}
+
+        {expenses.length > 0 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <button
+              type="button"
+              onClick={() => setShowCharts((v) => !v)}
+              aria-expanded={showCharts}
+              className="flex w-full items-center justify-between"
+            >
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <BarChart3 className="h-4 w-4 text-fuchsia-500" aria-hidden />
+                Charts
+              </h2>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition ${showCharts ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+            {showCharts && (
+              <div className="mt-4">
+                <GroupCharts
+                  expenses={expenses.map((e) => ({
+                    payerId: e.payerId,
+                    convertedAmount: e.convertedAmount,
+                    occurredAt: e.occurredAt,
+                    category: (e as unknown as { category?: string | null })
+                      .category,
+                  }))}
+                  members={members.map((m) => ({
+                    id: m.userId,
+                    name: m.displayName,
+                  }))}
+                />
+              </div>
+            )}
+          </section>
         )}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
