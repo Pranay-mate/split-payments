@@ -1,21 +1,87 @@
 "use client";
 
-import { Activity, Loader2 } from "lucide-react";
+import {
+  Activity,
+  Loader2,
+  Plus,
+  Pencil,
+  Trash2,
+  UserPlus,
+  UserMinus,
+  Settings,
+  HandCoins,
+  MessageSquare,
+} from "lucide-react";
+import type { ComponentType } from "react";
 import { trpc } from "@/lib/trpc/client";
 
-const EVENT_LABELS: Record<string, string> = {
-  "group.created": "created the group",
-  "group.updated": "updated group settings",
-  "group.deleted": "deleted the group",
-  "member.joined": "joined",
-  "member.left": "left",
-  "member.removed": "removed a member",
-  "expense.added": "added an expense",
-  "expense.updated": "edited an expense",
-  "expense.deleted": "removed an expense",
-  "settlement.recorded": "recorded a settlement",
-  "settlement.deleted": "undid a settlement",
-  "comment.added": "added a comment",
+type EventStyle = {
+  label: string;
+  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  iconClass: string;
+};
+
+const EVENT_STYLES: Record<string, EventStyle> = {
+  "group.created": {
+    label: "created the group",
+    Icon: Plus,
+    iconClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
+  },
+  "group.updated": {
+    label: "updated group settings",
+    Icon: Settings,
+    iconClass: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  },
+  "group.deleted": {
+    label: "deleted the group",
+    Icon: Trash2,
+    iconClass: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400",
+  },
+  "member.joined": {
+    label: "joined",
+    Icon: UserPlus,
+    iconClass: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400",
+  },
+  "member.left": {
+    label: "left",
+    Icon: UserMinus,
+    iconClass: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  },
+  "member.removed": {
+    label: "removed a member",
+    Icon: UserMinus,
+    iconClass: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400",
+  },
+  "expense.added": {
+    label: "added an expense",
+    Icon: Plus,
+    iconClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
+  },
+  "expense.updated": {
+    label: "edited an expense",
+    Icon: Pencil,
+    iconClass: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400",
+  },
+  "expense.deleted": {
+    label: "removed an expense",
+    Icon: Trash2,
+    iconClass: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400",
+  },
+  "settlement.recorded": {
+    label: "marked a payment",
+    Icon: HandCoins,
+    iconClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
+  },
+  "settlement.deleted": {
+    label: "undid a settlement",
+    Icon: HandCoins,
+    iconClass: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  },
+  "comment.added": {
+    label: "commented",
+    Icon: MessageSquare,
+    iconClass: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400",
+  },
 };
 
 function relativeTime(date: Date): string {
@@ -59,33 +125,45 @@ export function ActivityFeed({
           Nothing yet — activity will appear here as you and others act.
         </p>
       ) : (
-        <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+        <ul className="mt-3 space-y-3">
           {items.map((e) => {
             const actor = memberById.get(e.actorId)?.name ?? "Former member";
-            const label = EVENT_LABELS[e.eventType] ?? e.eventType;
+            const style = EVENT_STYLES[e.eventType] ?? {
+              label: e.eventType,
+              Icon: Activity,
+              iconClass:
+                "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+            };
             const desc = describeEvent(e.eventType, e.payload);
+            const Icon = style.Icon;
             return (
               <li
                 key={e.id}
-                className="flex items-start justify-between gap-3 py-2 text-sm"
+                className="flex items-start gap-3"
               >
+                <span
+                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${style.iconClass}`}
+                  aria-hidden
+                >
+                  <Icon className="h-4 w-4" aria-hidden />
+                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate">
-                    <span className="font-medium">{actor}</span>{" "}
+                  <p className="text-sm leading-snug break-words">
+                    <span className="font-semibold">{actor}</span>{" "}
                     <span className="text-slate-600 dark:text-slate-400">
-                      {label}
+                      {style.label}
                     </span>
                     {desc && (
-                      <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-slate-700 dark:text-slate-200">
                         {" — "}
                         {desc}
                       </span>
                     )}
                   </p>
+                  <p className="mt-0.5 text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
+                    {relativeTime(e.occurredAt)}
+                  </p>
                 </div>
-                <span className="shrink-0 text-xs text-slate-400">
-                  {relativeTime(e.occurredAt)}
-                </span>
               </li>
             );
           })}
