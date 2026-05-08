@@ -74,7 +74,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
 
   const claimTokenMutation = trpc.groups.createClaimToken.useMutation({
     onSuccess: async ({ token }) => {
-      const url = `${window.location.origin}/claim/${token}`;
+      const url = `${window.location.origin}/app/claim/${token}`;
       try {
         await navigator.clipboard.writeText(url);
         toast.success("Claim link copied — share it with your guest");
