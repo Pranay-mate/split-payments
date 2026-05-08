@@ -30,21 +30,32 @@ The DB password is the one you reset earlier — never paste it in chat.
 
 ## Step 2 — apply schema to Supabase
 
-Run from the project root:
+> ⚠ **Drizzle-kit `pnpm db:push` is broken against Supabase** as of 0.31.x.
+> The introspection step throws `TypeError: Cannot read properties of undefined (reading 'replace')`
+> on certain CHECK constraints. Versions 0.31.7, 0.31.10 confirmed broken.
+>
+> **Workaround:** apply schema changes via the **Supabase SQL Editor** instead.
+> When schema.ts changes, ask for the equivalent SQL — paste + Run.
+>
+> Initial schema for a fresh project is in `drizzle/migrations/` (if generated) or
+> can be derived from `src/lib/db/schema.ts`.
+
+### Supabase SQL Editor flow (reliable)
+
+1. Open Supabase dashboard → **SQL Editor** → New query
+2. Paste the SQL provided in the relevant commit / chat
+3. Click **Run** — choose **"Run without RLS"** to match the rest of the schema
+4. Done
+
+### Drizzle-kit flow (currently broken)
 
 ```bash
-pnpm db:push
+pnpm db:push    # ❌ fails on Supabase CHECK constraints
+pnpm db:generate # ❌ also introspects, same failure
+pnpm db:studio   # may work for browsing
 ```
 
-This generates the SQL needed for the schema in `src/lib/db/schema.ts` and applies it directly to your Supabase Postgres. Drizzle Kit will print a preview before any destructive change.
-
-For production (when you have real users), switch to migration files:
-
-```bash
-pnpm db:generate    # writes a versioned SQL file in drizzle/migrations/
-# review the file
-pnpm db:push        # apply
-```
+If the bug ever gets fixed upstream, restore the standard flow.
 
 ## Step 3 — enable Google OAuth in Supabase
 
