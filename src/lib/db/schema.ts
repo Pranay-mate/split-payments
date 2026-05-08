@@ -215,6 +215,8 @@ export const events = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     groupId: uuid("group_id").references(() => groups.id, { onDelete: "cascade" }),
+    /** Optional foreign-keyless reference to the expense this event affects. Survives expense deletion so audit trail is preserved. */
+    expenseId: uuid("expense_id"),
     /** Type of event, e.g. "expense.added" / "expense.updated" / "expense.deleted" / "settlement.recorded". */
     eventType: text("event_type").notNull(),
     actorId: uuid("actor_id").notNull(),
@@ -231,6 +233,7 @@ export const events = pgTable(
     index("events_group_idx").on(t.groupId),
     index("events_actor_idx").on(t.actorId),
     index("events_occurred_idx").on(t.occurredAt),
+    index("events_expense_idx").on(t.expenseId),
   ],
 );
 

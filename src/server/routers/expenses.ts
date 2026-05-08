@@ -222,6 +222,7 @@ export const expensesRouter = router({
 
         await logEvent({
           groupId: input.groupId,
+          expenseId: expense.id,
           eventType: "expense.added",
           actorId: ctx.user.id,
           payload: {
@@ -346,6 +347,7 @@ export const expensesRouter = router({
 
         await logEvent({
           groupId: existing.groupId,
+          expenseId: input.id,
           eventType: "expense.updated",
           actorId: ctx.user.id,
           payload: {
@@ -381,6 +383,7 @@ export const expensesRouter = router({
 
       await logEvent({
         groupId: expense.groupId,
+        expenseId: input.id,
         eventType: "expense.deleted",
         actorId: ctx.user.id,
         payload: { expenseId: input.id, description: expense.description },

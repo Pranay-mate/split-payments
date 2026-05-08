@@ -1,10 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, MessageSquare, Send, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  MessageSquare,
+  Send,
+  Trash2,
+  Plus,
+  Pencil,
+  History,
+} from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
+
+const HISTORY_LABELS: Record<string, string> = {
+  "expense.added": "added this expense",
+  "expense.updated": "edited this expense",
+  "expense.deleted": "removed this expense",
+  "comment.added": "commented",
+};
+
+function relativeTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const diff = Date.now() - d.getTime();
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h ago`;
+  const dd = Math.floor(h / 24);
+  if (dd < 7) return `${dd}d ago`;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
 
 export function CommentsThread({
   expenseId,
@@ -16,8 +44,13 @@ export function CommentsThread({
   memberById: Map<string, { id: string; name: string }>;
 }) {
   const [draft, setDraft] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
 
   const listQuery = trpc.comments.listByExpense.useQuery({ expenseId });
+  const historyQuery = trpc.events.listByExpense.useQuery(
+    { expenseId },
+    { enabled: showHistory, staleTime: 30_000 },
+  );
   const utils = trpc.useUtils();
 
   const addMutation = trpc.comments.add.useMutation({
@@ -60,12 +93,76 @@ export function CommentsThread({
 
   return (
     <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-      <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        <MessageSquare className="h-3.5 w-3.5" aria-hidden /> Comments
-        {comments.length > 0 && (
-          <span className="ml-0.5 text-slate-400">· {comments.length}</span>
-        )}
-      </h4>
+      <div className="flex items-center justify-between">
+        <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <MessageSquare className="h-3.5 w-3.5" aria-hidden /> Comments
+          {comments.length > 0 && (
+            <span className="ml-0.5 text-slate-400">· {comments.length}</span>
+          )}
+        </h4>
+        <button
+          type="button"
+          onClick={() => setShowHistory((v) => !v)}
+          aria-pressed={showHistory}
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
+            showHistory
+              ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+              : "text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          }`}
+        >
+          <History className="h-3 w-3" aria-hidden /> History
+        </button>
+      </div>
+
+      {showHistory && (
+        <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50/40 p-2 dark:border-slate-800 dark:bg-slate-800/40">
+          {historyQuery.isLoading ? (
+            <p className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> Loading history…
+            </p>
+          ) : (historyQuery.data ?? []).length === 0 ? (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              No history yet.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {(historyQuery.data ?? []).map((e) => {
+                const actor = memberById.get(e.actorId)?.name ?? "Former member";
+                const label = HISTORY_LABELS[e.eventType] ?? e.eventType;
+                const Icon =
+                  e.eventType === "expense.added"
+                    ? Plus
+                    : e.eventType === "expense.updated"
+                      ? Pencil
+                      : e.eventType === "expense.deleted"
+                        ? Trash2
+                        : MessageSquare;
+                const iconClass =
+                  e.eventType === "expense.added"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : e.eventType === "expense.deleted"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : e.eventType === "expense.updated"
+                        ? "text-indigo-600 dark:text-indigo-400"
+                        : "text-violet-600 dark:text-violet-400";
+                return (
+                  <li
+                    key={e.id}
+                    className="flex items-start gap-2 text-[11px] leading-snug text-slate-600 dark:text-slate-300"
+                  >
+                    <Icon className={`mt-0.5 h-3 w-3 shrink-0 ${iconClass}`} aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="font-medium">{actor}</span>{" "}
+                      <span className="text-slate-500 dark:text-slate-400">{label}</span>{" "}
+                      <span className="text-slate-400">· {relativeTime(e.occurredAt)}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
 
       {listQuery.isLoading ? (
         <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">

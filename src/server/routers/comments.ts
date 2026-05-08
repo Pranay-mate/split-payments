@@ -87,9 +87,10 @@ export const commentsRouter = router({
 
       await logEvent({
         groupId,
+        expenseId: input.expenseId,
         eventType: "comment.added",
         actorId: ctx.user.id,
-        payload: { expenseId: input.expenseId, commentId: created.id },
+        payload: { expenseId: input.expenseId, commentId: created.id, body: input.body.trim().slice(0, 80) },
       });
 
       return created;

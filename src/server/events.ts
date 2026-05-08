@@ -11,6 +11,8 @@ import { db } from "@/lib/db";
 
 export type LogEventInput = {
   groupId: string | null;
+  /** When set, this event is queryable per-expense via events.listByExpense. */
+  expenseId?: string | null;
   eventType: string;
   actorId: string;
   payload: Record<string, unknown>;
@@ -23,6 +25,7 @@ export async function logEvent(input: LogEventInput): Promise<void> {
   try {
     await db.insert(events).values({
       groupId: input.groupId,
+      expenseId: input.expenseId ?? null,
       eventType: input.eventType,
       actorId: input.actorId,
       payload: JSON.stringify(input.payload),
