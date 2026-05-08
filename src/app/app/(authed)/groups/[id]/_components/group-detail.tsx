@@ -39,6 +39,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
   const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
   const [guestName, setGuestName] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
@@ -172,6 +173,62 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const members = membersQuery.data ?? [];
   const expenses = expensesQuery.data ?? [];
   const isCreator = !!meQuery.data && group.createdBy === meQuery.data.id;
+
+  type ExpenseRow = (typeof expenses)[number];
+  type DisplayItem =
+    | { kind: "day"; key: string; label: string; total: number; count: number }
+    | { kind: "expense"; expense: ExpenseRow };
+
+  const visibleExpenses = showAllExpenses
+    ? expenses
+    : expenses.slice(0, RECENT_EXPENSE_COUNT);
+
+  const displayItems: DisplayItem[] = (() => {
+    if (viewMode === "recent") {
+      return visibleExpenses.map((e) => ({ kind: "expense" as const, expense: e }));
+    }
+    // By-day: interleave a day-header before the first expense of each new date.
+    const totals = new Map<
+      string,
+      { total: number; count: number; label: string }
+    >();
+    for (const e of visibleExpenses) {
+      const d = new Date(e.occurredAt);
+      const key = d.toISOString().slice(0, 10);
+      if (!totals.has(key)) {
+        totals.set(key, {
+          total: 0,
+          count: 0,
+          label: d.toLocaleDateString(undefined, {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          }),
+        });
+      }
+      const entry = totals.get(key)!;
+      entry.total += e.convertedAmount;
+      entry.count += 1;
+    }
+    const out: DisplayItem[] = [];
+    let prevKey: string | null = null;
+    for (const e of visibleExpenses) {
+      const key = new Date(e.occurredAt).toISOString().slice(0, 10);
+      if (key !== prevKey) {
+        const meta = totals.get(key)!;
+        out.push({
+          kind: "day",
+          key,
+          label: meta.label,
+          total: meta.total,
+          count: meta.count,
+        });
+        prevKey = key;
+      }
+      out.push({ kind: "expense", expense: e });
+    }
+    return out;
+  })();
 
   return (
     <main className="flex-1">
@@ -334,11 +391,40 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             )
           ) : (
             <>
-            <ul className="mt-4 space-y-2">
-              {(showAllExpenses
-                ? expenses
-                : expenses.slice(0, RECENT_EXPENSE_COUNT)
-              ).map((e) => {
+            <div className="mt-4 inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900">
+              {(["recent", "byDay"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  aria-pressed={viewMode === mode}
+                  className={`rounded-md px-2.5 py-1 transition ${
+                    viewMode === mode
+                      ? "bg-emerald-500 text-white"
+                      : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  {mode === "recent" ? "Recent" : "By day"}
+                </button>
+              ))}
+            </div>
+            <ul className="mt-3 space-y-2">
+              {displayItems.map((item) => {
+                if (item.kind === "day") {
+                  return (
+                    <li
+                      key={`day:${item.key}`}
+                      className="sticky top-0 z-10 flex items-center justify-between rounded-md bg-slate-100/90 px-3 py-1.5 text-xs font-semibold text-slate-700 backdrop-blur dark:bg-slate-800/80 dark:text-slate-200"
+                    >
+                      <span>{item.label}</span>
+                      <span className="tabular-nums text-slate-500 dark:text-slate-400">
+                        {formatINR(item.total, 0)} · {item.count}{" "}
+                        {item.count === 1 ? "expense" : "expenses"}
+                      </span>
+                    </li>
+                  );
+                }
+                const e = item.expense;
                 const payerName = memberById.get(e.payerId)?.name ?? "?";
                 const showOriginal = e.currency !== group.primaryCurrency;
                 const pending = (e as unknown as { _pending?: boolean })._pending;
