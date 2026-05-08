@@ -26,7 +26,10 @@ export async function enqueue(
   if (!ALLOWED_PATHS.has(path)) {
     throw new Error(`Cannot queue path: ${path}`);
   }
-  const clientEventId = crypto.randomUUID();
+  const clientEventId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
   const db = getOfflineDb();
   await db.queue.add({
     clientEventId,
@@ -35,6 +38,24 @@ export async function enqueue(
     createdAt: Date.now(),
     attempts: 0,
   });
+  // Best-effort Background Sync registration. SW will postMessage clients
+  // when the OS reports network is back. iOS/Firefox don't fire it, so
+  // this is purely additive — in-tab "online" event handles those.
+  if (
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "SyncManager" in window
+  ) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const syncMgr = (reg as ServiceWorkerRegistration & {
+        sync?: { register: (tag: string) => Promise<void> };
+      }).sync;
+      if (syncMgr) await syncMgr.register("easysplits-sync");
+    } catch {
+      // Sync registration failed (permissions, no SW yet) — ignore
+    }
+  }
   return clientEventId;
 }
 
@@ -65,6 +86,8 @@ export type DrainResult = {
   synced: number;
   failed: number;
   remaining: number;
+  /** Items the server rejected as conflicts (someone else edited more recently). */
+  conflicts: { path: string; message: string }[];
 };
 
 type AnyMutateClient = {
@@ -80,24 +103,31 @@ type AnyMutateClient = {
  * Detect tRPC errors that mean "this mutation will never succeed" — we
  * should drop them from the queue rather than retry forever.
  */
+function getErrorCode(err: unknown): string | undefined {
+  return err && typeof err === "object" && "data" in err
+    ? (err as { data?: { code?: string } }).data?.code
+    : undefined;
+}
+
 function isPermanentError(err: unknown): boolean {
-  const code =
-    err && typeof err === "object" && "data" in err
-      ? (err as { data?: { code?: string } }).data?.code
-      : undefined;
+  const code = getErrorCode(err);
   if (!code) return false;
   // FORBIDDEN: lost group access; UNAUTHORIZED: session expired;
   // BAD_REQUEST / NOT_FOUND: stale or invalid input.
-  return ["UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "BAD_REQUEST"].includes(code);
+  // CONFLICT: last-write-wins lost — surface to user separately below.
+  return ["UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "BAD_REQUEST", "CONFLICT"].includes(code);
 }
 
 export async function drainQueue(client: AnyMutateClient): Promise<DrainResult> {
-  if (typeof window === "undefined") return { synced: 0, failed: 0, remaining: 0 };
+  if (typeof window === "undefined") {
+    return { synced: 0, failed: 0, remaining: 0, conflicts: [] };
+  }
   const db = getOfflineDb();
   const items = await db.queue.orderBy("createdAt").toArray();
 
   let synced = 0;
   let failed = 0;
+  const permanentFailures: { path: string; message: string }[] = [];
 
   for (const item of items) {
     const [router, procedure] = item.path.split(".") as [string, string];
@@ -114,6 +144,11 @@ export async function drainQueue(client: AnyMutateClient): Promise<DrainResult> 
         failed++;
         if (process.env.NODE_ENV !== "production") {
           console.warn(`[offline] dropping permanently-failed ${item.path}:`, message);
+        }
+        // Surface last-write-wins conflicts to the user — they specifically
+        // want to know their offline edit was overwritten by a newer one.
+        if (getErrorCode(err) === "CONFLICT") {
+          permanentFailures.push({ path: item.path, message });
         }
         continue;
       }
@@ -142,7 +177,7 @@ export async function drainQueue(client: AnyMutateClient): Promise<DrainResult> 
   }
 
   const remaining = await db.queue.count();
-  return { synced, failed, remaining };
+  return { synced, failed, remaining, conflicts: permanentFailures };
 }
 
 /**

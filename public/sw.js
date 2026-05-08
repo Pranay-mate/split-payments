@@ -12,7 +12,7 @@
  * to be evicted on next activation.
  */
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const RUNTIME_CACHE = `easysplits-runtime-${CACHE_VERSION}`;
 
 self.addEventListener("install", () => {
@@ -50,6 +50,27 @@ function shouldCache(response) {
     response.type === "basic" // skip opaque cross-origin
   );
 }
+
+// Background Sync API: when the OS reports network is back, we post a
+// message to all open clients asking them to drain the offline queue.
+// We don't replay the queue from inside the SW because tRPC + auth +
+// superjson reconstruction is non-trivial here, and any open tab can
+// do the work just as well. iOS Safari doesn't fire 'sync' events, so
+// it falls back to the in-tab 'online' listener.
+self.addEventListener("sync", (event) => {
+  if (event.tag !== "easysplits-sync") return;
+  event.waitUntil(
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of clientList) {
+        client.postMessage({ type: "EASYSPLITS_SYNC" });
+      }
+    })(),
+  );
+});
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;

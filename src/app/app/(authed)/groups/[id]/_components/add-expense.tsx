@@ -275,6 +275,10 @@ export function AddExpense({
           payerId,
           splitMode,
           splits: buildSplits(),
+          // For last-write-wins conflict resolution. The server compares
+          // this against the row's current updated_at; if a newer edit
+          // exists, our update is rejected with CONFLICT.
+          clientUpdatedAt: new Date(),
         });
       } else {
         result = await submitCreate({

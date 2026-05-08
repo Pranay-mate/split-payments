@@ -251,6 +251,14 @@ export const expensesRouter = router({
         payerId: z.string().uuid(),
         splitMode: splitModeSchema,
         splits: z.array(splitSchema).min(1),
+        /**
+         * Client wall-clock at the moment the user submitted the edit.
+         * Used for last-write-wins conflict resolution: a stale update
+         * (older than the row's current updated_at) is rejected so that
+         * a fresher edit from another device isn't overwritten.
+         */
+        clientUpdatedAt: z.date().optional(),
+        clientEventId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -265,6 +273,20 @@ export const expensesRouter = router({
       }
       await ensureMembership(existing.groupId, ctx.user.id);
       await ensureMembership(existing.groupId, input.payerId);
+
+      // Last-write-wins: if the client's edit is older than the row's
+      // current updated_at (someone else edited more recently), reject.
+      if (input.clientUpdatedAt) {
+        const existingTime = new Date(existing.updatedAt).getTime();
+        const clientTime = input.clientUpdatedAt.getTime();
+        if (clientTime < existingTime) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Someone else made a more recent edit. Refresh to see the latest version.",
+          });
+        }
+      }
 
       const splitSum = input.splits.reduce((s, x) => s + x.amount, 0);
       if (Math.abs(splitSum - input.amount) > 0.01) {

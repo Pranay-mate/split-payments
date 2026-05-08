@@ -42,10 +42,44 @@ export function BalancesView({
   const submitRecord = useMutationWithQueue(
     "settlements.create",
     recordMutation,
+    {
+      onQueued: (rawInput, clientEventId) => {
+        const i = rawInput as {
+          groupId: string;
+          fromUserId: string;
+          toUserId: string;
+          amount: number;
+          note?: string;
+        };
+        utils.settlements.listByGroup.setData({ groupId: i.groupId }, (old) => {
+          if (!old) return old;
+          const optimistic = {
+            id: clientEventId,
+            groupId: i.groupId,
+            fromUserId: i.fromUserId,
+            toUserId: i.toUserId,
+            amount: i.amount,
+            note: i.note ?? "",
+            occurredAt: new Date(),
+            createdAt: new Date(),
+            _pending: true,
+          } as unknown as (typeof old)[number];
+          return [optimistic, ...old];
+        });
+      },
+    },
   );
   const submitDelete = useMutationWithQueue(
     "settlements.delete",
     deleteMutation,
+    {
+      onQueued: (rawInput) => {
+        const i = rawInput as { id: string };
+        utils.settlements.listByGroup.setData({ groupId }, (old) =>
+          old ? old.filter((s) => s.id !== i.id) : old,
+        );
+      },
+    },
   );
 
   return (
