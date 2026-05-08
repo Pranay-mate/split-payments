@@ -2,7 +2,7 @@
 
 > Phased roadmap with **per-task status**. Updated as we ship. PLANNING.html mirrors this — keep them in sync.
 
-**Last updated:** 2026-05-07
+**Last updated:** 2026-05-09
 **Live:** https://split-payments-sigma.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 **Status legend:** ✅ done · 🟡 in progress · ⬜ not started · ⏸ blocked (waiting on something)
@@ -32,7 +32,7 @@
 | Email magic-link (fallback) | ✅ |
 | User profile (display name, avatar) | ✅ |
 | Sign-out | ✅ |
-| Delete account | ⬜ |
+| Delete account | ✅ |
 
 ### Phase 1.B — Groups
 
@@ -40,9 +40,11 @@
 |---|---|
 | Create group (name, primary currency picker) | ✅ |
 | Join group via shareable 32-byte link | ✅ (`/app/join/[token]`) |
-| Group settings (rename, change currency) | ⬜ |
-| Leave group / kick members | ⬜ |
+| Group settings (rename, change currency) | ✅ |
+| Leave group / kick members | ✅ |
 | Members list | ✅ |
+| Guest members (no-signup) + single-use claim links | ✅ (`/app/claim/[token]`, transactional shadow→auth migration) |
+| Creator-only permissions for remove/delete/claim | ✅ (auth-user removal, group delete, claim-link generation) |
 
 ### Phase 1.C — Expenses
 
@@ -51,10 +53,13 @@
 | Add expense (payer, amount, currency, date, who-shares) | ✅ |
 | FX conversion at entry time (free FX API) | ✅ (open.er-api.com, server-side validated, 6h cache) |
 | Split modes: equal · exact · share · percent | 🟡 (equal + exact done; share + percent reserved in enum) |
+| Itemized bill split (one expense, many line items) | 🟡 (schema + server done; UI in flight) |
+| Categories (7 predefined: Food/Travel/Stay/Groceries/Bills/Entertainment/Other) | ✅ |
 | Edit expense | ✅ (Pencil icon → form prefills → Save changes) |
 | Delete expense | ✅ |
-| Comments per expense | ⬜ |
-| Activity feed | ⬜ |
+| Comments per expense | ✅ |
+| Per-expense history (events.listByExpense) | ✅ |
+| Activity feed (group-level, mobile-redesigned) | ✅ |
 
 ### Phase 1.D — Balances + Simplify Payments
 
@@ -84,10 +89,11 @@
 | SW registration in production only | ✅ |
 | iOS PWA meta tags (`appleWebApp`) | ✅ |
 | `localStorage` persistence for Trip Splitter | ✅ |
-| Offline test (airplane mode → add expense → reconnect → sync) | 🟡 (works in calculator; full app sync pending) |
-| Offline event queue for app mutations | ⬜ (Phase 1.E proper, after Supabase) |
-| Background Sync API on reconnect | ⬜ |
-| Conflict resolution (last-write-wins by timestamp+userId) | ⬜ |
+| Offline test (airplane mode → add expense → reconnect → sync) | ✅ |
+| Offline event queue for app mutations | ✅ (Dexie/IndexedDB; clientEventId as canonical row id) |
+| Background Sync API on reconnect | ✅ (Chrome/Edge; iOS Safari falls back to in-tab online event) |
+| Conflict resolution (last-write-wins by clientUpdatedAt vs server.updated_at) | ✅ |
+| Parallel-by-entity drain on reconnect | ✅ (groups items by entity ID, runs groups concurrently) |
 
 ### Phase 1.F — Marketing + SEO
 
@@ -154,17 +160,18 @@
 | Task | Status |
 |---|---|
 | Receipt photo upload (Supabase Storage) | ⏸ |
-| Categories (Food, Travel, Stay, Misc, custom) | ⏸ |
-| **Charts & visualisations** (Recharts; UX principles below) | ⏸ |
-| ↳ Per-member contribution bar at top of group page | ⏸ |
+| Categories (7 predefined buckets) | ✅ (Phase 1.C) |
+| **Charts & visualisations** (Recharts; UX principles below) | ✅ |
+| ↳ Per-member contribution bar at top of group page | ✅ ("Who's paying" custom HTML list with gradient bars) |
 | ↳ Balance bars (green = gets · red = owes) replacing text rows | ⏸ |
 | ↳ Settlement progress ring ("65% settled") | ⏸ |
-| ↳ Spend-by-category donut (depends on Categories) | ⏸ |
-| ↳ Daily-spend sparkline (depends on Trip mode) | ⏸ |
-| Recurring expenses (rent, subs) | ⏸ |
-| Bulk-split: one bill across multiple line items | ⏸ |
+| ↳ Spend-by-category donut | ✅ (donut with center emoji + percentage) |
+| ↳ Daily-spend area chart with peak callout | ✅ |
+| ↳ Hero KPI band (total · expenses · days · daily avg) | ✅ |
+| Recurring expenses (rent, subs) | ⏸ (deferred per user) |
+| Bulk-split: one bill across multiple line items | 🟡 (Phase 1.C — itemized; UI in flight) |
 | Export group to CSV / PDF | ⏸ |
-| Trip mode: daily summary, per-day spend | ⏸ |
+| Trip mode: daily summary, per-day spend | ✅ ("By day" toggle on expense list with per-day totals) |
 | Historical FX rates (lock per-expense at entry) | ✅ done in 1.C |
 | View balances in any currency (not just primary) | ⏸ |
 
@@ -257,3 +264,16 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-08 | **6 quick-wins**: group settings, members kick/leave, group switcher, delete-account, comments, activity feed. New `expense_comments` table. Event log writes on every mutation. |
 | 2026-05-08 | 4 use-case SEO pages: split-rent, trip-expenses, roommate-utilities, group-dinner. |
 | 2026-05-08 | **Phase 1.E offline event queue** (MVP): IndexedDB queue via Dexie, online/offline detection, replay-on-reconnect, UI indicator. Wired into expense add/edit. |
+| 2026-05-08 | **Phase 1.E full**: optimistic UI on every mutation, Background Sync API on Chrome/Edge, last-write-wins via clientUpdatedAt, parallel-by-entity drain, conflict toast surfacing. clientEventId becomes canonical row ID — fixes offline-create-then-edit. |
+| 2026-05-08 | **Multi-currency offline**: livePreview FX, server validates rate range, splits stored in primary, original amount preserved for edit form back-conversion. |
+| 2026-05-08 | UX polish: View-all toggles for expenses (default 10) + activity (default 5); per-expense History button (events.listByExpense); group card redesign (gradient strip + stats row + scroll-to-form on edit). |
+| 2026-05-08 | Mobile redesign of activity feed: type-coded icons, wraps freely, time below content. |
+| 2026-05-09 | `events.expense_id` column for per-expense history queries; logEvent helper accepts optional expenseId. |
+| 2026-05-09 | Group header card: drop redundant name (lives in top-nav GroupSwitcher); sr-only h1 + avatar + currency/members tagline. |
+| 2026-05-09 | **Guest members + claim flow**: shadow profiles via `groups.addGuest`, single-use claim tokens, transactional `claim.consume` migrates all FKs (expense_splits, payer_id, settlements, comments, events, group_members) from shadow → auth user. Edge cases: same-expense merge, already-in-group merge. |
+| 2026-05-09 | **Creator-only permissions**: removeMember (auth users), createClaimToken, group delete now gate on `groups.createdBy === ctx.user.id`. Guest removal still open to any member. UI hides gated buttons for non-creators. |
+| 2026-05-09 | **Categories**: 7 predefined buckets (Food/Travel/Stay/Groceries/Bills/Entertainment/Other) on every expense. Stored as text (no enum migration to add new ones). Picker chips in add-expense; colored chip on each list row. |
+| 2026-05-09 | **Trip-mode "By day" toggle**: interleaves day headers with daily totals into the expense list. No schema change; pure interleaved DisplayItem stream. |
+| 2026-05-09 | **Charts panel** (recharts, lazy-loaded): pie of categories, bar of daily spend, paid-by horizontal bars. Default-collapsed. |
+| 2026-05-09 | **Charts redesign for hierarchy + delight**: hero KPI band (total + 3 frosted tiles), donut with center emoji + percentage, gradient area chart with peak callout, custom HTML "Who's paying" list with per-payer gradient bars + Top badge. |
+| 2026-05-09 | Bug fix: `expenses.update` was rejecting any expense that included an ex-member in its splits or payer with a misleading FORBIDDEN. Now grandfathers existing split userIds + the original payer through. |

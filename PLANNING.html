@@ -92,7 +92,7 @@
   <h1>EasySplits — PLANNING</h1>
   <p class="lead">Splitwise alternative. Free + ads, India-default + multi-currency, offline-capable PWA, SEO-first.</p>
   <p class="meta">
-    Updated <strong>2026-05-08</strong> ·
+    Updated <strong>2026-05-09</strong> ·
     <span class="badge badge-ok">Phase 1 ~95% done</span> ·
     <span class="badge badge-info">Live: <a href="https://split-payments-sigma.vercel.app" style="color:inherit">split-payments-sigma.vercel.app</a></span>
   </p>
@@ -143,6 +143,8 @@
     <tr><td class="task">Leave group / kick members</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Members list</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Top-app group switcher</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Guest members (no-signup) + single-use claim links (<code>/app/claim/[token]</code>)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Creator-only permissions for remove/delete/claim</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
   </tbody></table>
 
   <h3>1.C — Expenses <span class="badge badge-ok">~95%</span></h3>
@@ -153,7 +155,10 @@
     <tr><td class="task">Edit expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Delete expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Comments per expense</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">Activity feed</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Per-expense history (events.listByExpense)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Activity feed (group-level, mobile-redesigned)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Categories (7 predefined: Food/Travel/Stay/Groceries/Bills/Entertainment/Other)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Itemized bill split (one expense, many line items)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>schema + server done · UI in flight</span></td></tr>
   </tbody></table>
 
   <h3>1.D — Balances + Simplify Payments <span class="badge badge-ok">complete</span></h3>
@@ -177,9 +182,11 @@
     <tr><td class="task">Online/offline detection + UI indicator</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Auto-replay queue on reconnect</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Wire offline-queue into expense add/edit</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
-    <tr><td class="task">Wire into expense delete + settlements + comments</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Background Sync API (browser-managed retries)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Last-write-wins conflict resolution</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Wire into expense delete + settlements + comments</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Background Sync API (Chrome/Edge; iOS Safari fallback to in-tab online event)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Last-write-wins conflict resolution (clientUpdatedAt vs server.updated_at)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Parallel-by-entity drain on reconnect</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">clientEventId as canonical row id (offline-create-then-edit fix)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
   </tbody></table>
 
   <h3>1.F — Marketing + SEO <span class="badge badge-ok">complete</span></h3>
@@ -233,17 +240,18 @@
   <h2>Phase 2 — UX wins (gated until Phase 1 fully ships)</h2>
   <table><tbody>
     <tr><td class="task">Receipt photo upload (Supabase Storage)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Categories (Food, Travel, Stay, Misc, custom)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task"><strong>Charts &amp; visualisations</strong> (Recharts) — see UX principles below</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Categories (7 predefined buckets — done in 1.C)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>Charts &amp; visualisations</strong> (Recharts, lazy-loaded; redesigned with hero KPI + donut + area + custom payer list)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">↳ Per-member contribution bar at top of group page</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">↳ Balance bars (green = gets · red = owes) replacing text rows</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">↳ Settlement progress ring ("65% settled")</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">↳ Spend-by-category donut (depends on Categories)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">↳ Daily-spend sparkline (depends on Trip mode)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Recurring expenses (rent, subs)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Bulk-split (one bill, multiple line items)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">↳ Spend-by-category donut</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">↳ Daily-spend area chart with peak callout</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">↳ Hero KPI band (total · expenses · days · daily avg)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task">Recurring expenses (rent, subs) — deferred per user</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Bulk-split (one bill, multiple line items)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>schema + server done · UI in flight</span></td></tr>
     <tr><td class="task">Export to CSV / PDF</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Trip mode (daily summary, per-day spend)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Trip mode (daily summary, per-day spend) — &quot;By day&quot; toggle on expense list</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">Historical FX rates (lock per-expense at entry)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done (in 1.C)</span></td></tr>
     <tr><td class="task">View balances in any currency</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
   </tbody></table>
@@ -312,6 +320,17 @@
       <tr><td>2026-05-08</td><td>Expense_comments table created via SQL Editor (drizzle-kit broken on Supabase introspection).</td></tr>
       <tr><td>2026-05-08</td><td>4 use-case SEO pages: split-rent, trip-expenses, roommate-utilities, group-dinner.</td></tr>
       <tr><td>2026-05-08</td><td><strong>Phase 1.E offline event queue</strong> (MVP): IndexedDB queue via Dexie, online/offline detection, replay-on-reconnect, UI indicator. Wired into expense add/edit.</td></tr>
+      <tr><td>2026-05-08</td><td><strong>Phase 1.E full</strong>: optimistic UI everywhere, Background Sync API on Chrome/Edge, last-write-wins via clientUpdatedAt, parallel-by-entity drain. clientEventId becomes canonical row id — fixes offline-create-then-edit.</td></tr>
+      <tr><td>2026-05-08</td><td>UX polish: View-all toggles for expenses + activity, per-expense History (events.listByExpense), group card redesign (gradient strip + stats), mobile activity feed redesign with type-coded icons.</td></tr>
+      <tr><td>2026-05-09</td><td><code>events.expense_id</code> column for per-expense history queries; logEvent helper accepts optional expenseId.</td></tr>
+      <tr><td>2026-05-09</td><td>Group header card: drop redundant name (lives in top-nav GroupSwitcher); sr-only h1 + avatar + currency/members tagline.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Guest members + claim flow</strong>: shadow profiles via <code>groups.addGuest</code>, single-use claim tokens, transactional <code>claim.consume</code> migrates all FKs from shadow → auth user. Edge cases: same-expense merge, already-in-group merge.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Creator-only permissions</strong>: removeMember (auth users), createClaimToken, group delete now gate on <code>groups.createdBy === ctx.user.id</code>. Guest removal still open to any member.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Categories</strong>: 7 predefined buckets on every expense. Stored as text (no enum migration to extend). Picker chips in add-expense; colored chip on each list row.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Trip-mode "By day" toggle</strong>: interleaves day headers with daily totals into the expense list. Pure interleaved DisplayItem stream; no schema change.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Charts panel</strong> (recharts, lazy-loaded): pie of categories, bar of daily spend, paid-by horizontal bars. Default-collapsed.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Charts redesign for hierarchy + delight</strong>: hero KPI band, donut with center emoji + percentage, gradient area chart with peak callout, custom HTML "Who's paying" list with per-payer gradient bars + Top badge.</td></tr>
+      <tr><td>2026-05-09</td><td>Bug fix: <code>expenses.update</code> was rejecting any expense whose splits/payer included an ex-member with a misleading FORBIDDEN. Now grandfathers existing split userIds + the original payer through.</td></tr>
     </tbody>
   </table>
 </div>
