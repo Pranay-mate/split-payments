@@ -10,6 +10,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/about", changeFrequency: "monthly", priority: 0.7 },
     { path: "/calculators/trip", changeFrequency: "monthly", priority: 0.9 },
     { path: "/calculators/split-bill", changeFrequency: "monthly", priority: 0.85 },
+    { path: "/use-cases/split-rent", changeFrequency: "monthly", priority: 0.75 },
+    { path: "/use-cases/trip-expenses", changeFrequency: "monthly", priority: 0.75 },
+    { path: "/use-cases/roommate-utilities", changeFrequency: "monthly", priority: 0.75 },
+    { path: "/use-cases/group-dinner", changeFrequency: "monthly", priority: 0.75 },
     { path: "/privacy", changeFrequency: "yearly", priority: 0.4 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.4 },
   ];
