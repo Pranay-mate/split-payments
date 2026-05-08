@@ -28,6 +28,16 @@ export function useMutationWithQueue<I>(
 
   return useCallback(
     async (input: I): Promise<{ queued: boolean }> => {
+      // Short-circuit if the browser knows we're offline. Otherwise the
+      // fetch can hang for ~30s waiting for DNS / connection timeout
+      // before the catch path fires — that's the "spinner forever" bug.
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueue(path, input);
+        await refreshCount();
+        toast.success("Saved offline · will sync when you reconnect");
+        return { queued: true };
+      }
+
       try {
         await mutation.mutateAsync(input);
         return { queued: false };

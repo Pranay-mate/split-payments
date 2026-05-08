@@ -70,6 +70,12 @@
 
 ### Phase 1.E — Offline / PWA
 
+> **Honest scope note:** the queue handles offline mutations once you're
+> *already inside* the group page when network drops. True "trekking
+> mode" — re-opening the app while fully offline and being able to view
+> + add — needs two more pieces: persistent React Query cache + tolerant
+> auth check on `/app` routes. Tracked below.
+
 | Task | Status |
 |---|---|
 | Web App Manifest (`/manifest.webmanifest`) | ✅ |
