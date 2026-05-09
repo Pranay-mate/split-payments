@@ -303,6 +303,78 @@ export const personalRouter = router({
       return { ok: true };
     }),
 
+  /**
+   * Last N months of aggregated income / expense / investment for trend
+   * charts. Encryption-aware (decrypts in app, like summary). Returns the
+   * series in chronological order so the chart can render left-to-right.
+   */
+  monthlyTrend: protectedProcedure
+    .input(
+      z
+        .object({
+          months: z.number().int().min(1).max(24).default(6),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const monthsBack = input?.months ?? 6;
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const rows = await db
+        .select({
+          type: personalEntries.type,
+          amount: personalEntries.amount,
+          occurredAt: personalEntries.occurredAt,
+        })
+        .from(personalEntries)
+        .where(
+          and(
+            eq(personalEntries.userId, ctx.user.id),
+            isNull(personalEntries.deletedAt),
+            gte(personalEntries.occurredAt, start),
+            lt(personalEntries.occurredAt, end),
+          ),
+        );
+
+      type Bucket = { income: number; expenses: number; investments: number };
+      const byMonth = new Map<string, Bucket>();
+      // Pre-seed every month in the range so empty months show as zero
+      // (otherwise the chart skips and the x-axis gets gaps).
+      for (let i = 0; i < monthsBack; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1 - i), 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        byMonth.set(key, { income: 0, expenses: 0, investments: 0 });
+      }
+      for (const r of rows) {
+        const d = new Date(r.occurredAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const bucket = byMonth.get(key);
+        if (!bucket) continue;
+        const amt = decryptAmount(r.amount);
+        if (r.type === "income") bucket.income += amt;
+        else if (r.type === "expense") bucket.expenses += amt;
+        else if (r.type === "investment") bucket.investments += amt;
+      }
+      return Array.from(byMonth.entries())
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([monthKey, bucket]) => ({
+          monthKey,
+          monthLabel: new Date(`${monthKey}-01T00:00:00`).toLocaleDateString(
+            undefined,
+            { month: "short" },
+          ),
+          income: Math.round(bucket.income * 100) / 100,
+          expenses: Math.round(bucket.expenses * 100) / 100,
+          investments: Math.round(bucket.investments * 100) / 100,
+          net:
+            Math.round(
+              (bucket.income - bucket.expenses - bucket.investments) * 100,
+            ) / 100,
+        }));
+    }),
+
   /** List of months the user has any entry in — populates a month picker. */
   availableMonths: protectedProcedure.query(async ({ ctx }) => {
     const rows = await db

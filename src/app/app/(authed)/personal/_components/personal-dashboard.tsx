@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   ArrowDown,
   ArrowUp,
+  BarChart3,
+  ChevronDown,
   Loader2,
   Pencil,
   Plus,
@@ -16,6 +19,19 @@ import { trpc } from "@/lib/trpc/client";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
 import { AddPersonalEntry, type EntryType } from "./add-personal-entry";
+
+const PersonalCharts = dynamic(
+  () => import("./personal-charts").then((m) => m.PersonalCharts),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-32 items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> Loading
+        charts…
+      </div>
+    ),
+  },
+);
 
 const PAGE_SIZE = 10;
 
@@ -48,6 +64,7 @@ export function PersonalDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [month, setMonth] = useState<string>(monthKeyForDate(new Date()));
+  const [showCharts, setShowCharts] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const focusForm = () => {
@@ -208,6 +225,32 @@ export function PersonalDashboard() {
                 );
               })}
             </ul>
+          </section>
+        )}
+
+        {/* Charts (collapsible — recharts is lazy-loaded) */}
+        {summary && summary.entryCounts.expense + summary.entryCounts.income + summary.entryCounts.investment > 0 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <button
+              type="button"
+              onClick={() => setShowCharts((v) => !v)}
+              aria-expanded={showCharts}
+              className="flex w-full items-center justify-between"
+            >
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <BarChart3 className="h-4 w-4 text-fuchsia-500" aria-hidden />
+                Charts
+              </h2>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition ${showCharts ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+            {showCharts && (
+              <div className="mt-4">
+                <PersonalCharts month={month} />
+              </div>
+            )}
           </section>
         )}
 
