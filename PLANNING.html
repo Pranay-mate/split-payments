@@ -315,14 +315,20 @@
   </tbody></table>
   <p class="meta">Skipped: heatmap calendars · expense-by-member pie (redundant with balance bars) · time-series line for ongoing rent groups (noise).</p>
 
-  <h2>Phase 3 — Power features</h2>
+  <h2>Phase 2.6 — Free Phase 3 picks <span class="badge">active</span></h2>
+  <p class="meta">User decision (2026-05-09): cherry-pick the Phase 3 features that have a fully-free implementation path (browser API or built-in cron) and ship them now. The rest stay Future scope (below).</p>
   <table><tbody>
-    <tr><td class="task">OCR receipt scanning (Google Cloud Vision)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">AI categorization (Claude Haiku)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">WhatsApp bot (Meta Cloud API, DM only)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Voice input</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">Reminder nudges</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">SMS UPI debit parsing</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
+    <tr><td class="task">Voice input (mic button → SpeechRecognition fills description + amount; en-IN)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>building · Web Speech API, Chrome/Safari built-in</span></td></tr>
+    <tr><td class="task">Reminder nudges (push notification for unsettled balances &gt;7 days)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>building · Web Push + service worker + Vercel Cron daily, VAPID keys free</span></td></tr>
+  </tbody></table>
+
+  <h2>Phase 3 — Power features <span class="badge">future scope</span></h2>
+  <p class="meta">Promoted Voice input + Reminder nudges to Phase 2.6 (above). These four remain Future scope — each has a free path on-deck if we ever need them, noted in the right column.</p>
+  <table><tbody>
+    <tr><td class="task">OCR receipt scanning</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · free path: Tesseract.js (in-browser, no API key)</span></td></tr>
+    <tr><td class="task">AI categorization (Claude Haiku)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · already covered by local keyword detection</span></td></tr>
+    <tr><td class="task">WhatsApp bot (Meta Cloud API, DM only)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · 1k free convos/month but business-verification overhead</span></td></tr>
+    <tr><td class="task">SMS UPI debit parsing</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · auto-read needs native app; free fallback = paste-to-parse</span></td></tr>
   </tbody></table>
 
   <h2>Phase 4 — Optional Pro tier</h2>

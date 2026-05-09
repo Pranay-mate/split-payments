@@ -258,16 +258,29 @@
 
 Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars), time-series line for ongoing rent groups (noise).
 
-## Phase 3 — Power features
+## Phase 2.6 — Free Phase 3 picks (active)
 
-| Task | Status |
-|---|---|
-| OCR receipt scanning (Google Cloud Vision) | ⏸ |
-| AI categorization (Claude Haiku) | ⏸ |
-| WhatsApp bot (Meta Cloud API, DM only) | ⏸ |
-| Voice input | ⏸ |
-| Reminder nudges (configurable) | ⏸ |
-| SMS UPI debit parsing | ⏸ |
+> User decision (2026-05-09): cherry-pick the Phase 3 features that have a
+> fully-free implementation path (browser API or built-in cron) and ship
+> them now. The rest stay Future scope.
+
+| Task | Status | Free path |
+|---|---|---|
+| Voice input (mic button → SpeechRecognition fills description + amount) | 🟡 building | Browser Web Speech API (Chrome/Safari built-in, en-IN locale) |
+| Reminder nudges (push notification for unsettled balances >7 days) | 🟡 building | Web Push API + service worker + Vercel Cron daily; VAPID keys are free |
+
+## Phase 3 — Power features (Future scope)
+
+> Promoted Voice input + Reminder nudges to Phase 2.6 (above). These four
+> remain Future scope — each has a free path on-deck if we ever need them,
+> noted in the third column.
+
+| Task | Status | Free path on-deck |
+|---|---|---|
+| OCR receipt scanning | ⏸ Future scope | Tesseract.js — runs entirely in-browser, no API key, no quota. Quality decent on printed receipts. |
+| AI categorization (Claude Haiku) | ⏸ Future scope | Already covered by local keyword detection in `category-detect.ts` (~150 rules, India-skewed). Don't add LLM unless real-world miss rate is high. |
+| WhatsApp bot (Meta Cloud API, DM only) | ⏸ Future scope | Meta has a 1k free conversations/month tier but business-account verification is a hassle. Defer until demand justifies it. |
+| SMS UPI debit parsing | ⏸ Future scope | True auto-read needs a native Android app. Free fallback: paste-to-parse — user pastes the SMS into a textarea, regex extracts amount + vendor + date. |
 
 ## Phase 4 — Optional Pro tier
 
