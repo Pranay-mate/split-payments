@@ -146,9 +146,9 @@
 | Task | Status |
 |---|---|
 | Lighthouse 95+ on mobile (marketing pages) | 🟡 |
-| PWA install works on Android Chrome | 🟡 (needs manual verify) |
-| PWA install works on iOS Safari | 🟡 (needs manual verify) |
-| Offline test: airplane mode → add expense → reconnect | 🟡 (works for calculator) |
+| PWA install works on Android Chrome | ✅ verified |
+| PWA install works on iOS Safari | ✅ verified |
+| Offline test: airplane mode → add expense → reconnect | ✅ verified end-to-end |
 | Custom domain (e.g., easysplits.in) | ⬜ |
 | GSC verification + sitemap submission | ⬜ |
 | Vercel Analytics + Speed Insights | ✅ |
@@ -492,5 +492,6 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-09 | **Activity feed live-update fix**: every event-writing mutation now invalidates `events.listByGroup` (and `events.listByExpense` where applicable), so the feed refreshes immediately after add/edit/delete/comment/settle without a manual F5. Five files patched. |
 | 2026-05-09 | **PFT v4.4 — "Send test" notification button** shipped: bypasses the 7-day throttle + qualifying-data check so users can verify the push pipeline post-setup with one tap. Prunes 410-Gone subscriptions inline. |
 | 2026-05-09 | Planning: added **Phase 2.7 — Group balances polish** for the Simplified ⇄ Pairwise toggle (default Simplified) + a "Why?" chain expander follow-up that explains the algorithm's chain. |
+| 2026-05-09 | **Phase 1.I launch checks** — three real-device verifications complete: PWA install on Android Chrome ✅, PWA install on iOS Safari ✅, offline test (airplane → add expense → reconnect → sync) ✅ end-to-end. |
 | 2026-05-09 | **Voice input** shipped: mic button in AddExpense via browser Web Speech API (en-IN), parser splits transcripts like "pizza six hundred" / "uber 350" into description + amount, auto-prefills the form. No API costs, hidden on Firefox. |
 | 2026-05-09 | Planning: locked **Option B** (server-side field-level encryption via `pgcrypto`) for PFT sensitive columns. Added **5-pillar Financial Health Scorecard** sub-plan (Emergency / Insurance / Debt / Savings rate / Investing), India-specific rule set, onboarding wizard scope, locked disclaimers. Added **v3.5 Anomaly alerts** that piggyback on Phase 2.6 reminder-nudges infrastructure. |

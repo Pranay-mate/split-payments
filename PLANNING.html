@@ -230,9 +230,9 @@
   <h3>1.I — Launch checks <span class="badge badge-warn">~30%</span></h3>
   <table><tbody>
     <tr><td class="task">Lighthouse 95+ on mobile</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>likely passing · needs verify</span></td></tr>
-    <tr><td class="task">PWA install on Android Chrome</td><td class="status"><span class="status-cell"><span class="dot todo"></span>manual verify needed</span></td></tr>
-    <tr><td class="task">PWA install on iOS Safari</td><td class="status"><span class="status-cell"><span class="dot todo"></span>manual verify needed</span></td></tr>
-    <tr><td class="task">Offline test: airplane → add → reconnect → sync</td><td class="status"><span class="status-cell"><span class="dot todo"></span>manual verify needed</span></td></tr>
+    <tr><td class="task">PWA install on Android Chrome</td><td class="status"><span class="status-cell"><span class="dot done"></span>verified</span></td></tr>
+    <tr><td class="task">PWA install on iOS Safari</td><td class="status"><span class="status-cell"><span class="dot done"></span>verified</span></td></tr>
+    <tr><td class="task">Offline test: airplane → add → reconnect → sync</td><td class="status"><span class="status-cell"><span class="dot done"></span>verified end-to-end</span></td></tr>
     <tr><td class="task">Custom domain (e.g., <code>easysplits.in</code>)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">GSC verification + sitemap submission</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">Vercel Analytics + Speed Insights</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
@@ -471,6 +471,7 @@
       <tr><td>2026-05-09</td><td><strong>Activity feed live-update fix</strong>: every event-writing mutation now invalidates <code>events.listByGroup</code> (and <code>events.listByExpense</code> where applicable). No more F5 to see your own latest action. Five files patched.</td></tr>
       <tr><td>2026-05-09</td><td><strong>PFT v4.4 — "Send test" notification button</strong>: bypasses the 7-day throttle + qualifying-data check so users can verify the push pipeline post-setup with one tap. Prunes 410-Gone subscriptions inline.</td></tr>
       <tr><td>2026-05-09</td><td>Planning: added <strong>Phase 2.7 — Group balances polish</strong> for the Simplified ⇄ Pairwise toggle (default Simplified) + a "Why?" chain expander follow-up.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Phase 1.I launch checks</strong> — three real-device verifications complete: PWA install on Android Chrome ✅, PWA install on iOS Safari ✅, offline test (airplane → add expense → reconnect → sync) ✅ end-to-end.</td></tr>
     </tbody>
   </table>
 </div>
