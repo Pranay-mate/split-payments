@@ -188,7 +188,15 @@
 |---|---|
 | Receipt photo upload (Supabase Storage) | Future scope. Storage bucket + thumbnail in expense row. Likely ~2h. |
 | Recurring expenses (rent, subs) | Future scope (deferred per user). Needs cron-triggered materialization OR on-open generation; template UI for editing rules; handles membership changes. ~3–4h. |
-| View balances in any currency (not just primary) | Future scope. Per-user currency preference + on-the-fly conversion of balance display via cached FX. ~1h. |
+
+### Out of scope (decided no)
+
+> Explicit "no" decisions. Captured so we don't re-propose these in future
+> planning sessions.
+
+| Task | Why no |
+|---|---|
+| View balances in any currency (not just primary) | Decided not needed (2026-05-09). Group's primary currency is sufficient — international-member case is too rare to justify the FX-display complexity, settle-up two-currency UX, and "yesterday it said $50.10, today $50.40" drift confusion. |
 
 ---
 

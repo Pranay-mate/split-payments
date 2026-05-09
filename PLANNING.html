@@ -262,7 +262,12 @@
   <table><tbody>
     <tr><td class="task">Receipt photo upload (Supabase Storage)</td><td class="status">Future scope. Storage bucket + thumbnail in expense row. ~2h.</td></tr>
     <tr><td class="task">Recurring expenses (rent, subs)</td><td class="status">Future scope (deferred per user). Cron OR on-open materialization; template UI; membership-change handling. ~3–4h.</td></tr>
-    <tr><td class="task">View balances in any currency (not just primary)</td><td class="status">Future scope. Per-user currency preference + on-the-fly conversion of balance display via cached FX. ~1h.</td></tr>
+  </tbody></table>
+
+  <h3>Out of scope (decided no)</h3>
+  <p class="meta">Explicit "no" decisions. Captured so we don't re-propose these in future planning sessions.</p>
+  <table><tbody>
+    <tr><td class="task">View balances in any currency (not just primary)</td><td class="status">Decided not needed (2026-05-09). Group's primary currency is sufficient — international-member case is too rare to justify the FX-display complexity, settle-up two-currency UX, and day-to-day rate drift confusion.</td></tr>
   </tbody></table>
 
   <h2>Phase 2.5 — Personal Finance Tracker <span class="badge">planned</span></h2>
