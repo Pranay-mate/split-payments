@@ -253,6 +253,7 @@
 | **v3.5** | Anomaly alerts (banner + push, ≥50% category deviation) | ✅ |
 | **v3.6** | Age-based investing target + retirement-age glide · single-page wizard rebuild | ✅ |
 | **v4.0** | Score history snapshots · trajectory area chart · delta indicator · streak badge · gap-first pillars (max-pillars collapse) | ✅ |
+| **v4.4** | "Send test notification" button in Reminders settings — bypasses 7-day throttle + qualifying-data check, prunes 410-Gone subscriptions inline | ✅ shipped (commit `e70d717`) |
 
 ### Active queue (next push)
 
@@ -261,7 +262,6 @@
 | **v4.1** | Achievement badges ("First 6mo emergency fund hit") · per-pillar mini-sparklines beside each ring | ~3h |
 | **v4.2** | Goals system — set "raise health cover to ₹15L by Aug 2026" · progress bar that updates on profile re-submits · saved goal list | ~3h |
 | **v4.3** | Indian peer benchmarks — NCAER/RBI baseline numbers cited beside each pillar ("Your 71% savings rate is well above the Indian household ~20%") | ~1h |
-| **v4.4 (debug aid)** | "Send test notification" button in Reminders settings — bypasses 7-day throttle and the qualifying-data check | ~15min |
 
 ### Effort spent
 
