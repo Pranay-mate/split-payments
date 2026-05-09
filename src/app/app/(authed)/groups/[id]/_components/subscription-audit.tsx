@@ -129,7 +129,7 @@ export function SubscriptionAudit({
   const annualTotal = monthlyTotal * 12;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
       <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
         <Repeat className="h-4 w-4 text-violet-500" aria-hidden /> Recurring
       </h2>

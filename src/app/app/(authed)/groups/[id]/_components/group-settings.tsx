@@ -76,9 +76,11 @@ export function GroupSettings({
       <button
         type="button"
         onClick={() => setOpen(true)}
+        aria-label="Group settings"
         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
       >
-        <Settings className="h-3.5 w-3.5" aria-hidden /> Settings
+        <Settings className="h-3.5 w-3.5" aria-hidden />
+        <span className="hidden sm:inline">Settings</span>
       </button>
 
       {open && (

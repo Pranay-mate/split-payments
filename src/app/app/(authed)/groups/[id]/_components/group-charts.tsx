@@ -154,7 +154,7 @@ export function GroupCharts({
   return (
     <div className="space-y-5">
       {/* Hero KPIs — sets the headline before any chart */}
-      <div className="rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 p-5 text-white shadow-sm">
+      <div className="rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 p-4 text-white shadow-sm sm:p-5">
         <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
           Total spent
         </p>
@@ -190,7 +190,7 @@ export function GroupCharts({
       </div>
 
       {/* Category breakdown — donut with center label + horizontal bar list */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:p-5">
         <div className="flex items-baseline justify-between">
           <h3 className="text-sm font-semibold tracking-tight">
             Where the money goes
@@ -274,7 +274,7 @@ export function GroupCharts({
       </div>
 
       {/* Daily trend — area chart with gradient + peak callout */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:p-5">
         <div className="flex items-baseline justify-between">
           <h3 className="text-sm font-semibold tracking-tight">
             Daily spend
@@ -343,7 +343,7 @@ export function GroupCharts({
 
       {/* Who's paying — custom HTML list. Recharts is overkill here and
           per-row avatars + gradient bars look much better than a chart. */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:p-5">
         <h3 className="text-sm font-semibold tracking-tight">Who&apos;s paying</h3>
         <ul className="mt-3 space-y-3">
           {byPayer.map((p, idx) => {

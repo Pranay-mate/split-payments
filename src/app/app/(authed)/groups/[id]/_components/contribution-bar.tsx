@@ -63,7 +63,7 @@ export function ContributionBar({
   const total = segments.reduce((s, x) => s + x.total, 0);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Who paid

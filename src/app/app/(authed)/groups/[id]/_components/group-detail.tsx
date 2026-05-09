@@ -293,9 +293,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 <button
                   type="button"
                   onClick={copyInviteLink}
+                  aria-label="Copy invite link"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-white/25"
                 >
-                  <Share2 className="h-3.5 w-3.5" aria-hidden /> Invite
+                  <Share2 className="h-3.5 w-3.5" aria-hidden />
+                  <span className="hidden sm:inline">Invite</span>
                 </button>
                 <GroupSettings
                   group={{
@@ -358,7 +360,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         />
 
         {expenses.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <button
               type="button"
               onClick={() => setShowCharts((v) => !v)}
@@ -395,7 +397,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         )}
 
         {expenses.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <Download className="h-4 w-4 text-sky-500" aria-hidden />
               Export
@@ -508,7 +510,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </section>
         )}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <Receipt className="h-4 w-4 text-emerald-500" aria-hidden />
@@ -650,12 +652,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-2 truncate text-sm font-medium">
-                        <span className="truncate">
-                          {e.description || "Expense"}
-                        </span>
+                      {/* Description on its own line — chip row drops below
+                          on narrow screens via flex-wrap, no truncation. */}
+                      <p className="truncate text-sm font-medium">
+                        {e.description || "Expense"}
+                      </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5">
                         {(() => {
                           const cat =
                             CATEGORIES[
@@ -665,7 +669,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                             ];
                           return (
                             <span
-                              className={`shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${cat.chipClass}`}
+                              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${cat.chipClass}`}
                               title={cat.label}
                             >
                               <span aria-hidden>{cat.emoji}</span>
@@ -674,7 +678,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                           );
                         })()}
                         {pending && (
-                          <span className="shrink-0 rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
+                          <span className="rounded-full border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
                             Pending sync
                           </span>
                         )}
@@ -696,7 +700,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         })()}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
                         onClick={() =>
@@ -800,7 +804,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           )}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
             <Users className="h-4 w-4 text-indigo-500" aria-hidden />
             Members
@@ -895,7 +899,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Add by name (no signup)"
               maxLength={60}
-              className="flex-1 min-w-[12rem] rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950"
+              className="flex-1 min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950"
             />
             <button
               type="submit"

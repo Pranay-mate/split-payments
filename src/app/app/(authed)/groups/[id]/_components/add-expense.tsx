@@ -480,7 +480,7 @@ export function AddExpense({
   };
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-3 dark:border-slate-800 dark:bg-slate-800/30 sm:p-4">
       {isEditing && (
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Edit expense</h3>

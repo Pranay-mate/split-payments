@@ -184,7 +184,7 @@ export function BalancesView({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
         <BalancesHeader summary={summary} recorded={recorded} />
         <ul className="mt-4 space-y-3">
           {(() => {
@@ -248,7 +248,7 @@ export function BalancesView({
         />
       )}
       {recorded.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Settlement history
           </h2>
@@ -348,7 +348,7 @@ function SuggestedPayments({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-5 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40">
+    <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-4 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Suggested payments

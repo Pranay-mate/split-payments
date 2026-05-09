@@ -117,16 +117,17 @@ export function PersonalDashboard() {
     <main className="flex-1">
       <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
         {/* Heading + month picker */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
               Personal
             </h1>
-            <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-              <span aria-hidden>🔐</span>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              <span aria-hidden className="mr-1">
+                🔐
+              </span>
               Your salary is your secret. We encrypt every amount before
-              storing — our database only ever sees scrambled text, not
-              your numbers.
+              storing — our database only ever sees scrambled text.
             </p>
           </div>
           <select
@@ -135,7 +136,7 @@ export function PersonalDashboard() {
               setMonth(e.target.value);
               setVisibleCount(PAGE_SIZE);
             }}
-            className="shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900"
+            className="mt-1 shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900"
             aria-label="Select month"
           >
             {months.map((m) => (
@@ -147,7 +148,7 @@ export function PersonalDashboard() {
         </div>
 
         {/* Hero KPI card */}
-        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 p-5 text-white shadow-sm">
+        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 p-4 text-white shadow-sm sm:p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
             Net this month
           </p>
@@ -209,7 +210,7 @@ export function PersonalDashboard() {
 
         {/* Top categories */}
         {topCats.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               Top spending categories
             </h2>
@@ -244,7 +245,7 @@ export function PersonalDashboard() {
 
         {/* Charts (collapsible — recharts is lazy-loaded) */}
         {summary && summary.entryCounts.expense + summary.entryCounts.income + summary.entryCounts.investment > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
             <button
               type="button"
               onClick={() => setShowCharts((v) => !v)}
@@ -269,7 +270,7 @@ export function PersonalDashboard() {
         )}
 
         {/* Add / Edit form */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <Plus className="h-4 w-4 text-emerald-500" aria-hidden />
@@ -322,7 +323,7 @@ export function PersonalDashboard() {
         </section>
 
         {/* Transactions list */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Transactions ({entries.length})
           </h2>
@@ -351,19 +352,21 @@ export function PersonalDashboard() {
                           : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="flex items-center gap-2 text-sm font-medium">
-                            <span className="truncate">
-                              {e.description || meta.label}
-                            </span>
+                          {/* Description on its own line so it can use the
+                              full row width before the badges land below. */}
+                          <p className="truncate text-sm font-medium">
+                            {e.description || meta.label}
+                          </p>
+                          <p className="mt-1 flex flex-wrap items-center gap-1.5">
                             <span
-                              className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${TYPE_BADGE[t]}`}
+                              className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${TYPE_BADGE[t]}`}
                             >
                               {t}
                             </span>
                             <span
-                              className={`shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.chipClass}`}
+                              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.chipClass}`}
                             >
                               <span aria-hidden>{meta.emoji}</span>
                               {meta.label}
@@ -380,9 +383,9 @@ export function PersonalDashboard() {
                             )}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                           <span
-                            className={`text-sm font-semibold tabular-nums ${
+                            className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
                               t === "income"
                                 ? "text-emerald-700 dark:text-emerald-400"
                                 : t === "expense"

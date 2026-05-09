@@ -156,7 +156,7 @@ export function PersonalCharts({ month }: { month: string }) {
 
       {/* Spend by category — donut */}
       {byCategory.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:p-5">
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-semibold tracking-tight">
               Where the money went
@@ -240,7 +240,7 @@ export function PersonalCharts({ month }: { month: string }) {
       )}
 
       {/* 6-month trend — grouped bars */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:p-5">
         <h3 className="text-sm font-semibold tracking-tight">
           Last 6 months
         </h3>
