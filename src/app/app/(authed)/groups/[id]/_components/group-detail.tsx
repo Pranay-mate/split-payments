@@ -34,6 +34,7 @@ import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
 import { ContributionBar } from "./contribution-bar";
 import { GroupSettings } from "./group-settings";
+import { SubscriptionAudit } from "./subscription-audit";
 import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
@@ -342,6 +343,16 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             recorded={settlementsQuery.data ?? []}
           />
         )}
+
+        <SubscriptionAudit
+          expenses={expenses.map((e) => ({
+            description: e.description,
+            convertedAmount: e.convertedAmount,
+            occurredAt: e.occurredAt,
+            category: (e as unknown as { category?: string | null }).category,
+          }))}
+          primaryCurrency={group.primaryCurrency}
+        />
 
         {expenses.length > 0 && (
           <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
