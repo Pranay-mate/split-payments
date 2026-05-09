@@ -180,7 +180,15 @@ export function OnboardWizard() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  const numOrNull = (v: number | "") => (v === "" ? null : v);
+  // Two coercions:
+  //   blankAsNull → use null when the user hasn't told us yet (income,
+  //     expenses, age — the score literally doesn't work without these,
+  //     and hasEnoughData gates the UI on them).
+  //   blankAsZero → use 0 for fields where "I have none of this" is a
+  //     real, common answer. Otherwise users had to type "0" to get the
+  //     "No EMIs → full marks" branch in the scorer; surprising UX.
+  const blankAsNull = (v: number | "") => (v === "" ? null : v);
+  const blankAsZero = (v: number | "") => (v === "" ? 0 : v);
 
   const submit = async (markCompleted: boolean) => {
     try {
@@ -189,14 +197,14 @@ export function OnboardWizard() {
         isFreelancer: form.isFreelancer,
         hasDependents: form.hasDependents,
         hasCcCarryover: form.hasCcCarryover,
-        monthlyIncome: numOrNull(form.monthlyIncome),
-        monthlyExpenses: numOrNull(form.monthlyExpenses),
-        liquidSavings: numOrNull(form.liquidSavings),
-        termCoverAmount: numOrNull(form.termCoverAmount),
-        healthCoverAmount: numOrNull(form.healthCoverAmount),
-        totalEmi: numOrNull(form.totalEmi),
-        investmentBalance: numOrNull(form.investmentBalance),
-        monthlyInvestment: numOrNull(form.monthlyInvestment),
+        monthlyIncome: blankAsNull(form.monthlyIncome),
+        monthlyExpenses: blankAsNull(form.monthlyExpenses),
+        liquidSavings: blankAsZero(form.liquidSavings),
+        termCoverAmount: blankAsZero(form.termCoverAmount),
+        healthCoverAmount: blankAsZero(form.healthCoverAmount),
+        totalEmi: blankAsZero(form.totalEmi),
+        investmentBalance: blankAsZero(form.investmentBalance),
+        monthlyInvestment: blankAsZero(form.monthlyInvestment),
         markCompleted,
       });
       utils.personal.profile.get.invalidate();
@@ -246,6 +254,10 @@ export function OnboardWizard() {
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             Step {step + 1} of {STEPS.length} · 🔐 We encrypt every amount
             before storing — our database only ever sees scrambled text.
+          </p>
+          <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+            Tip: leave a field blank if you have none — we&apos;ll count it
+            as zero. Only income + expenses are required.
           </p>
         </div>
 
