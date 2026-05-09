@@ -415,6 +415,9 @@ export const financialProfiles = pgTable(
 
     // Demographic — plaintext, not value-sensitive.
     age: integer("age"),
+    /** Target retirement age. Drives the investing-pillar glide path —
+     *  earlier retire = steeper target. Defaults to 60 if null. */
+    retirementAge: integer("retirement_age"),
     isFreelancer: boolean("is_freelancer").notNull().default(false),
     hasDependents: boolean("has_dependents").notNull().default(false),
     hasCcCarryover: boolean("has_cc_carryover").notNull().default(false),

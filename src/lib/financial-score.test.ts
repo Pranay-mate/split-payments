@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { computeScore, type ScoreInputs } from "./financial-score";
+import {
+  computeScore,
+  investingTargetForAge,
+  type ScoreInputs,
+} from "./financial-score";
 
 const empty: ScoreInputs = {
   age: null,
+  retirementAge: null,
   isFreelancer: false,
   hasDependents: false,
   hasCcCarryover: false,
@@ -253,6 +258,7 @@ describe("financial-score · computeScore", () => {
     it("a fully-loaded ideal profile scores ≥80 (green)", () => {
       const r = computeScore({
         age: 32,
+        retirementAge: 60,
         isFreelancer: false,
         hasDependents: true,
         hasCcCarryover: false,
@@ -290,3 +296,97 @@ describe("financial-score · computeScore", () => {
     });
   });
 });
+
+describe("financial-score · investingTargetForAge (age-adjusted glide)", () => {
+  it("falls back to fixed 4× when age is null", () => {
+    expect(investingTargetForAge(null, 60)).toBe(4);
+    expect(investingTargetForAge(null, null)).toBe(4);
+  });
+
+  it("returns 0.5× at the start of the curve (age ≤ 25)", () => {
+    expect(investingTargetForAge(20, 60)).toBe(0.5);
+    expect(investingTargetForAge(25, 60)).toBe(0.5);
+  });
+
+  it("returns 8× at retirement age and beyond", () => {
+    expect(investingTargetForAge(60, 60)).toBe(8);
+    expect(investingTargetForAge(70, 60)).toBe(8);
+  });
+
+  it("uses default retirement of 60 when retirementAge is null", () => {
+    expect(investingTargetForAge(30, null)).toBe(
+      investingTargetForAge(30, 60),
+    );
+  });
+
+  it("interpolates linearly between 25 and retirement", () => {
+    // Age 30, retire at 60 → progress 5/35 → target = 0.5 + 5/35 * 7.5
+    const t30 = investingTargetForAge(30, 60);
+    expect(t30).toBeCloseTo(0.5 + (5 / 35) * 7.5, 5);
+    // Age 45, retire at 60 → progress 20/35 → target = 0.5 + 20/35 * 7.5
+    const t45 = investingTargetForAge(45, 60);
+    expect(t45).toBeCloseTo(0.5 + (20 / 35) * 7.5, 5);
+  });
+
+  it("steeper curve for earlier retirement (FIRE)", () => {
+    // Age 30 retiring at 45 should have a much higher target than retiring at 60.
+    const fire = investingTargetForAge(30, 45);
+    const standard = investingTargetForAge(30, 60);
+    expect(fire).toBeGreaterThan(standard);
+  });
+
+  it("flatter curve for later retirement", () => {
+    const standard = investingTargetForAge(30, 60);
+    const late = investingTargetForAge(30, 65);
+    expect(late).toBeLessThan(standard);
+  });
+});
+
+describe("financial-score · investing pillar uses the age-glide", () => {
+  const baseSeven = {
+    ...empty,
+    monthlyIncome: 120000,
+    investmentBalance: 1000000,
+    monthlyInvestment: 50000, // active SIP — gets +5
+  };
+
+  it("age 28 retiring at 60 lifts the score for the same balance", () => {
+    const oldFixed = computeScore({
+      ...baseSeven,
+      age: null, // forces fixed 4× target — old behaviour
+    });
+    const newGlide = computeScore({
+      ...baseSeven,
+      age: 28,
+      retirementAge: 60,
+    });
+    const oldP = oldFixed.pillars.find((p) => p.key === "investing")!;
+    const newP = newGlide.pillars.find((p) => p.key === "investing")!;
+    expect(newP.score).toBeGreaterThan(oldP.score);
+  });
+
+  it("FIRE target (retire at 45) is harsher than retire at 60", () => {
+    const fire = computeScore({ ...baseSeven, age: 28, retirementAge: 45 });
+    const standard = computeScore({
+      ...baseSeven,
+      age: 28,
+      retirementAge: 60,
+    });
+    const fireP = fire.pillars.find((p) => p.key === "investing")!;
+    const stdP = standard.pillars.find((p) => p.key === "investing")!;
+    expect(fireP.score).toBeLessThan(stdP.score);
+  });
+
+  it("user past retirement age caps at 8× target", () => {
+    // 10L invested ÷ 14.4L annual income = 0.694× of an 8× target.
+    // (0.694 / 8) × 15 = 1.30 → rounds to 1. Plus 5 for active SIP = 6.
+    const out = computeScore({
+      ...baseSeven,
+      age: 65,
+      retirementAge: 60,
+    });
+    const p = out.pillars.find((p) => p.key === "investing")!;
+    expect(p.score).toBe(6);
+  });
+});
+

@@ -194,6 +194,7 @@ CREATE TABLE IF NOT EXISTS financial_profiles (
   id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id              uuid        NOT NULL UNIQUE,
   age                  integer,
+  retirement_age       integer,                     -- target retirement age; drives investing-pillar glide
   is_freelancer        boolean     NOT NULL DEFAULT false,
   has_dependents       boolean     NOT NULL DEFAULT false,
   has_cc_carryover     boolean     NOT NULL DEFAULT false,
@@ -243,3 +244,7 @@ ALTER TABLE expenses
   ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'other';
 
 -- expense_items is new in this schema rev; CREATE TABLE above is idempotent.
+
+-- v3.6: retirement_age added for the investing-pillar glide path.
+ALTER TABLE financial_profiles
+  ADD COLUMN IF NOT EXISTS retirement_age integer;

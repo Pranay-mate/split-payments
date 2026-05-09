@@ -461,6 +461,7 @@ export const personalRouter = router({
         s === null ? null : decryptAmount(s);
       const inputs: ScoreInputs = {
         age: row.age,
+        retirementAge: row.retirementAge,
         isFreelancer: row.isFreelancer,
         hasDependents: row.hasDependents,
         hasCcCarryover: row.hasCcCarryover,
@@ -488,6 +489,7 @@ export const personalRouter = router({
       .input(
         z.object({
           age: z.number().int().min(13).max(110).nullable(),
+          retirementAge: z.number().int().min(30).max(110).nullable(),
           isFreelancer: z.boolean(),
           hasDependents: z.boolean(),
           hasCcCarryover: z.boolean(),
@@ -508,6 +510,7 @@ export const personalRouter = router({
         const values = {
           userId: ctx.user.id,
           age: input.age,
+          retirementAge: input.retirementAge,
           isFreelancer: input.isFreelancer,
           hasDependents: input.hasDependents,
           hasCcCarryover: input.hasCcCarryover,

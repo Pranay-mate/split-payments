@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Loader2, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  Briefcase,
+  Coins,
+  Loader2,
+  Shield,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 
 type FormState = {
   age: number | "";
+  retirementAge: number | "";
   isFreelancer: boolean;
   hasDependents: boolean;
   hasCcCarryover: boolean;
@@ -23,6 +32,7 @@ type FormState = {
 
 const BLANK: FormState = {
   age: "",
+  retirementAge: 60, // sensible default — most users keep it
   isFreelancer: false,
   hasDependents: false,
   hasCcCarryover: false,
@@ -36,38 +46,22 @@ const BLANK: FormState = {
   monthlyInvestment: "",
 };
 
-const STEPS = [
-  { key: "about", title: "About you" },
-  { key: "money", title: "Money in & out" },
-  { key: "insurance", title: "Insurance" },
-  { key: "debt", title: "Debt & investing" },
-] as const;
-
 function NumField({
   label,
   hint,
   value,
   onChange,
   prefix = "₹",
-  optional = false,
 }: {
   label: string;
   hint?: string;
   value: number | "";
   onChange: (v: number | "") => void;
   prefix?: string;
-  optional?: boolean;
 }) {
   return (
     <label className="block">
-      <span className="flex items-baseline justify-between text-sm font-medium">
-        {label}
-        {optional && (
-          <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
-            optional
-          </span>
-        )}
-      </span>
+      <span className="text-sm font-medium">{label}</span>
       {hint && (
         <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">
           {hint}
@@ -141,9 +135,39 @@ function Toggle({
   );
 }
 
+/**
+ * Section card. Header has an emoji + title; body holds the fields.
+ * Keeps sections visually distinct without forcing the user through
+ * a multi-step gauntlet.
+ */
+function Section({
+  icon: Icon,
+  iconClass,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  iconClass: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+        <span
+          className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${iconClass}`}
+        >
+          <Icon className="h-4 w-4" aria-hidden />
+        </span>
+        {title}
+      </h2>
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
+  );
+}
+
 export function OnboardWizard() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(BLANK);
   const [hydrated, setHydrated] = useState(false);
 
@@ -151,9 +175,8 @@ export function OnboardWizard() {
   const upsertMutation = trpc.personal.profile.upsert.useMutation();
   const utils = trpc.useUtils();
 
-  // Prefill if a profile already exists. Defer the setState into a
-  // microtask to satisfy React 19's set-state-in-effect lint — these
-  // are intentional first-render hydrations, not effect-driven loops.
+  // Prefill if a profile already exists. queueMicrotask defer so React 19's
+  // set-state-in-effect lint stays quiet — intentional first-render hydration.
   useEffect(() => {
     if (hydrated || !profileQuery.data?.exists || !profileQuery.data.inputs)
       return;
@@ -161,6 +184,7 @@ export function OnboardWizard() {
     queueMicrotask(() => {
       setForm({
         age: i.age ?? "",
+        retirementAge: i.retirementAge ?? 60,
         isFreelancer: i.isFreelancer,
         hasDependents: i.hasDependents,
         hasCcCarryover: i.hasCcCarryover,
@@ -180,20 +204,24 @@ export function OnboardWizard() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
-  // Two coercions:
-  //   blankAsNull → use null when the user hasn't told us yet (income,
-  //     expenses, age — the score literally doesn't work without these,
-  //     and hasEnoughData gates the UI on them).
-  //   blankAsZero → use 0 for fields where "I have none of this" is a
-  //     real, common answer. Otherwise users had to type "0" to get the
-  //     "No EMIs → full marks" branch in the scorer; surprising UX.
+  // blankAsZero: "I have none of this" — common, valid answer.
+  // blankAsNull: "I haven't told you yet" — score genuinely needs these.
   const blankAsNull = (v: number | "") => (v === "" ? null : v);
   const blankAsZero = (v: number | "") => (v === "" ? 0 : v);
 
-  const submit = async (markCompleted: boolean) => {
+  const isExisting = profileQuery.data?.exists ?? false;
+  const canSubmit =
+    form.monthlyIncome !== "" && form.monthlyExpenses !== "";
+
+  const submit = async () => {
+    if (!canSubmit) {
+      toast.error("Monthly income and expenses are required");
+      return;
+    }
     try {
       await upsertMutation.mutateAsync({
         age: form.age === "" ? null : form.age,
+        retirementAge: form.retirementAge === "" ? null : form.retirementAge,
         isFreelancer: form.isFreelancer,
         hasDependents: form.hasDependents,
         hasCcCarryover: form.hasCcCarryover,
@@ -205,23 +233,19 @@ export function OnboardWizard() {
         totalEmi: blankAsZero(form.totalEmi),
         investmentBalance: blankAsZero(form.investmentBalance),
         monthlyInvestment: blankAsZero(form.monthlyInvestment),
-        markCompleted,
+        markCompleted: true,
       });
       utils.personal.profile.get.invalidate();
-      if (markCompleted) {
-        toast.success("Score updated");
-        router.push("/app/personal");
-      }
+      toast.success(isExisting ? "Score updated" : "Score computed");
+      router.push("/app/personal");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");
     }
   };
 
-  const isLast = step === STEPS.length - 1;
-
   return (
-    <main className="flex-1">
-      <div className="mx-auto max-w-xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="flex-1 pb-28 sm:pb-8">
+      <div className="mx-auto max-w-xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
         <button
           type="button"
           onClick={() => router.push("/app/personal")}
@@ -230,178 +254,174 @@ export function OnboardWizard() {
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Back to Personal
         </button>
 
-        {/* Progress */}
         <div>
           <div className="flex items-center gap-2">
-            <Sparkles
-              className="h-4 w-4 text-fuchsia-500"
-              aria-hidden
-            />
+            <Sparkles className="h-4 w-4 text-fuchsia-500" aria-hidden />
             <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
-              Financial Health check — {STEPS[step].title}
+              {isExisting
+                ? "Update your Financial Health Score"
+                : "Get your Financial Health Score"}
             </h1>
           </div>
-          <div className="mt-3 flex gap-1.5">
-            {STEPS.map((s, i) => (
-              <div
-                key={s.key}
-                className={`h-1.5 flex-1 rounded-full transition ${
-                  i <= step ? "bg-fuchsia-500" : "bg-slate-200 dark:bg-slate-800"
-                }`}
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Step {step + 1} of {STEPS.length} · 🔐 We encrypt every amount
-            before storing — our database only ever sees scrambled text.
-          </p>
-          <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
-            Tip: leave a field blank if you have none — we&apos;ll count it
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            🔐 We encrypt every amount before storing — our database only ever
+            sees scrambled text. Leave a field blank if you have none — counts
             as zero. Only income + expenses are required.
           </p>
         </div>
 
-        {/* Step content */}
-        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-          {step === 0 && (
-            <>
-              <NumField
-                label="Your age"
-                hint="Used for retirement-targeting math (no exact figure stored beyond what you enter)."
-                value={form.age}
-                onChange={(v) => set("age", v)}
-                prefix="🎂"
-                optional
-              />
-              <Toggle
-                label="Freelance / business income?"
-                hint="Freelancers should target a 9-month emergency fund (vs 6 for stable jobs)."
-                value={form.isFreelancer}
-                onChange={(v) => set("isFreelancer", v)}
-              />
-              <Toggle
-                label="Anyone financially dependent on you?"
-                hint="Spouse, kids, parents — affects whether term life insurance is required."
-                value={form.hasDependents}
-                onChange={(v) => set("hasDependents", v)}
-              />
-            </>
-          )}
+        <Section
+          icon={Briefcase}
+          iconClass="bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300"
+          title="About you"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <NumField
+              label="Your age"
+              hint="Drives the investing-pillar glide path — younger users have a more lenient target."
+              value={form.age}
+              onChange={(v) => set("age", v)}
+              prefix="🎂"
+            />
+            <NumField
+              label="Target retirement age"
+              hint="60 for most. Lower (40–50) for FIRE, higher (65+) for late-career switchers."
+              value={form.retirementAge}
+              onChange={(v) => set("retirementAge", v)}
+              prefix="🎯"
+            />
+          </div>
+          <Toggle
+            label="Freelance / business income?"
+            hint="Freelancers should target a 9-month emergency fund (vs 6 for stable jobs)."
+            value={form.isFreelancer}
+            onChange={(v) => set("isFreelancer", v)}
+          />
+          <Toggle
+            label="Anyone financially dependent on you?"
+            hint="Spouse, kids, parents — affects whether term life insurance is required."
+            value={form.hasDependents}
+            onChange={(v) => set("hasDependents", v)}
+          />
+        </Section>
 
-          {step === 1 && (
-            <>
-              <NumField
-                label="Monthly income"
-                hint="Take-home, after tax + PF. Salary, freelance, side income."
-                value={form.monthlyIncome}
-                onChange={(v) => set("monthlyIncome", v)}
-              />
-              <NumField
-                label="Monthly expenses"
-                hint="Roughly what you spend each month — rent, food, bills, the usual."
-                value={form.monthlyExpenses}
-                onChange={(v) => set("monthlyExpenses", v)}
-              />
-              <NumField
-                label="Liquid savings"
-                hint="Cash, savings account, FDs you could break in 24h. Excludes investments."
-                value={form.liquidSavings}
-                onChange={(v) => set("liquidSavings", v)}
-              />
-            </>
-          )}
+        <Section
+          icon={Coins}
+          iconClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+          title="Money in & out"
+        >
+          <NumField
+            label="Monthly income"
+            hint="Take-home, after tax + PF. Salary, freelance, side income."
+            value={form.monthlyIncome}
+            onChange={(v) => set("monthlyIncome", v)}
+          />
+          <NumField
+            label="Monthly expenses"
+            hint="Roughly what you spend each month — rent, food, bills, the usual."
+            value={form.monthlyExpenses}
+            onChange={(v) => set("monthlyExpenses", v)}
+          />
+          <NumField
+            label="Liquid savings"
+            hint="Cash, savings account, FDs you could break in 24h. Excludes investments."
+            value={form.liquidSavings}
+            onChange={(v) => set("liquidSavings", v)}
+          />
+        </Section>
 
-          {step === 2 && (
-            <>
-              <NumField
-                label="Term life cover"
-                hint={
-                  form.hasDependents
-                    ? "Sum assured of your term policy. Aim for 10–15× annual income."
-                    : "Skip if you don't have dependents — term insurance isn't needed."
-                }
-                value={form.termCoverAmount}
-                onChange={(v) => set("termCoverAmount", v)}
-                optional={!form.hasDependents}
-              />
-              <NumField
-                label="Health insurance cover"
-                hint="Total sum assured (base + super top-up). Employer-provided counts. Aim for ₹15L+."
-                value={form.healthCoverAmount}
-                onChange={(v) => set("healthCoverAmount", v)}
-              />
-            </>
-          )}
+        <Section
+          icon={Shield}
+          iconClass="bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"
+          title="Insurance"
+        >
+          <NumField
+            label="Term life cover"
+            hint={
+              form.hasDependents
+                ? "Sum assured of your term policy. Aim for 10–15× annual income."
+                : "Skip if you don't have dependents — term insurance isn't needed."
+            }
+            value={form.termCoverAmount}
+            onChange={(v) => set("termCoverAmount", v)}
+          />
+          <NumField
+            label="Health insurance cover"
+            hint="Total sum assured (base + super top-up). Employer-provided counts. Aim for ₹15L+."
+            value={form.healthCoverAmount}
+            onChange={(v) => set("healthCoverAmount", v)}
+          />
+        </Section>
 
-          {step === 3 && (
-            <>
-              <NumField
-                label="Total monthly EMIs"
-                hint="Home loan + car + personal loan + credit-card EMI. Target: under 40% of income."
-                value={form.totalEmi}
-                onChange={(v) => set("totalEmi", v)}
-              />
-              <Toggle
-                label="Carrying a credit-card balance month-to-month?"
-                hint="High-interest debt should be cleared first — this is the biggest financial-health drag."
-                value={form.hasCcCarryover}
-                onChange={(v) => set("hasCcCarryover", v)}
-              />
-              <NumField
-                label="Investment balance"
-                hint="Mutual funds + stocks + PPF + EPF + NPS — anything earning long-term returns."
-                value={form.investmentBalance}
-                onChange={(v) => set("investmentBalance", v)}
-              />
-              <NumField
-                label="Monthly investment (SIP)"
-                hint="Total per-month going into investments. Even ₹1,000 compounds significantly."
-                value={form.monthlyInvestment}
-                onChange={(v) => set("monthlyInvestment", v)}
-              />
-            </>
-          )}
-        </section>
+        <Section
+          icon={TrendingUp}
+          iconClass="bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+          title="Debt & investing"
+        >
+          <NumField
+            label="Total monthly EMIs"
+            hint="Home loan + car + personal loan + credit-card EMI. Target: under 40% of income."
+            value={form.totalEmi}
+            onChange={(v) => set("totalEmi", v)}
+          />
+          <Toggle
+            label="Carrying a credit-card balance month-to-month?"
+            hint="High-interest debt should be cleared first — biggest financial-health drag."
+            value={form.hasCcCarryover}
+            onChange={(v) => set("hasCcCarryover", v)}
+          />
+          <NumField
+            label="Investment balance"
+            hint="Mutual funds + stocks + PPF + EPF + NPS — anything earning long-term returns."
+            value={form.investmentBalance}
+            onChange={(v) => set("investmentBalance", v)}
+          />
+          <NumField
+            label="Monthly investment (SIP)"
+            hint="Total per-month going into investments. Even ₹1,000 compounds significantly."
+            value={form.monthlyInvestment}
+            onChange={(v) => set("monthlyInvestment", v)}
+          />
+        </Section>
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between gap-3">
+        {/* Inline compute button for desktop / when sticky isn't needed */}
+        <div className="hidden sm:flex sm:justify-end">
           <button
             type="button"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            onClick={submit}
+            disabled={!canSubmit || upsertMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-br from-fuchsia-500 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
           >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Back
+            {upsertMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Sparkles className="h-4 w-4" aria-hidden />
+            )}
+            {isExisting ? "Update my score" : "Compute my score"}
           </button>
-          {!isLast ? (
-            <button
-              type="button"
-              onClick={async () => {
-                // Save partial progress on each Next so back-button doesn't lose work.
-                await submit(false);
-                setStep((s) => Math.min(STEPS.length - 1, s + 1));
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-fuchsia-500"
-            >
-              Next
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => submit(true)}
-              disabled={upsertMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-fuchsia-500 to-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {upsertMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              )}
-              Compute my score
-            </button>
-          )}
         </div>
+      </div>
+
+      {/* Sticky CTA on mobile — always reachable without scrolling */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95 sm:hidden">
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!canSubmit || upsertMutation.isPending}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-fuchsia-500 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
+        >
+          {upsertMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Sparkles className="h-4 w-4" aria-hidden />
+          )}
+          {isExisting ? "Update my score" : "Compute my score"}
+        </button>
+        {!canSubmit && (
+          <p className="mt-1.5 text-center text-[11px] text-slate-500 dark:text-slate-400">
+            Add monthly income + expenses to compute
+          </p>
+        )}
       </div>
     </main>
   );

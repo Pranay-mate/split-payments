@@ -13,6 +13,8 @@
 
 export type ScoreInputs = {
   age: number | null;
+  /** Target retirement age. Defaults to 60 in the scorer if null. */
+  retirementAge: number | null;
   isFreelancer: boolean;
   hasDependents: boolean;
   hasCcCarryover: boolean;
@@ -287,15 +289,45 @@ function savingsRatePillar(i: ScoreInputs): Pillar {
 }
 
 /**
- * Pillar 5 — Investing.
- *   Balance sub-score (0–15): investment_balance ÷ annual_income.
- *     4× annual income → 15pts (rough retirement-on-track marker by 35).
- *     Lower scales linearly.
- *   SIP sub-score (0–5): any monthly_investment > 0 → 5pts.
+ * Age-adjusted target multiplier for the investing pillar — the
+ * "Fidelity glide path" generalised to user-supplied retirement age.
  *
- *   Skipped (Phase 3): age-based equity glide, retirement-target math.
+ *   At age 25 (start of working life): 0.5× annual income.
+ *   At retirement age: 8× annual income.
+ *   Linear interpolation between (no jagged "lose 5pts on your 35th
+ *   birthday" cliff).
+ *
+ * Falls back to a fixed 4× when age isn't supplied — same as the
+ * pre-glide behaviour so unfilled profiles see no surprise change.
+ */
+const STARTING_AGE = 25;
+const STARTING_TARGET = 0.5;
+const RETIREMENT_TARGET = 8;
+const DEFAULT_RETIREMENT_AGE = 60;
+
+export function investingTargetForAge(
+  age: number | null,
+  retirementAge: number | null,
+): number {
+  if (age === null) return 4;
+  const retire = retirementAge ?? DEFAULT_RETIREMENT_AGE;
+  if (age <= STARTING_AGE) return STARTING_TARGET;
+  if (age >= retire) return RETIREMENT_TARGET;
+  const progress = (age - STARTING_AGE) / (retire - STARTING_AGE);
+  return STARTING_TARGET + progress * (RETIREMENT_TARGET - STARTING_TARGET);
+}
+
+/**
+ * Pillar 5 — Investing.
+ *   Balance sub-score (0–15): investment_balance ÷ annual_income,
+ *   compared against an age-adjusted target multiplier (the Fidelity
+ *   glide path generalised by user-supplied retirement age — see
+ *   investingTargetForAge above).
+ *   SIP sub-score (0–5): any monthly_investment > 0 → 5pts.
  */
 function investingPillar(i: ScoreInputs): Pillar {
+  const target = investingTargetForAge(i.age, i.retirementAge);
+  const retire = i.retirementAge ?? DEFAULT_RETIREMENT_AGE;
   let balanceSub = 0;
   let balanceMessage = "";
   if (i.investmentBalance === null || !i.monthlyIncome) {
@@ -307,11 +339,15 @@ function investingPillar(i: ScoreInputs): Pillar {
   } else {
     const annualIncome = i.monthlyIncome * 12;
     const ratio = i.investmentBalance / annualIncome;
-    balanceSub = clamp(Math.round((ratio / 4) * 15), 0, 15);
+    balanceSub = clamp(Math.round((ratio / target) * 15), 0, 15);
+    const targetLabel =
+      i.age === null
+        ? `target ${target.toFixed(1)}× annual income`
+        : `target ${target.toFixed(2).replace(/\.?0+$/, "")}× by ${i.age} (retire at ${retire})`;
     if (balanceSub >= 15) {
-      balanceMessage = "Investments ≥4× annual income — well on track.";
+      balanceMessage = `Investments ${ratio.toFixed(1)}× annual income — past ${targetLabel}.`;
     } else {
-      balanceMessage = `Investments are ${ratio.toFixed(1)}× annual income (target 4×).`;
+      balanceMessage = `Investments are ${ratio.toFixed(1)}× annual income (${targetLabel}).`;
     }
   }
 
