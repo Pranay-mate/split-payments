@@ -43,9 +43,6 @@ const STEPS = [
   { key: "debt", title: "Debt & investing" },
 ] as const;
 
-const inputClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900";
-
 function NumField({
   label,
   hint,
