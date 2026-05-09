@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trophy, X } from "lucide-react";
+import { ChevronDown, Plus, Trophy, X } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 
 type PillarKey =
@@ -120,11 +120,15 @@ export function GoalsCard() {
     onSuccess: () => utils.personal.goals.list.invalidate(),
   });
   const [showPicker, setShowPicker] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
-  const active = useMemo(
-    () => (goalsQuery.data ?? []).filter((g) => !g.archivedAt),
-    [goalsQuery.data],
-  );
+  const { inProgress, completed } = useMemo(() => {
+    const all = (goalsQuery.data ?? []).filter((g) => !g.archivedAt);
+    return {
+      inProgress: all.filter((g) => !g.completedAt),
+      completed: all.filter((g) => g.completedAt),
+    };
+  }, [goalsQuery.data]);
 
   if (goalsQuery.isLoading) return null;
 
@@ -153,7 +157,7 @@ export function GoalsCard() {
       {showPicker && <GoalPicker onClose={() => setShowPicker(false)} />}
 
       <div className="px-4 py-3 sm:px-5">
-        {active.length === 0 && !showPicker ? (
+        {inProgress.length === 0 && completed.length === 0 && !showPicker ? (
           <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
             No active goals yet.{" "}
             <button
@@ -166,88 +170,164 @@ export function GoalsCard() {
             to get started.
           </p>
         ) : (
-          <ul className="space-y-3">
-            {active.map((g) => {
-              const pct = pctOf(g.currentValue, g.targetScore);
-              const max = g.goalKind === "total" ? 100 : 20;
-              const days = daysUntil(g.targetDate);
-              const onTrack =
-                days === null ? null : g.completedAt ? true : days >= 0;
-              return (
-                <li
-                  key={g.id}
-                  className="rounded-xl border border-slate-100 bg-slate-50/40 p-3 dark:border-slate-800 dark:bg-slate-800/30"
+          <>
+            {inProgress.length > 0 && (
+              <ul className="space-y-3">
+                {inProgress.map((g) => (
+                  <GoalRow
+                    key={g.id}
+                    goal={g}
+                    onArchive={(id) => archiveMutation.mutate({ id })}
+                  />
+                ))}
+              </ul>
+            )}
+            {completed.length > 0 && (
+              <div
+                className={inProgress.length > 0 ? "mt-3" : ""}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowCompleted((s) => !s)}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
-                        <span className="truncate">{g.label}</span>
-                        {g.completedAt && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-                            ✓ Done
-                          </span>
-                        )}
-                      </p>
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                        <span>
-                          {g.goalKind === "pillar" && g.pillarKey
-                            ? `${PILLAR_LABEL[g.pillarKey as PillarKey]} pillar`
-                            : "Total score"}
-                          {" · "}
-                          {g.currentValue}/{g.targetScore}
-                          <span className="text-slate-400">
-                            {" "}
-                            (max {max})
-                          </span>
-                        </span>
-                        {g.targetDate && (
-                          <span className={onTrack === false ? "text-rose-500" : ""}>
-                            · by {shortDate(g.targetDate)}
-                            {days !== null && !g.completedAt && (
-                              <>
-                                {" · "}
-                                {days >= 0
-                                  ? `${days}d left`
-                                  : `${Math.abs(days)}d past due`}
-                              </>
-                            )}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => archiveMutation.mutate({ id: g.id })}
-                      className="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      title="Archive this goal"
-                      aria-label="Archive goal"
-                    >
-                      <X className="h-4 w-4" aria-hidden />
-                    </button>
-                  </div>
-
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                    <div
-                      className={`h-full rounded-full transition-[width] duration-700 ${
-                        g.completedAt
-                          ? "bg-emerald-500"
-                          : onTrack === false
-                            ? "bg-rose-500"
-                            : "bg-gradient-to-r from-emerald-400 to-teal-500"
-                      }`}
-                      style={{ width: `${pct * 100}%` }}
-                    />
-                  </div>
-                  <p className="mt-1 text-right text-[10px] tabular-nums text-slate-500 dark:text-slate-400">
-                    {Math.round(pct * 100)}%
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
+                  <span className="flex items-center gap-2">
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      ✓
+                    </span>
+                    Completed · {completed.length}
+                  </span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform ${showCompleted ? "rotate-180" : ""}`}
+                    aria-hidden
+                  />
+                </button>
+                {showCompleted && (
+                  <ul className="mt-2 space-y-2">
+                    {completed.map((g) => (
+                      <GoalRow
+                        key={g.id}
+                        goal={g}
+                        compact
+                        onArchive={(id) => archiveMutation.mutate({ id })}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>
+  );
+}
+
+type GoalListItem = {
+  id: string;
+  goalKind: "pillar" | "total";
+  pillarKey: string | null;
+  label: string;
+  targetScore: number;
+  targetDate: Date | string | null;
+  currentValue: number;
+  completedAt: Date | string | null;
+};
+
+function GoalRow({
+  goal,
+  compact = false,
+  onArchive,
+}: {
+  goal: GoalListItem;
+  compact?: boolean;
+  onArchive: (id: string) => void;
+}) {
+  const pct = pctOf(goal.currentValue, goal.targetScore);
+  const max = goal.goalKind === "total" ? 100 : 20;
+  const days = daysUntil(goal.targetDate);
+  const onTrack = days === null ? null : goal.completedAt ? true : days >= 0;
+  const isDone = !!goal.completedAt;
+
+  return (
+    <li
+      className={
+        compact
+          ? "rounded-lg border border-emerald-100 bg-emerald-50/40 p-2 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+          : "rounded-xl border border-slate-100 bg-slate-50/40 p-3 dark:border-slate-800 dark:bg-slate-800/30"
+      }
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p
+            className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${
+              compact ? "text-xs font-medium" : "text-sm font-semibold"
+            }`}
+          >
+            <span className="truncate">{goal.label}</span>
+            {isDone && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                ✓ Done
+              </span>
+            )}
+          </p>
+          {!compact && (
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+              <span>
+                {goal.goalKind === "pillar" && goal.pillarKey
+                  ? `${PILLAR_LABEL[goal.pillarKey as PillarKey]} pillar`
+                  : "Total score"}
+                {" · "}
+                {goal.currentValue}/{goal.targetScore}{" "}
+                <span className="text-slate-400">(max {max})</span>
+              </span>
+              {goal.targetDate && (
+                <span className={onTrack === false ? "text-rose-500" : ""}>
+                  · by {shortDate(goal.targetDate)}
+                  {days !== null && !isDone && (
+                    <>
+                      {" · "}
+                      {days >= 0
+                        ? `${days}d left`
+                        : `${Math.abs(days)}d past due`}
+                    </>
+                  )}
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => onArchive(goal.id)}
+          className="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          title="Archive this goal"
+          aria-label="Archive goal"
+        >
+          <X className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden />
+        </button>
+      </div>
+
+      {!compact && (
+        <>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+            <div
+              className={`h-full rounded-full transition-[width] duration-700 ${
+                isDone
+                  ? "bg-emerald-500"
+                  : onTrack === false
+                    ? "bg-rose-500"
+                    : "bg-gradient-to-r from-emerald-400 to-teal-500"
+              }`}
+              style={{ width: `${pct * 100}%` }}
+            />
+          </div>
+          <p className="mt-1 text-right text-[10px] tabular-nums text-slate-500 dark:text-slate-400">
+            {Math.round(pct * 100)}%
+          </p>
+        </>
+      )}
+    </li>
   );
 }
 

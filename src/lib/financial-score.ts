@@ -78,7 +78,7 @@ function bandFor(total: number): ScoreResult["band"] {
  *   Score scales linearly to that target; cap at target.
  */
 const EMERGENCY_BASELINE =
-  "Typical Indian household: ~1.5 months of expenses in liquid savings (RBI Household Finance Committee, 2017).";
+  "Indian household median: ~1.5 months covered (RBI HFC 2017).";
 
 function emergencyPillar(i: ScoreInputs): Pillar {
   const target = i.isFreelancer ? 9 : 6;
@@ -197,7 +197,7 @@ function insurancePillar(i: ScoreInputs): Pillar {
     message: `${termMessage} ${healthMessage}`.trim(),
     nextAction,
     peerBaseline:
-      "Typical Indian: ~3% have term life cover (IRDAI, FY23); avg health cover ₹4–5L vs ₹15L target (Policybazaar, 2024).",
+      "Avg Indian health cover ₹4–5L; ~3% have term life (IRDAI FY23).",
   };
 }
 
@@ -249,7 +249,7 @@ function debtPillar(i: ScoreInputs): Pillar {
     message: `${emiMessage} ${ccMessage}`.trim(),
     nextAction,
     peerBaseline:
-      "Indian household debt ≈ 40% of GDP; median EMI/income ≈ 25–30% (RBI Financial Stability Report, 2024).",
+      "Median Indian EMI/income ≈ 25–30% (RBI FSR 2024).",
   };
 }
 
@@ -271,7 +271,7 @@ function savingsRatePillar(i: ScoreInputs): Pillar {
       message: "Add your income + expenses to score this.",
       nextAction: "Fill in monthly income + expenses",
       peerBaseline:
-        "Indian household net savings rate ≈ 18–21% of disposable income (NSO, FY23).",
+        "Indian household savings rate ≈ 18–21% (NSO FY23).",
     };
   }
   const saved = i.monthlyIncome - i.monthlyExpenses;
@@ -397,7 +397,7 @@ function investingPillar(i: ScoreInputs): Pillar {
     message: `${balanceMessage} ${sipMessage}`.trim(),
     nextAction,
     peerBaseline:
-      "Only ~5% of Indians invest in equity directly; SIP book grew to ₹26,400 cr/mo by FY25 (NSE, AMFI, 2025).",
+      "Only ~5% of Indians invest directly in equity (NSE/AMFI 2025).",
   };
 }
 

@@ -41,6 +41,27 @@ function shortDateLabel(d: Date | string): string {
   });
 }
 
+function timeLabel(d: Date | string): string {
+  return new Date(d).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+/**
+ * If multiple snapshots share the same calendar day, dedupe the x-axis
+ * by appending HH:mm — otherwise recharts shows "9 May" 7 times in a
+ * row, which conveys nothing. When dates already differ across the
+ * series, leave the simple "DD MMM" labels.
+ */
+function buildLabels(history: Array<{ snapshottedAt: Date | string }>): string[] {
+  const dates = history.map((s) => shortDateLabel(s.snapshottedAt));
+  const unique = new Set(dates);
+  if (unique.size === dates.length) return dates;
+  return history.map((s) => `${shortDateLabel(s.snapshottedAt)} ${timeLabel(s.snapshottedAt)}`);
+}
+
 export type ScoreSummary = {
   current: number | null;
   delta: number | null;
@@ -84,14 +105,10 @@ export function ScoreTrajectory() {
   const q = trpc.personal.profile.history.useQuery({ limit: 24 });
   const history = useMemo(() => q.data ?? [], [q.data]);
 
-  const chartData = useMemo(
-    () =>
-      history.map((s) => ({
-        label: shortDateLabel(s.snapshottedAt),
-        total: s.total,
-      })),
-    [history],
-  );
+  const chartData = useMemo(() => {
+    const labels = buildLabels(history);
+    return history.map((s, i) => ({ label: labels[i], total: s.total }));
+  }, [history]);
 
   if (q.isLoading) return null;
   if (history.length < 2) {
