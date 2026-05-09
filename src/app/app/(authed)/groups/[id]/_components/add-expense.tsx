@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
@@ -15,6 +15,8 @@ import {
   type CategoryKey,
 } from "@/lib/categories";
 import { detectCategory } from "@/lib/category-detect";
+import { parseVoiceTranscript } from "@/lib/voice-input";
+import { useVoiceInput } from "@/lib/use-voice-input";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 const EPSILON = 0.01;
@@ -108,6 +110,24 @@ export function AddExpense({
       return {};
     },
   );
+
+  // Voice input — single-click mic dictates description + (best-effort) amount.
+  // Browser Web Speech API; en-IN locale by default for Indian numerals.
+  const voice = useVoiceInput({
+    lang: "en-IN",
+    onResult: (transcript) => {
+      const parsed = parseVoiceTranscript(transcript);
+      if (parsed.description) setDescription(parsed.description);
+      if (typeof parsed.amount === "number" && parsed.amount > 0) {
+        setAmount(parsed.amount);
+      }
+    },
+    onError: (err) => {
+      // 'no-speech' and 'aborted' are normal user-cancellations; suppress.
+      if (err === "no-speech" || err === "aborted") return;
+      toast.error(`Voice input: ${err}`);
+    },
+  });
 
   // Itemized mode — each row in `items` is a line of the bill.
   const [mode, setMode] = useState<"single" | "items">(
@@ -508,13 +528,43 @@ export function AddExpense({
         </div>
       )}
       <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
-        <input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="What's this expense for?"
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
-          aria-label="Expense description"
-        />
+        <div className="flex items-stretch gap-1.5">
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={
+              voice.listening
+                ? "Listening… try “pizza six hundred”"
+                : "What's this expense for?"
+            }
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+            aria-label="Expense description"
+          />
+          {voice.supported && (
+            <button
+              type="button"
+              onClick={() => (voice.listening ? voice.stop() : voice.start())}
+              aria-pressed={voice.listening}
+              aria-label={voice.listening ? "Stop dictation" : "Dictate expense"}
+              title={
+                voice.listening
+                  ? "Listening — tap to stop"
+                  : "Dictate (e.g. “uber 350” or “pizza six hundred”)"
+              }
+              className={`grid h-auto w-10 shrink-0 place-items-center rounded-lg border transition ${
+                voice.listening
+                  ? "animate-pulse border-rose-400 bg-rose-500 text-white"
+                  : "border-slate-300 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              }`}
+            >
+              {voice.listening ? (
+                <MicOff className="h-4 w-4" aria-hidden />
+              ) : (
+                <Mic className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          )}
+        </div>
         <div
           className={`flex items-center gap-1 rounded-lg border pr-2 dark:border-slate-700 ${
             mode === "items"
