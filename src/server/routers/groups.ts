@@ -13,6 +13,10 @@ import {
   settlements,
 } from "@/lib/db/schema";
 import { logEvent } from "../events";
+import {
+  profileAvatarDefault,
+  profileDisplayDefault,
+} from "@/lib/profile-defaults";
 
 const currencySchema = z
   .string()
@@ -140,7 +144,8 @@ export const groupsRouter = router({
         .insert(profiles)
         .values({
           id: ctx.user.id,
-          displayName: ctx.user.email?.split("@")[0] ?? "Member",
+          displayName: profileDisplayDefault(ctx.user),
+          avatarUrl: profileAvatarDefault(ctx.user),
         })
         .onConflictDoNothing();
 
@@ -443,7 +448,8 @@ export const groupsRouter = router({
         .insert(profiles)
         .values({
           id: ctx.user.id,
-          displayName: ctx.user.email?.split("@")[0] ?? "Member",
+          displayName: profileDisplayDefault(ctx.user),
+          avatarUrl: profileAvatarDefault(ctx.user),
         })
         .onConflictDoNothing();
 

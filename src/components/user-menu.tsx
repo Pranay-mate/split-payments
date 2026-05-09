@@ -12,7 +12,12 @@ export function UserMenu() {
   const [open, setOpen] = useState(false);
   const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
 
-  const initial = (meQuery.data?.displayName ?? "?").slice(0, 1).toUpperCase();
+  // While the profile query is in flight, show an empty placeholder
+  // (lets the gradient circle stand in) rather than flashing "?".
+  // After load, fall back to the first letter of the display name.
+  const initial = meQuery.data?.displayName
+    ? meQuery.data.displayName.slice(0, 1).toUpperCase()
+    : "";
   const supabase = createSupabaseBrowserClient();
 
   const deleteMutation = trpc.auth.deleteAccount.useMutation({

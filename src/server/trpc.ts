@@ -13,7 +13,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type TrpcContext = {
   supabase: SupabaseClient;
-  user: { id: string; email: string | null } | null;
+  user: {
+    id: string;
+    email: string | null;
+    /** From OAuth user_metadata.full_name / .name (Google login). Used
+     *  to seed display name on first profile create. Null for email-link
+     *  signups, since those have no provided name. */
+    fullName: string | null;
+    /** From OAuth user_metadata.avatar_url / .picture (Google profile pic). */
+    avatarUrl: string | null;
+  } | null;
 };
 
 const t = initTRPC.context<TrpcContext>().create({

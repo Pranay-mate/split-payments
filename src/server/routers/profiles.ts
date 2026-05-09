@@ -3,6 +3,11 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { profiles } from "@/lib/db/schema";
+import {
+  looksLikeEmailPrefix,
+  profileAvatarDefault,
+  profileDisplayDefault,
+} from "@/lib/profile-defaults";
 
 export const profilesRouter = router({
   /** Get profiles for an array of user IDs. Used to render member names. */
@@ -16,7 +21,10 @@ export const profilesRouter = router({
       return rows;
     }),
 
-  /** Get the current user's profile. Creates one if missing. */
+  /** Get the current user's profile. Creates one if missing. Also
+   *  auto-upgrades a stale email-prefix display name / missing avatar
+   *  to OAuth metadata when available, so existing users get the
+   *  Google name + avatar populated on their next visit. */
   me: protectedProcedure.query(async ({ ctx }) => {
     const existing = await db
       .select()
@@ -24,12 +32,44 @@ export const profilesRouter = router({
       .where(eq(profiles.id, ctx.user.id))
       .limit(1);
 
-    if (existing.length > 0) return existing[0];
+    if (existing.length > 0) {
+      const row = existing[0];
+      const wantedName = profileDisplayDefault(ctx.user);
+      const wantedAvatar = profileAvatarDefault(ctx.user);
 
-    const fallbackName = ctx.user.email?.split("@")[0] ?? "Member";
+      // Only overwrite displayName if it still looks like the
+      // email-prefix auto-fallback AND we have a better (OAuth) name.
+      // Don't clobber names users have manually edited.
+      const shouldUpgradeName =
+        ctx.user.fullName !== null &&
+        looksLikeEmailPrefix(row.displayName, ctx.user.email) &&
+        wantedName !== row.displayName;
+      // Avatar: fill in only if missing — user might have uploaded one.
+      const shouldUpgradeAvatar =
+        wantedAvatar !== null && row.avatarUrl === null;
+
+      if (shouldUpgradeName || shouldUpgradeAvatar) {
+        const [updated] = await db
+          .update(profiles)
+          .set({
+            ...(shouldUpgradeName && { displayName: wantedName }),
+            ...(shouldUpgradeAvatar && { avatarUrl: wantedAvatar }),
+            updatedAt: new Date(),
+          })
+          .where(eq(profiles.id, ctx.user.id))
+          .returning();
+        return updated;
+      }
+      return row;
+    }
+
     const [created] = await db
       .insert(profiles)
-      .values({ id: ctx.user.id, displayName: fallbackName })
+      .values({
+        id: ctx.user.id,
+        displayName: profileDisplayDefault(ctx.user),
+        avatarUrl: profileAvatarDefault(ctx.user),
+      })
       .returning();
     return created;
   }),

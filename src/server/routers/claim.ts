@@ -4,6 +4,10 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import {
+  profileAvatarDefault,
+  profileDisplayDefault,
+} from "@/lib/profile-defaults";
+import {
   claimTokens,
   events,
   expenseComments,
@@ -102,7 +106,8 @@ export const claimRouter = router({
           .insert(profiles)
           .values({
             id: A1,
-            displayName: ctx.user.email?.split("@")[0] ?? "Member",
+            displayName: profileDisplayDefault(ctx.user),
+            avatarUrl: profileAvatarDefault(ctx.user),
           })
           .onConflictDoNothing();
 
