@@ -163,6 +163,20 @@ CREATE INDEX IF NOT EXISTS events_occurred_idx ON events(occurred_at);
 CREATE INDEX IF NOT EXISTS events_expense_idx  ON events(expense_id);
 
 
+-- push_subscriptions: Web Push API subscription endpoints (one per device per user)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          uuid        NOT NULL,
+  endpoint         text        NOT NULL UNIQUE,
+  p256dh           text        NOT NULL,
+  auth             text        NOT NULL,
+  preferences      text        NOT NULL DEFAULT '{}',
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  last_notified_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions(user_id);
+
+
 -- =====================================================================
 -- DEFENSIVE ALTERS — for projects that ran an earlier version of this
 -- schema and need to catch up. Idempotent.

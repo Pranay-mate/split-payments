@@ -317,3 +317,30 @@ export type ExpenseComment = typeof expenseComments.$inferSelect;
 export type Settlement = typeof settlements.$inferSelect;
 export type Event = typeof events.$inferSelect;
 export type ClaimToken = typeof claimTokens.$inferSelect;
+
+/**
+ * Web Push subscriptions. One row per (user, browser/device); a single
+ * user can have many. Endpoint is the unique URL the push service issues
+ * for a subscription — used as the natural key.
+ */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    endpoint: text("endpoint").notNull().unique(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    /** What this subscription wants to be notified about. JSON-encoded. */
+    preferences: text("preferences").notNull().default("{}"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true }),
+  },
+  (t) => [index("push_subscriptions_user_idx").on(t.userId)],
+);
+
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;

@@ -72,6 +72,57 @@ self.addEventListener("sync", (event) => {
   );
 });
 
+// Web Push handler — receives a JSON payload from the cron job and
+// renders a notification. Tap forwards the user to the URL we passed,
+// or /app/groups by default.
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let data;
+  try {
+    data = event.data.json();
+  } catch {
+    data = { title: "EasySplits", body: event.data.text() };
+  }
+  const title = data.title || "EasySplits";
+  const options = {
+    body: data.body || "",
+    icon: "/icon.png",
+    badge: "/icon.png",
+    data: { url: data.url || "/app/groups" },
+    tag: data.tag || "easysplits-reminder",
+    renotify: false,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/app/groups";
+  event.waitUntil(
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      // Focus an existing tab on the same origin if there is one.
+      for (const client of clientList) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) {
+            try {
+              await client.navigate(url);
+            } catch {
+              // navigate not always available; the focus alone is fine.
+            }
+          }
+          return;
+        }
+      }
+      await self.clients.openWindow(url);
+    })(),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;

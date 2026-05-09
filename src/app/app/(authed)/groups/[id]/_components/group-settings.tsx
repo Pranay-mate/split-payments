@@ -2,9 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Trash2, LogOut, Loader2, X, Save } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Loader2,
+  LogOut,
+  Save,
+  Settings,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { usePushSubscription } from "@/lib/use-push-subscription";
 
 type GroupForSettings = {
   id: string;
@@ -56,6 +66,8 @@ export function GroupSettings({
   });
 
   const renameDirty = name.trim() !== group.name && name.trim().length > 0;
+
+  const push = usePushSubscription();
 
   return (
     <>
@@ -135,6 +147,72 @@ export function GroupSettings({
                     ? "Locked because expenses already exist. Create a new group to use a different currency."
                     : "Can be changed only while the group has no expenses (currently empty)."}
                 </p>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <Bell className="h-3.5 w-3.5" aria-hidden /> Reminders
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Daily push for unsettled balances older than 7 days.
+                      Applies across all your groups.
+                    </p>
+                  </div>
+                  {push.status === "loading" && (
+                    <Loader2
+                      className="h-4 w-4 animate-spin text-slate-400"
+                      aria-hidden
+                    />
+                  )}
+                  {push.status === "unsupported" && (
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Not supported on this browser
+                    </span>
+                  )}
+                  {push.status === "denied" && (
+                    <span className="text-[11px] text-rose-600 dark:text-rose-400">
+                      Blocked — enable in browser settings
+                    </span>
+                  )}
+                  {push.status === "not-subscribed" && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await push.subscribe();
+                          toast.success("Reminders enabled");
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error ? err.message : "Failed",
+                          );
+                        }
+                      }}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-emerald-500"
+                    >
+                      <Bell className="h-3 w-3" aria-hidden /> Enable
+                    </button>
+                  )}
+                  {push.status === "subscribed" && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await push.unsubscribe();
+                          toast.success("Reminders off");
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error ? err.message : "Failed",
+                          );
+                        }
+                      }}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      <BellOff className="h-3 w-3" aria-hidden /> Disable
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-900 dark:bg-rose-950/40">
