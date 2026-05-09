@@ -147,9 +147,10 @@ export function GroupSettings({
             role="dialog"
             aria-modal="true"
             aria-labelledby="group-settings-title"
-            className="fixed inset-x-3 top-12 z-50 mx-auto max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:top-20"
+            className="fixed inset-x-3 top-12 z-50 mx-auto flex max-h-[calc(100vh-6rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:top-20 sm:max-h-[calc(100vh-10rem)]"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+            {/* Header — fixed; doesn't scroll with body */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3 dark:border-slate-800">
               <h2
                 id="group-settings-title"
                 className="text-base font-semibold tracking-tight"
@@ -166,7 +167,8 @@ export function GroupSettings({
               </button>
             </div>
 
-            <div className="space-y-5 px-5 py-4">
+            {/* Body — scrolls when content exceeds modal height */}
+            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
               <label className="block">
                 <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
                   Group name
