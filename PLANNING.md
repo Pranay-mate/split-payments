@@ -207,6 +207,15 @@
 > about spending patterns + wealth creation. Reuses existing categories,
 > charts, and offline-queue infrastructure.
 
+### Locked decisions
+
+| # | Decision | Locked value (2026-05-09) |
+|---|---|---|
+| 1 | **Encryption** | **Option B — server-side field-level via `pgcrypto.PGP_SYM_ENCRYPT/DECRYPT`** with key in `SUPABASE_SECRET_KEY`. Sensitive columns (income, savings, insurance, debt, term cover, etc.) stored as ciphertext; server holds the key and decrypts when needed for scoring/analytics/exports. Trade-off: protects against DB breaches + Supabase staff + SQL injection exfiltration, but **the developer can read all user data** for product features. Industry-standard for fintechs. Not E2EE. |
+| 2 | **Honest copy** | Onboarding text says: *"Encrypted at the field level. Our database hosting provider can't read your data. We use it to compute your score and show you analytics. We never sell or share it with anyone."* — every word verifiable. **Never** claim "even we can't read it" (that's option C / E2EE territory). |
+| 3 | **Privacy isolation** | Each user sees only their own entries (server filters by `ctx.user.id` in every query). No sharing, no cross-user views, no leak via groupId. |
+| 4 | **Score ↔ score logic** | Lives server-side (depends on decrypted values). Cannot move to E2EE without rewriting score logic to run client-side, which would also kill peer comparison forever. |
+
 ### Data model (proposed)
 
 | Table | Purpose | Status |
@@ -242,6 +251,74 @@
 - Auto-detect category (~150 keyword rules) — already shipped
 
 **Effort:** ~2 weeks for v1 (transactions + dashboard + monthly insights). Wealth tracking is a separate Phase 3 push.
+
+### v3 — Financial Health Scorecard (planned)
+
+> The differentiator. India has no good free tool for "am I doing well
+> with my money?" — this fills the gap. Builds on top of the v1 tracker
+> data so we don't ask users to type "current monthly expenses" by hand
+> (they'd guess wrong; the tracker has the real number).
+
+**5-pillar score (each 0–20, total 100):**
+
+| Pillar | Scored on | Indian rule of thumb |
+|---|---|---|
+| **Emergency fund** | months of expenses in liquid savings | 6 months for stable jobs, 9–12 for freelancers |
+| **Insurance** | term cover ÷ (10× annual income) + health cover adequacy | 10–15× annual income if dependents · ₹5L individual + ₹15L super top-up · 0 term needed if no dependents (push back on the standard advice) |
+| **Debt** | EMI ÷ income ratio · credit-card carry-over · debt mix | EMI < 40% of income · no rolling CC balance · prefer secured over unsecured |
+| **Savings rate** | (income − expenses) ÷ income | 20%+ is good · 30%+ is excellent |
+| **Investing** | net worth growth · equity allocation vs age · retirement on track (NPS/PPF/EPF/MFs) | Age-glide: equity % ≈ 100 − age · retirement target ~25× annual expenses |
+
+**Onboarding wizard (5 questions for the rough score):**
+1. Monthly income (auto-pulled from PFT income entries; user can override)
+2. Current liquid savings (savings + FD)
+3. Term life cover (sum assured)
+4. Health insurance cover (sum assured, family floater? employer-provided?)
+5. Total monthly EMIs
+
+Drill-down per pillar adds detail (NPS, PPF, gold, mutual funds, etc.) for users who want a more accurate score.
+
+**Disclaimers (locked, must appear):**
+- "Rules of thumb, not financial advice. We are not a SEBI-registered investment advisor."
+- "Educational tool. Decisions about investments, insurance, and debt should be made with a qualified RIA."
+- Every metric has a "why" tooltip linking to a short explainer.
+
+**Out of scope for v3:**
+- Peer comparison (cross-user data — adds privacy review burden; wait until product proven)
+- Insurance / investment product recommendations + affiliate links (regulatory + trust risk)
+- Auto-pull from EPFO / NPS / banks (no clean APIs)
+
+**Effort:** ~8–12h for v3 (onboarding wizard + 5-pillar scoring + drill-down per pillar). Score history + goals come in v4 (~4h).
+
+### v3.5 — Anomaly alerts (planned)
+
+> Pairs with the Phase 2.6 Reminder-nudges infrastructure (Web Push +
+> service worker + Vercel Cron daily). Same plumbing, different message.
+
+**What it does:** detects when a category's monthly spend genuinely
+deviates from the rolling 6-month average (>50% delta on a category that
+typically has ≥3 entries/month) and surfaces a gentle, one-tap-dismissible
+notification: *"Food up 60% this month — anything off?"*
+
+**UX rules (locked, mobile-first):**
+- Amber not red — this is "hey, look", not an emergency.
+- Cap at 2 alerts/user/month so it doesn't become noise.
+- Push and in-app banner both — push for habit-forming, banner so it's
+  visible in-app without push permission granted.
+- Tap → drill into that category's transactions for the month. Don't
+  just toast a vague hint; take the user somewhere actionable.
+- "Mute this category for 30 days" link on every alert.
+
+**Why it pairs with reminder-nudges:**
+- Same `push_subscriptions` table.
+- Same Vercel Cron daily endpoint — anomaly detection runs as a second
+  pass after the unsettled-balance check.
+- Same opt-in toggle in settings; user picks "balance reminders" and/or
+  "spending anomalies" independently.
+
+**Effort:** ~3h on top of Reminder nudges (the infrastructure does most
+of the heavy lifting; the new bits are the per-category rolling-average
+query and the alert message templates).
 
 ---
 
@@ -366,3 +443,5 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-09 | **Group page UX trio**: contribution bar (stacked horizontal, who paid what %), balance bars replacing text rows (green/red gradient widths), and settlement progress ring inside BalancesView (% settled). |
 | 2026-05-09 | **Auto-detect category** from description: ~150 keyword rules in `category-detect.ts` covering Indian brands (Swiggy, Zomato, Blinkit, Ola, IRCTC, BookMyShow…). User's manual chip click locks in their pick. |
 | 2026-05-09 | Planning: added **Phase 2.5 — Personal Finance Tracker** section. Separate product within EasySplits for individual income/expense tracking + wealth-creation insights. Carried Receipt photos, Recurring expenses, "View balances in any currency" into a dedicated Future scope block. |
+| 2026-05-09 | **Voice input** shipped: mic button in AddExpense via browser Web Speech API (en-IN), parser splits transcripts like "pizza six hundred" / "uber 350" into description + amount, auto-prefills the form. No API costs, hidden on Firefox. |
+| 2026-05-09 | Planning: locked **Option B** (server-side field-level encryption via `pgcrypto`) for PFT sensitive columns. Added **5-pillar Financial Health Scorecard** sub-plan (Emergency / Insurance / Debt / Savings rate / Investing), India-specific rule set, onboarding wizard scope, locked disclaimers. Added **v3.5 Anomaly alerts** that piggyback on Phase 2.6 reminder-nudges infrastructure. |

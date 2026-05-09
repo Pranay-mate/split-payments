@@ -272,6 +272,14 @@
 
   <h2>Phase 2.5 — Personal Finance Tracker <span class="badge">planned</span></h2>
   <p class="meta">A second product inside EasySplits: track <em>your own</em> monthly income + expenses + investments, separately from the group splitting. Insights about spending patterns + wealth creation. Reuses existing categories, charts, and offline-queue infrastructure.</p>
+
+  <h3>Locked decisions</h3>
+  <table><tbody>
+    <tr><td class="task"><strong>Encryption</strong> — Option B: server-side field-level via <code>pgcrypto.PGP_SYM_ENCRYPT/DECRYPT</code> with key in <code>SUPABASE_SECRET_KEY</code>. Sensitive columns (income, savings, insurance, debt, term cover) stored as ciphertext. Server holds key for scoring/analytics/exports.</td><td class="status">🔒 locked 2026-05-09 · industry-standard for fintechs · NOT E2EE (developer can read for product features)</td></tr>
+    <tr><td class="task"><strong>Honest copy</strong> — Onboarding text: "Encrypted at the field level. Our database hosting provider can't read your data. We use it to compute your score and show you analytics. We never sell or share it with anyone."</td><td class="status">🔒 locked · NEVER claim "even we can't read it"</td></tr>
+    <tr><td class="task"><strong>Privacy isolation</strong> — Each user sees only their own entries (server filters by ctx.user.id every query)</td><td class="status">🔒 locked</td></tr>
+    <tr><td class="task"><strong>Score logic</strong> — Lives server-side (depends on decrypted values); precludes future move to E2EE without rewrite</td><td class="status">🔒 locked</td></tr>
+  </tbody></table>
   <h3>Data model (proposed)</h3>
   <table><tbody>
     <tr><td class="task">New table: <code>personal_entries</code> (user_id, type=income/expense/investment, amount, currency, category, occurred_at, note, recurring_id?)</td><td class="status">⬜ not started</td></tr>
@@ -303,6 +311,31 @@
     <tr><td class="task">Auto-detect category (~150 keyword rules)</td><td class="status">✅ existing</td></tr>
   </tbody></table>
   <p class="meta">Effort estimate: <strong>~2 weeks</strong> for v1 (transactions + dashboard + monthly insights). Wealth tracking is a separate Phase 3 push.</p>
+
+  <h3>v3 — Financial Health Scorecard (planned)</h3>
+  <p class="meta">The differentiator. India has no good free tool for "am I doing well with my money?" — this fills the gap. Builds on top of v1 tracker data so we don't ask users to type "current monthly expenses" by hand.</p>
+  <p class="meta"><strong>5-pillar score (each 0–20, total 100):</strong></p>
+  <table><tbody>
+    <tr><td class="task">Emergency fund — months of expenses in liquid savings</td><td class="status">6 months stable jobs · 9–12 freelancers</td></tr>
+    <tr><td class="task">Insurance — term cover ÷ (10× annual income) + health cover adequacy</td><td class="status">10–15× income if dependents · ₹5L individual + ₹15L super top-up · push back on "everyone needs term"</td></tr>
+    <tr><td class="task">Debt — EMI ÷ income · CC carry-over · debt mix</td><td class="status">EMI &lt; 40% · no rolling CC balance · prefer secured</td></tr>
+    <tr><td class="task">Savings rate — (income − expenses) ÷ income</td><td class="status">20%+ good · 30%+ excellent</td></tr>
+    <tr><td class="task">Investing — net worth growth · equity allocation vs age · retirement target (NPS/PPF/EPF/MFs)</td><td class="status">Equity % ≈ 100 − age · retirement target ~25× annual expenses</td></tr>
+  </tbody></table>
+  <p class="meta"><strong>Onboarding wizard (5 questions):</strong> monthly income · current liquid savings · term life cover · health cover · total monthly EMIs. Drill-down per pillar adds NPS, PPF, gold, MFs etc.</p>
+  <p class="meta"><strong>Disclaimers (locked, must appear):</strong> "Rules of thumb, not financial advice. We are not a SEBI-registered investment advisor." Every metric has a "why" tooltip linking to a short explainer.</p>
+  <p class="meta"><strong>Out of scope for v3:</strong> peer comparison · insurance/investment product recommendations + affiliates · auto-pull from EPFO/NPS/banks. <strong>Effort:</strong> ~8–12h for v3 (wizard + scoring + drill-down). v4 score history + goals: ~4h.</p>
+
+  <h3>v3.5 — Anomaly alerts (planned)</h3>
+  <p class="meta">Pairs with Phase 2.6 Reminder-nudges infrastructure (Web Push + service worker + Vercel Cron daily). Same plumbing, different message.</p>
+  <table><tbody>
+    <tr><td class="task">Detect category-spend deviation &gt;50% from rolling 6-month average (only on categories with ≥3 entries/month)</td><td class="status">⬜ planned · depends on Phase 2.6</td></tr>
+    <tr><td class="task">Notification copy: "Food up 60% this month — anything off?" (amber not red, "hey look" not emergency)</td><td class="status">⬜ planned</td></tr>
+    <tr><td class="task">Cap 2 alerts/user/month · push + in-app banner · tap → drill into that category's month</td><td class="status">⬜ planned</td></tr>
+    <tr><td class="task">"Mute this category for 30 days" link on every alert</td><td class="status">⬜ planned</td></tr>
+    <tr><td class="task">Reuses Phase 2.6's <code>push_subscriptions</code> table + Vercel Cron endpoint (anomaly pass runs after unsettled-balance pass)</td><td class="status">⬜ planned</td></tr>
+  </tbody></table>
+  <p class="meta"><strong>Effort:</strong> ~3h on top of Reminder nudges. The infrastructure does the heavy lifting; new bits are the rolling-average SQL + alert message templates.</p>
 
   <h3>Charts UX principles (when Phase 2 charts ship)</h3>
   <table><tbody>
@@ -391,6 +424,8 @@
       <tr><td>2026-05-09</td><td><strong>Group page UX trio</strong>: contribution bar (stacked horizontal, who paid what %), balance bars replacing text rows (green/red gradient widths), and settlement progress ring inside BalancesView (% settled).</td></tr>
       <tr><td>2026-05-09</td><td><strong>Auto-detect category</strong> from description: ~150 keyword rules in <code>category-detect.ts</code> covering Indian brands (Swiggy, Zomato, Blinkit, Ola, IRCTC, BookMyShow…). User's manual chip click locks in their pick.</td></tr>
       <tr><td>2026-05-09</td><td>Planning: added <strong>Phase 2.5 — Personal Finance Tracker</strong> section. Separate product within EasySplits for individual income/expense tracking + wealth-creation insights. Carried Receipt photos, Recurring expenses, &quot;View balances in any currency&quot; into a dedicated Future Scope block.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Voice input</strong> shipped: mic button in AddExpense via browser Web Speech API (en-IN), parser splits &quot;pizza six hundred&quot; / &quot;uber 350&quot; into description + amount and auto-prefills the form. No API costs · hidden on Firefox.</td></tr>
+      <tr><td>2026-05-09</td><td>Planning: locked <strong>Option B</strong> (server-side field-level encryption via <code>pgcrypto</code>) for PFT sensitive columns. Added <strong>5-pillar Financial Health Scorecard</strong> sub-plan (Emergency / Insurance / Debt / Savings rate / Investing) with India-specific rules, onboarding wizard, locked disclaimers. Added <strong>v3.5 Anomaly alerts</strong> piggybacking on Phase 2.6 reminder-nudges infra.</td></tr>
     </tbody>
   </table>
 </div>
