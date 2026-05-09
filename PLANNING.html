@@ -92,7 +92,7 @@
   <h1>EasySplits — PLANNING</h1>
   <p class="lead">Splitwise alternative. Free + ads, India-default + multi-currency, offline-capable PWA, SEO-first.</p>
   <p class="meta">
-    Updated <strong>2026-05-09</strong> (latest push) ·
+    Updated <strong>2026-05-09</strong> (PFT v1→v4 + Phase 2.6 shipped) ·
     <span class="badge badge-ok">Phase 1 ~95% done</span> ·
     <span class="badge badge-info">Live: <a href="https://split-payments-sigma.vercel.app" style="color:inherit">split-payments-sigma.vercel.app</a></span>
   </p>
@@ -272,8 +272,27 @@
     <tr><td class="task">View balances in any currency (not just primary)</td><td class="status">Decided not needed (2026-05-09). Group's primary currency is sufficient — international-member case is too rare to justify the FX-display complexity, settle-up two-currency UX, and day-to-day rate drift confusion.</td></tr>
   </tbody></table>
 
-  <h2>Phase 2.5 — Personal Finance Tracker <span class="badge">planned</span></h2>
-  <p class="meta">A second product inside EasySplits: track <em>your own</em> monthly income + expenses + investments, separately from the group splitting. Insights about spending patterns + wealth creation. Reuses existing categories, charts, and offline-queue infrastructure.</p>
+  <h2>Phase 2.5 — Personal Finance Tracker <span class="badge badge-ok">v1→v4 shipped</span></h2>
+  <p class="meta">A second product inside EasySplits: track <em>your own</em> monthly income + expenses + investments, separately from the group splitting. <strong>Status (2026-05-09):</strong> v1.0 → v4.0 all live in production. Manual verification still pending on the user side. v4.1+ items queued for the next push.</p>
+
+  <h3>v1.0 → v4.0 shipped checklist</h3>
+  <table><tbody>
+    <tr><td class="task"><strong>v1.0</strong> — personal_entries schema · tRPC CRUD · monthly summary card · add/edit form · top categories · pagination</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v1.1</strong> — AES-256-GCM field-level encryption · honest disclosure copy</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v2</strong> — charts panel (donut · 6-month trend · in/out/invest)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v3.0</strong> — 5-pillar scorecard · onboarding wizard · India-specific rules · locked disclaimers</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v3.5</strong> — anomaly alerts (banner + push, ≥50% category deviation)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v3.6</strong> — age-based investing target with retirement_age glide · single-page wizard rebuild</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v4.0</strong> — score history snapshots · trajectory chart · delta indicator · streak badge · gap-first pillars</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+  </tbody></table>
+
+  <h3>Active queue (next push)</h3>
+  <table><tbody>
+    <tr><td class="task"><strong>v4.1</strong> — Achievement badges ("First 6mo emergency fund hit") · per-pillar mini-sparklines beside each ring</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~3h</span></td></tr>
+    <tr><td class="task"><strong>v4.2</strong> — Goals system: "raise health cover to ₹15L by Aug 2026" · progress bar that updates on profile re-submits · saved goal list</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~3h</span></td></tr>
+    <tr><td class="task"><strong>v4.3</strong> — Indian peer benchmarks (NCAER/RBI baseline numbers cited beside each pillar)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~1h</span></td></tr>
+    <tr><td class="task"><strong>v4.4 (debug aid)</strong> — "Send test notification" button bypassing 7-day throttle</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~15m</span></td></tr>
+  </tbody></table>
 
   <h3>Locked decisions</h3>
   <table><tbody>
@@ -314,7 +333,7 @@
   </tbody></table>
   <p class="meta">Effort estimate: <strong>~2 weeks</strong> for v1 (transactions + dashboard + monthly insights). Wealth tracking is a separate Phase 3 push.</p>
 
-  <h3>v3 — Financial Health Scorecard (planned)</h3>
+  <h3>v3 — Financial Health Scorecard <span class="badge badge-ok">shipped</span></h3>
   <p class="meta">The differentiator. India has no good free tool for "am I doing well with my money?" — this fills the gap. Builds on top of v1 tracker data so we don't ask users to type "current monthly expenses" by hand.</p>
   <p class="meta"><strong>5-pillar score (each 0–20, total 100):</strong></p>
   <table><tbody>
@@ -328,7 +347,7 @@
   <p class="meta"><strong>Disclaimers (locked, must appear):</strong> "Rules of thumb, not financial advice. We are not a SEBI-registered investment advisor." Every metric has a "why" tooltip linking to a short explainer.</p>
   <p class="meta"><strong>Out of scope for v3:</strong> peer comparison · insurance/investment product recommendations + affiliates · auto-pull from EPFO/NPS/banks. <strong>Effort:</strong> ~8–12h for v3 (wizard + scoring + drill-down). v4 score history + goals: ~4h.</p>
 
-  <h3>v3.5 — Anomaly alerts (planned)</h3>
+  <h3>v3.5 — Anomaly alerts <span class="badge badge-ok">shipped</span></h3>
   <p class="meta">Pairs with Phase 2.6 Reminder-nudges infrastructure (Web Push + service worker + Vercel Cron daily). Same plumbing, different message.</p>
   <table><tbody>
     <tr><td class="task">Detect category-spend deviation &gt;50% from rolling 6-month average (only on categories with ≥3 entries/month)</td><td class="status">⬜ planned · depends on Phase 2.6</td></tr>
@@ -350,11 +369,11 @@
   </tbody></table>
   <p class="meta">Skipped: heatmap calendars · expense-by-member pie (redundant with balance bars) · time-series line for ongoing rent groups (noise).</p>
 
-  <h2>Phase 2.6 — Free Phase 3 picks <span class="badge">active</span></h2>
-  <p class="meta">User decision (2026-05-09): cherry-pick the Phase 3 features that have a fully-free implementation path (browser API or built-in cron) and ship them now. The rest stay Future scope (below).</p>
+  <h2>Phase 2.6 — Free Phase 3 picks <span class="badge badge-ok">shipped</span></h2>
+  <p class="meta">User decision (2026-05-09): cherry-pick the Phase 3 features that have a fully-free implementation path (browser API or built-in cron) and ship them now. Both shipped in production same-day.</p>
   <table><tbody>
-    <tr><td class="task">Voice input (mic button → SpeechRecognition fills description + amount; en-IN)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>building · Web Speech API, Chrome/Safari built-in</span></td></tr>
-    <tr><td class="task">Reminder nudges (push notification for unsettled balances &gt;7 days)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>building · Web Push + service worker + Vercel Cron daily, VAPID keys free</span></td></tr>
+    <tr><td class="task">Voice input (mic button → SpeechRecognition fills description + amount; en-IN)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done · 24 unit tests passing</span></td></tr>
+    <tr><td class="task">Reminder nudges (push notification for unsettled balances &gt;7 days · daily Vercel Cron @ 19:30 IST)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done · Web Push + service worker + cron live</span></td></tr>
   </tbody></table>
 
   <h2>Phase 3 — Power features <span class="badge">future scope</span></h2>
@@ -428,6 +447,19 @@
       <tr><td>2026-05-09</td><td>Planning: added <strong>Phase 2.5 — Personal Finance Tracker</strong> section. Separate product within EasySplits for individual income/expense tracking + wealth-creation insights. Carried Receipt photos, Recurring expenses, &quot;View balances in any currency&quot; into a dedicated Future Scope block.</td></tr>
       <tr><td>2026-05-09</td><td><strong>Voice input</strong> shipped: mic button in AddExpense via browser Web Speech API (en-IN), parser splits &quot;pizza six hundred&quot; / &quot;uber 350&quot; into description + amount and auto-prefills the form. No API costs · hidden on Firefox.</td></tr>
       <tr><td>2026-05-09</td><td>Planning: locked <strong>Option B</strong> (server-side field-level encryption via <code>pgcrypto</code>) for PFT sensitive columns. Added <strong>5-pillar Financial Health Scorecard</strong> sub-plan (Emergency / Insurance / Debt / Savings rate / Investing) with India-specific rules, onboarding wizard, locked disclaimers. Added <strong>v3.5 Anomaly alerts</strong> piggybacking on Phase 2.6 reminder-nudges infra.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Reminder nudges</strong> shipped: Web Push + Vercel Cron daily (19:30 IST). <code>push_subscriptions</code> table; opt-in toggle in Group Settings; 7-day per-subscription throttle.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Subscription audit</strong> shipped: detects recurring expense patterns (≥2 months) and surfaces them as a panel on the group page.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Polish + tests pass</strong>: extracted <code>splitsFromItems</code> to a shared lib; added 84 unit tests across voice / category / itemized-splits modules; caught + fixed 4 real bugs.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>PFT v1.0 → v4.0 — Personal Finance Tracker shipped end-to-end</strong> (a single day of build):</td></tr>
+      <tr><td>2026-05-09</td><td>↳ <strong>v1.0</strong> — <code>personal_entries</code> schema · tRPC CRUD · <code>/app/personal</code> dashboard · monthly summary card · top categories · transaction list · pagination.</td></tr>
+      <tr><td>2026-05-09</td><td>↳ <strong>v1.1</strong> — Field-level encryption via AES-256-GCM at the application layer (swapped from the originally-locked pgcrypto for simpler Drizzle integration; same security guarantees). All amount + description columns ciphertext at rest.</td></tr>
+      <tr><td>2026-05-09</td><td>↳ <strong>v2</strong> — Charts panel: donut by category · 6-month monthly trend bars · in/out/invest summary. Lazy-loaded recharts.</td></tr>
+      <tr><td>2026-05-09</td><td>↳ <strong>v3.0</strong> — 5-pillar Financial Health Scorecard: Emergency · Insurance · Debt · Savings rate · Investing. India-specific rules. Onboarding wizard with locked disclaimers.</td></tr>
+      <tr><td>2026-05-09</td><td>↳ <strong>v3.5</strong> — Anomaly alerts: amber banner on /app/personal + push notification when category spend deviates &gt;50% from rolling 6-month average. Pure-function detector with 9 unit tests.</td></tr>
+      <tr><td>2026-05-09</td><td>↳ <strong>v3.6</strong> — Age-based investing target with <code>retirement_age</code> field: glide path 0.5× at age 25 → 8× at retirement_age. Steeper for FIRE, flatter for late-career. Plus single-page wizard rebuild (replaced 4-step wizard) per UI/UX-priority feedback.</td></tr>
+      <tr><td>2026-05-09</td><td>↳ <strong>v4.0</strong> — Score trajectory + streak: <code>score_snapshots</code> table written on every Compute submit. Hero band shows delta + streak badge ("🔥 N-month green streak"). Gap-first pillars (under-15 expanded, maxed pillars collapse to chip strip). Smooth gradient area chart with green-band reference line.</td></tr>
+      <tr><td>2026-05-09</td><td>Microcopy alignment: encryption tagline rewritten to "🔐 Your salary is your secret. We encrypt every amount before storing — our database only ever sees scrambled text, not your numbers." consistent across dashboard + wizard.</td></tr>
+      <tr><td>2026-05-09</td><td>Bug fix: wizard blank fields now correctly default to 0 for has-none answers (EMI, term/health cover, investments, SIP, savings); income/expenses still required.</td></tr>
     </tbody>
   </table>
 </div>

@@ -2,7 +2,7 @@
 
 > Phased roadmap with **per-task status**. Updated as we ship. PLANNING.html mirrors this — keep them in sync.
 
-**Last updated:** 2026-05-09 (latest push)
+**Last updated:** 2026-05-09 (full PFT v1→v4 + Phase 2.6 shipped)
 **Live:** https://split-payments-sigma.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 **Status legend:** ✅ done · 🟡 in progress · ⬜ not started · ⏸ blocked (waiting on something)
@@ -202,59 +202,72 @@
 
 ---
 
-## Phase 2.5 — Personal Finance Tracker (planned)
+## Phase 2.5 — Personal Finance Tracker — ✅ v1 → v4 shipped
 
 > A second product inside EasySplits: track *your own* monthly income +
 > expenses + investments, separately from the group splitting. Insights
 > about spending patterns + wealth creation. Reuses existing categories,
 > charts, and offline-queue infrastructure.
+>
+> **Status (2026-05-09):** v1.0 → v4.0 all shipped in production. Manual
+> verification still pending on the user side. v4.1+ items below are
+> queued for the next push.
 
 ### Locked decisions
 
 | # | Decision | Locked value (2026-05-09) |
 |---|---|---|
-| 1 | **Encryption** | **Option B — server-side field-level via `pgcrypto.PGP_SYM_ENCRYPT/DECRYPT`** with key in `SUPABASE_SECRET_KEY`. Sensitive columns (income, savings, insurance, debt, term cover, etc.) stored as ciphertext; server holds the key and decrypts when needed for scoring/analytics/exports. Trade-off: protects against DB breaches + Supabase staff + SQL injection exfiltration, but **the developer can read all user data** for product features. Industry-standard for fintechs. Not E2EE. |
-| 2 | **Honest copy** | Onboarding text says: *"Encrypted at the field level. Our database hosting provider can't read your data. We use it to compute your score and show you analytics. We never sell or share it with anyone."* — every word verifiable. **Never** claim "even we can't read it" (that's option C / E2EE territory). |
-| 3 | **Privacy isolation** | Each user sees only their own entries (server filters by `ctx.user.id` in every query). No sharing, no cross-user views, no leak via groupId. |
-| 4 | **Score ↔ score logic** | Lives server-side (depends on decrypted values). Cannot move to E2EE without rewriting score logic to run client-side, which would also kill peer comparison forever. |
+| 1 | **Encryption** | **Option B — application-layer AES-256-GCM** with key in `PFT_ENCRYPTION_KEY` env. Sensitive columns (amount + description on `personal_entries`; all amount columns on `financial_profiles`) stored as base64 ciphertext. Server holds the key, decrypts when needed for scoring/analytics/exports. **Swapped from the originally-locked pgcrypto approach** for simpler Drizzle integration + no Postgres-extension dependency; security guarantees identical. Industry-standard for fintechs. Not E2EE — server can read. |
+| 2 | **Honest copy** | Dashboard subtitle: *"🔐 Your salary is your secret. We encrypt every amount before storing — our database only ever sees scrambled text, not your numbers."* Wizard step caption: *"🔐 We encrypt every amount before storing — our database only ever sees scrambled text."* Every word verifiable under Option B. **Never** claim "even we can't read it" (that's E2EE territory). |
+| 3 | **Privacy isolation** | Each user sees only their own entries (server filters by `ctx.user.id` in every query). No sharing, no cross-user views. |
+| 4 | **Score ↔ score logic** | Lives server-side (depends on decrypted values). Future move to E2EE would require rewriting score logic to run client-side; we're not doing that. |
 
-### Data model (proposed)
+### Data model — shipped ✅
 
-| Table | Purpose | Status |
+| Table | Status |
+|---|---|
+| `personal_entries` (id, user_id, type, amount [encrypted], currency, category, description [encrypted], occurred_at, soft-delete) | ✅ shipped (v1.1) |
+| `financial_profiles` (id, user_id UNIQUE, age, retirement_age, isFreelancer, hasDependents, hasCcCarryover, monthly_income/expenses/savings/term/health/emi/investment_balance/monthly_investment [all encrypted], completed_at) | ✅ shipped (v3 + v3.6) |
+| `score_snapshots` (id, user_id, total, band, pillar_scores JSON, snapshotted_at) — append-only history | ✅ shipped (v4.0) |
+| `personal_recurrences` (auto-fill salary/rent/SIP on schedule) | ⬜ deferred |
+| `personal_holdings` (MF/FD/stock positions) | ⬜ Phase 3 |
+
+### Routes — shipped ✅
+
+| Route | Status |
+|---|---|
+| `/app/personal` — dashboard (hero KPI + scorecard + anomaly banner + top categories + add form + transactions list + charts toggle) | ✅ shipped (v1.0 → v4.0) |
+| `/app/personal/onboard` — single-page financial health scorecard wizard | ✅ shipped (v3.0, redesigned single-page in v3.6) |
+| `/app/personal/transactions` — separate full-ledger view | ⬜ deferred (current dashboard list already paginates well at 5/page + Show all) |
+| `/app/personal/insights` — auto-narratives | ⬜ deferred (current insights inline on dashboard) |
+| `/app/personal/wealth` — net-worth tracker | ⬜ Phase 3 candidate |
+
+### v1.0 → v4.0 shipped checklist
+
+| Sub-version | What | Status |
 |---|---|---|
-| `personal_entries` | user_id · type (income/expense/investment) · amount · currency · category · occurred_at · note · recurring_id? | ⬜ |
-| `personal_recurrences` | user_id · kind (salary/rent/sip/etc.) · schedule · next_due · amount · category | ⬜ |
-| `personal_holdings` (optional) | mutual fund / FD / stock positions: symbol/AMC · units · NAV-as-of | ⬜ Phase 3 candidate |
-| Reuse existing `profiles` + `categories` (extend with Income, Investment, Tax) | | ⬜ |
+| **v1.0** | personal_entries schema · tRPC CRUD · monthly summary card · add/edit form · top categories · pagination | ✅ |
+| **v1.1** | AES-256-GCM field-level encryption · honest disclosure copy | ✅ |
+| **v2** | Charts panel (donut, monthly trend, in/out/invest bars) | ✅ |
+| **v3.0** | 5-pillar scorecard · onboarding wizard · India-specific rules of thumb · disclaimers | ✅ |
+| **v3.5** | Anomaly alerts (banner + push, ≥50% category deviation) | ✅ |
+| **v3.6** | Age-based investing target + retirement-age glide · single-page wizard rebuild | ✅ |
+| **v4.0** | Score history snapshots · trajectory area chart · delta indicator · streak badge · gap-first pillars (max-pillars collapse) | ✅ |
 
-### Routes + UI (proposed)
+### Active queue (next push)
 
-| Route | Purpose | Status |
+| Sub-version | What | Effort |
 |---|---|---|
-| `/app/personal` | Dashboard: this month's spend vs income, savings rate, top categories | ⬜ |
-| `/app/personal/transactions` | Full ledger, monthly grouping, filters by category/type | ⬜ |
-| `/app/personal/insights` | Auto-generated narratives ("food up 35% MoM", "savings rate 22%"), goal tracking | ⬜ |
-| `/app/personal/wealth` | Net-worth tracker, investment positions, growth chart | ⬜ Phase 3 candidate |
+| **v4.1** | Achievement badges ("First 6mo emergency fund hit") · per-pillar mini-sparklines beside each ring | ~3h |
+| **v4.2** | Goals system — set "raise health cover to ₹15L by Aug 2026" · progress bar that updates on profile re-submits · saved goal list | ~3h |
+| **v4.3** | Indian peer benchmarks — NCAER/RBI baseline numbers cited beside each pillar ("Your 71% savings rate is well above the Indian household ~20%") | ~1h |
+| **v4.4 (debug aid)** | "Send test notification" button in Reminders settings — bypasses 7-day throttle and the qualifying-data check | ~15min |
 
-### Insights to surface (planned)
+### Effort spent
 
-- Monthly summary card — income · expenses · savings · savings %
-- Category drift — "Food spending +35% vs 6-month avg"
-- Recurring-vs-discretionary split (rent + bills + subs vs everything else)
-- Wealth trajectory — net-worth chart, savings goal progress *(Phase 3 candidate)*
-- Smart nudges — "You'd hit your goal 4mo earlier if you cut Entertainment by 20%" *(LLM-driven, Phase 3)*
+~2-week effort estimate became **1 day of focused build** (today). v1 → v4 shipped same-day. Counts as a meaningful win.
 
-### Reused infra (free wins)
-
-- Categories (extend with Income / Investment / Tax) — already shipped
-- Recharts panel (donut · area · bars) — already shipped
-- CSV / PDF export — already shipped
-- Offline queue + clientEventId idempotency — already shipped
-- Auto-detect category (~150 keyword rules) — already shipped
-
-**Effort:** ~2 weeks for v1 (transactions + dashboard + monthly insights). Wealth tracking is a separate Phase 3 push.
-
-### v3 — Financial Health Scorecard (planned)
+### v3 — Financial Health Scorecard — ✅ shipped (left in place for context)
 
 > The differentiator. India has no good free tool for "am I doing well
 > with my money?" — this fills the gap. Builds on top of the v1 tracker
@@ -445,5 +458,19 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-09 | **Group page UX trio**: contribution bar (stacked horizontal, who paid what %), balance bars replacing text rows (green/red gradient widths), and settlement progress ring inside BalancesView (% settled). |
 | 2026-05-09 | **Auto-detect category** from description: ~150 keyword rules in `category-detect.ts` covering Indian brands (Swiggy, Zomato, Blinkit, Ola, IRCTC, BookMyShow…). User's manual chip click locks in their pick. |
 | 2026-05-09 | Planning: added **Phase 2.5 — Personal Finance Tracker** section. Separate product within EasySplits for individual income/expense tracking + wealth-creation insights. Carried Receipt photos, Recurring expenses, "View balances in any currency" into a dedicated Future scope block. |
+| 2026-05-09 | **Voice input** shipped: mic button via browser Web Speech API in both group + personal AddExpense. Parser handles digits + word-numbers + Indian-English ("two lakh"). 24 unit tests; hidden on Firefox. |
+| 2026-05-09 | **Reminder nudges** shipped: Web Push + Vercel Cron daily (19:30 IST). `push_subscriptions` table; opt-in toggle in Group Settings; 7-day per-subscription throttle. |
+| 2026-05-09 | **Subscription audit** shipped: detects recurring expense patterns (≥2 months) and surfaces them as a panel on the group page. |
+| 2026-05-09 | **Polish + tests pass**: extracted `splitsFromItems` to a shared lib, added 84 unit tests across voice/category/itemized-splits, caught + fixed 4 real bugs (rs-prefix regex, residual-on-empty-sharers, generic 'subscription' keyword collision, missing 'vegetables' plural). |
+| 2026-05-09 | **PFT v1.0 → v4.0 — Personal Finance Tracker shipped end-to-end** (a single day of build): |
+| 2026-05-09 | ↳ v1.0 — `personal_entries` schema · tRPC CRUD · `/app/personal` dashboard · monthly summary card · top categories · transaction list · pagination |
+| 2026-05-09 | ↳ v1.1 — Field-level encryption: AES-256-GCM at the application layer (swapped from the originally-locked pgcrypto for simpler Drizzle integration; same security guarantees). All amount + description columns ciphertext at rest. Honest disclosure copy. |
+| 2026-05-09 | ↳ v2 — Charts panel: donut by category · 6-month monthly trend bars · in/out/invest summary. Lazy-loaded recharts. |
+| 2026-05-09 | ↳ v3.0 — 5-pillar Financial Health Scorecard: Emergency · Insurance · Debt · Savings rate · Investing. India-specific rules. Onboarding wizard with locked disclaimers. |
+| 2026-05-09 | ↳ v3.5 — Anomaly alerts: amber banner on /app/personal + push notification when category spend deviates >50% from rolling 6-month average. Pure-function detector with 9 unit tests. |
+| 2026-05-09 | ↳ v3.6 — Age-based investing target with `retirement_age` field: glide path 0.5× at age 25 → 8× at retirement_age. Steeper for FIRE, flatter for late-career. Plus single-page wizard rebuild (replaced 4-step wizard) per UI/UX-priority feedback. |
+| 2026-05-09 | ↳ v4.0 — Score trajectory + streak: `score_snapshots` table written on every Compute submit. Hero band shows delta + streak badge ("🔥 N-month green streak"). Gap-first pillars (under-15 expanded, maxed pillars collapse to chip strip). Smooth gradient area chart with green-band reference line. |
+| 2026-05-09 | Microcopy alignment: encryption tagline rewritten to "🔐 Your salary is your secret. We encrypt every amount before storing — our database only ever sees scrambled text, not your numbers." consistent across dashboard + wizard. |
+| 2026-05-09 | Bug fix: wizard blank fields now correctly default to 0 for has-none answers (EMI, term cover, health cover, investments, SIP, savings); income/expenses still required. Score no longer mis-reads "blank" as "haven't told us yet" when user means "I have none". |
 | 2026-05-09 | **Voice input** shipped: mic button in AddExpense via browser Web Speech API (en-IN), parser splits transcripts like "pizza six hundred" / "uber 350" into description + amount, auto-prefills the form. No API costs, hidden on Firefox. |
 | 2026-05-09 | Planning: locked **Option B** (server-side field-level encryption via `pgcrypto`) for PFT sensitive columns. Added **5-pillar Financial Health Scorecard** sub-plan (Emergency / Insurance / Debt / Savings rate / Investing), India-specific rule set, onboarding wizard scope, locked disclaimers. Added **v3.5 Anomaly alerts** that piggyback on Phase 2.6 reminder-nudges infrastructure. |
