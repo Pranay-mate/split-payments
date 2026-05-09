@@ -34,7 +34,19 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Refreshing user state — runs on every request that hits middleware.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Auto-redirect signed-in users away from the marketing landing page —
+  // returning users shouldn't have to click "Open app" to reach work
+  // they've done before. Only the literal "/" path triggers this; the
+  // /features, /about etc routes still render so users can revisit them.
+  if (user && request.nextUrl.pathname === "/") {
+    const dest = request.nextUrl.clone();
+    dest.pathname = "/app/groups";
+    return NextResponse.redirect(dest);
+  }
 
   return response;
 }

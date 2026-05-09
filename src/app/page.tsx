@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { SITE, FEATURES } from "@/lib/site";
+import { ArrowRight, Sparkles, Users, Wallet } from "lucide-react";
+import { SITE, SPLIT_FEATURES, PERSONAL_FEATURES } from "@/lib/site";
 import { organizationLd, softwareApplicationLd } from "@/lib/jsonld";
 
 export default function HomePage() {
@@ -7,10 +8,10 @@ export default function HomePage() {
     <main className="flex-1">
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(99,102,241,0.18),transparent_60%)] dark:bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(99,102,241,0.30),transparent_60%)]" />
-        <div className="mx-auto flex max-w-3xl flex-col items-center px-6 py-24 text-center sm:py-32">
+        <div className="mx-auto flex max-w-3xl flex-col items-center px-6 py-20 text-center sm:py-28">
           <span className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" />
-            New · India-first
+            India-first · free forever
           </span>
 
           <h1 className="mt-6 text-4xl font-semibold tracking-tight sm:text-6xl">
@@ -24,50 +25,176 @@ export default function HomePage() {
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/calculators/trip"
+              href="/app/groups"
               className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
-              Try the trip splitter →
+              Open the app
+              <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
             <Link
-              href="/calculators/split-bill"
+              href="/calculators/trip"
               className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              Single bill?
+              Try without signup
             </Link>
           </div>
           <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-            Free standalone tools · no signup · work offline
+            Standalone calculators · no signup · works offline · install as a PWA
           </p>
         </div>
       </section>
 
+      {/* Two-product split — the same app does both */}
       <section
         id="features"
         className="border-t border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/40"
       >
         <div className="mx-auto max-w-5xl px-6 py-20">
-          <div className="mb-12 max-w-2xl">
+          <div className="mb-10 max-w-2xl">
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Built for how groups actually share money.
+              Two apps. One install.
             </h2>
             <p className="mt-3 text-base text-slate-600 dark:text-slate-400">
-              Three things most expense apps get wrong — and how {SITE.name} is fixing them.
+              Sign in once. Get a Splitwise-style group splitter <em>and</em> a
+              private finance tracker with India-specific health scoring.
             </p>
           </div>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
-              <li
-                key={f.title}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-700"
+
+          {/* Group features */}
+          <div className="mb-10">
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="grid h-9 w-9 place-items-center rounded-lg bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300"
               >
-                <h3 className="text-sm font-semibold tracking-tight">{f.title}</h3>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                  {f.body}
+                <Users className="h-5 w-5" aria-hidden />
+              </span>
+              <h3 className="text-xl font-semibold tracking-tight">
+                For groups
+              </h3>
+            </div>
+            <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {SPLIT_FEATURES.map((f) => (
+                <li
+                  key={f.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                >
+                  <h4 className="text-sm font-semibold tracking-tight">
+                    {f.title}
+                  </h4>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                    {f.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Personal features */}
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300"
+              >
+                <Wallet className="h-5 w-5" aria-hidden />
+              </span>
+              <h3 className="text-xl font-semibold tracking-tight">
+                For yourself
+              </h3>
+            </div>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              Private to you — your group can&apos;t see this side, even if you
+              share groups with them.
+            </p>
+            <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {PERSONAL_FEATURES.map((f) => (
+                <li
+                  key={f.title}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                >
+                  <h4 className="text-sm font-semibold tracking-tight">
+                    {f.title}
+                  </h4>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                    {f.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* What you get when you sign in — answers the user question
+          "what unlocks after signup?" without needing to log in */}
+      <section className="border-t border-slate-200 dark:border-slate-800">
+        <div className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 via-violet-50 to-emerald-50 p-6 dark:border-slate-800 dark:from-indigo-950/40 dark:via-violet-950/40 dark:to-emerald-950/40 sm:p-8">
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 text-white shadow-sm"
+              >
+                <Sparkles className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                  What you get when you sign in
+                </h2>
+                <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+                  The standalone calculators are nice for one-off splits. The
+                  full app keeps history, syncs across devices, and unlocks the
+                  personal-finance side.
                 </p>
-              </li>
-            ))}
-          </ul>
+                <ul className="mt-4 grid gap-2 text-sm text-slate-700 dark:text-slate-300 sm:grid-cols-2">
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500" aria-hidden>
+                      ✓
+                    </span>
+                    Persistent groups + invite friends
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500" aria-hidden>
+                      ✓
+                    </span>
+                    Activity feed + comments per expense
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500" aria-hidden>
+                      ✓
+                    </span>
+                    Personal Finance Tracker
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500" aria-hidden>
+                      ✓
+                    </span>
+                    Financial Health Scorecard + goals
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500" aria-hidden>
+                      ✓
+                    </span>
+                    Push reminders for unsettled balances
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-500" aria-hidden>
+                      ✓
+                    </span>
+                    Add guests by name (no signup needed)
+                  </li>
+                </ul>
+                <Link
+                  href="/app/groups"
+                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+                >
+                  Open the app
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
