@@ -186,6 +186,31 @@ CREATE INDEX IF NOT EXISTS personal_entries_user_idx     ON personal_entries(use
 CREATE INDEX IF NOT EXISTS personal_entries_occurred_idx ON personal_entries(occurred_at);
 
 
+-- financial_profiles: backs the 5-pillar Financial Health Scorecard (Phase 2.5 v3).
+-- One row per user. Amount columns are encrypted at the application layer
+-- (AES-256-GCM, same scheme as personal_entries). Demographic flags stay
+-- plaintext — not value-sensitive, useful for future filtering.
+CREATE TABLE IF NOT EXISTS financial_profiles (
+  id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id              uuid        NOT NULL UNIQUE,
+  age                  integer,
+  is_freelancer        boolean     NOT NULL DEFAULT false,
+  has_dependents       boolean     NOT NULL DEFAULT false,
+  has_cc_carryover     boolean     NOT NULL DEFAULT false,
+  monthly_income       text,                        -- encrypted
+  monthly_expenses     text,                        -- encrypted
+  liquid_savings       text,                        -- encrypted
+  term_cover_amount    text,                        -- encrypted
+  health_cover_amount  text,                        -- encrypted
+  total_emi            text,                        -- encrypted
+  investment_balance   text,                        -- encrypted
+  monthly_investment   text,                        -- encrypted
+  completed_at         timestamptz,
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  updated_at           timestamptz NOT NULL DEFAULT now()
+);
+
+
 -- push_subscriptions: Web Push API subscription endpoints (one per device per user)
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

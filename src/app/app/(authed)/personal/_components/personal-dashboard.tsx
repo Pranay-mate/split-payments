@@ -19,6 +19,7 @@ import { trpc } from "@/lib/trpc/client";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
 import { AddPersonalEntry, type EntryType } from "./add-personal-entry";
+import { Scorecard } from "./scorecard";
 
 const PersonalCharts = dynamic(
   () => import("./personal-charts").then((m) => m.PersonalCharts),
@@ -77,6 +78,7 @@ export function PersonalDashboard() {
   const listQuery = trpc.personal.list.useQuery({ month });
   const topCatsQuery = trpc.personal.topCategoriesThisMonth.useQuery({ month });
   const monthsQuery = trpc.personal.availableMonths.useQuery();
+  const profileQuery = trpc.personal.profile.get.useQuery();
 
   const utils = trpc.useUtils();
   const deleteMutation = trpc.personal.delete.useMutation({
@@ -121,8 +123,8 @@ export function PersonalDashboard() {
             </h1>
             <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
               <span aria-hidden>🔒</span>
-              Encrypted at the field level. Our database host can&apos;t read
-              your numbers.
+              Encrypted before it touches our database — Supabase can&apos;t
+              read it.
             </p>
           </div>
           <select
@@ -192,6 +194,13 @@ export function PersonalDashboard() {
             </p>
           )}
         </section>
+
+        {/* Scorecard — the differentiator */}
+        <Scorecard
+          score={profileQuery.data?.score ?? null}
+          exists={profileQuery.data?.exists ?? false}
+          loading={profileQuery.isLoading}
+        />
 
         {/* Top categories */}
         {topCats.length > 0 && (

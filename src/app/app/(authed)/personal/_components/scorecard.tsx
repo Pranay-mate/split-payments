@@ -1,0 +1,186 @@
+"use client";
+
+import Link from "next/link";
+import { ArrowRight, Sparkles } from "lucide-react";
+import type { ScoreResult } from "@/lib/financial-score";
+
+const BAND_GRADIENT: Record<ScoreResult["band"], string> = {
+  red: "from-rose-500 via-rose-600 to-red-700",
+  amber: "from-amber-500 via-orange-500 to-rose-500",
+  emerald: "from-emerald-500 via-emerald-600 to-teal-600",
+  green: "from-emerald-400 via-emerald-500 to-green-600",
+};
+
+const BAND_LABEL: Record<ScoreResult["band"], string> = {
+  red: "Needs attention",
+  amber: "Room to grow",
+  emerald: "Solid foundations",
+  green: "Excellent shape",
+};
+
+const PILLAR_RING: Record<ScoreResult["band"], string> = {
+  red: "stroke-rose-500",
+  amber: "stroke-amber-500",
+  emerald: "stroke-emerald-500",
+  green: "stroke-green-500",
+};
+
+function ringFor(score: number): keyof typeof PILLAR_RING {
+  if (score >= 16) return "green";
+  if (score >= 12) return "emerald";
+  if (score >= 8) return "amber";
+  return "red";
+}
+
+function PillarRing({ score, max = 20 }: { score: number; max?: number }) {
+  const size = 44;
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  const C = 2 * Math.PI * r;
+  const offset = C * (1 - score / max);
+  const band = ringFor(score);
+  return (
+    <div
+      className="relative shrink-0 text-slate-200 dark:text-slate-700"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          className={`transition-[stroke-dashoffset] duration-700 ${PILLAR_RING[band]}`}
+        />
+      </svg>
+      <span className="absolute inset-0 grid place-items-center text-[10px] font-bold tabular-nums">
+        {score}
+      </span>
+    </div>
+  );
+}
+
+export function Scorecard({
+  score,
+  exists,
+  loading,
+}: {
+  score: ScoreResult | null;
+  exists: boolean;
+  loading?: boolean;
+}) {
+  if (loading) {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <div className="h-24 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      </section>
+    );
+  }
+
+  if (!exists || !score || !score.hasEnoughData) {
+    return (
+      <section className="overflow-hidden rounded-2xl border border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-violet-50 to-indigo-50 p-5 dark:border-fuchsia-900/40 dark:from-fuchsia-950/40 dark:via-violet-950/40 dark:to-indigo-950/40">
+        <div className="flex items-start gap-3">
+          <span
+            aria-hidden
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-fuchsia-500 to-indigo-600 text-white shadow-sm"
+          >
+            <Sparkles className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold tracking-tight">
+              Get your Financial Health Score
+            </h2>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+              5 quick questions · ₹0, no advice, just rules of thumb based on
+              what people typically aim for.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/app/personal/onboard"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-fuchsia-500 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 sm:w-auto"
+        >
+          Start the 60-second check
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </Link>
+      </section>
+    );
+  }
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      {/* Hero band — total score */}
+      <div
+        className={`bg-gradient-to-br ${BAND_GRADIENT[score.band]} px-5 py-5 text-white`}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
+              Financial Health Score
+            </p>
+            <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
+              {score.total}
+              <span className="ml-1 text-xl font-medium text-white/70">
+                /100
+              </span>
+            </p>
+            <p className="mt-1 text-sm font-medium text-white/90">
+              {BAND_LABEL[score.band]}
+            </p>
+          </div>
+          <Link
+            href="/app/personal/onboard"
+            className="shrink-0 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-white/25"
+          >
+            Update
+          </Link>
+        </div>
+      </div>
+
+      {/* Pillars */}
+      <ul className="divide-y divide-slate-100 px-5 py-3 dark:divide-slate-800">
+        {score.pillars.map((p) => (
+          <li key={p.key} className="flex items-start gap-3 py-3">
+            <PillarRing score={p.score} />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-sm font-semibold">
+                <span aria-hidden>{p.emoji}</span>
+                {p.label}
+                <span className="ml-auto text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                  {p.score}/20
+                </span>
+              </p>
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+                {p.message}
+              </p>
+              {p.nextAction && (
+                <p className="mt-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                  → {p.nextAction}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <p className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        Rules of thumb, not financial advice. We&apos;re not a SEBI-registered
+        investment advisor — for major decisions, talk to one.
+      </p>
+    </section>
+  );
+}

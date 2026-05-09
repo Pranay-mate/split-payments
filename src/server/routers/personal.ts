@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
-import { personalEntries } from "@/lib/db/schema";
+import { financialProfiles, personalEntries } from "@/lib/db/schema";
 import { CATEGORY_KEYS } from "@/lib/categories";
 import {
   decryptAmount,
@@ -11,6 +11,7 @@ import {
   encryptAmount,
   encryptValue,
 } from "@/lib/encryption";
+import { computeScore, type ScoreInputs } from "@/lib/financial-score";
 
 const typeSchema = z.enum(["income", "expense", "investment"]);
 const categorySchema = z.enum(CATEGORY_KEYS);
@@ -391,5 +392,104 @@ export const personalRouter = router({
       .groupBy(sql`TO_CHAR(${personalEntries.occurredAt}, 'YYYY-MM')`)
       .orderBy(asc(sql`TO_CHAR(${personalEntries.occurredAt}, 'YYYY-MM')`));
     return rows.map((r) => r.monthKey);
+  }),
+
+  /**
+   * Financial Health Scorecard (v3) — read the user's profile,
+   * decrypt sensitive fields, and return both the raw inputs (for
+   * the wizard's prefill) and the computed 5-pillar score.
+   */
+  profile: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const [row] = await db
+        .select()
+        .from(financialProfiles)
+        .where(eq(financialProfiles.userId, ctx.user.id))
+        .limit(1);
+      if (!row) {
+        return {
+          exists: false as const,
+          inputs: null,
+          score: null,
+        };
+      }
+      // Decrypt every encrypted column. Null stays null (incomplete onboarding).
+      const decrypt = (s: string | null): number | null =>
+        s === null ? null : decryptAmount(s);
+      const inputs: ScoreInputs = {
+        age: row.age,
+        isFreelancer: row.isFreelancer,
+        hasDependents: row.hasDependents,
+        hasCcCarryover: row.hasCcCarryover,
+        monthlyIncome: decrypt(row.monthlyIncome),
+        monthlyExpenses: decrypt(row.monthlyExpenses),
+        liquidSavings: decrypt(row.liquidSavings),
+        termCoverAmount: decrypt(row.termCoverAmount),
+        healthCoverAmount: decrypt(row.healthCoverAmount),
+        totalEmi: decrypt(row.totalEmi),
+        investmentBalance: decrypt(row.investmentBalance),
+        monthlyInvestment: decrypt(row.monthlyInvestment),
+      };
+      return {
+        exists: true as const,
+        inputs,
+        score: computeScore(inputs),
+        completedAt: row.completedAt,
+        updatedAt: row.updatedAt,
+      };
+    }),
+
+    /** Save the wizard's outputs. Upserts by user_id; overwrites all
+     *  fields (the form sends the full profile back). */
+    upsert: protectedProcedure
+      .input(
+        z.object({
+          age: z.number().int().min(13).max(110).nullable(),
+          isFreelancer: z.boolean(),
+          hasDependents: z.boolean(),
+          hasCcCarryover: z.boolean(),
+          monthlyIncome: z.number().nonnegative().nullable(),
+          monthlyExpenses: z.number().nonnegative().nullable(),
+          liquidSavings: z.number().nonnegative().nullable(),
+          termCoverAmount: z.number().nonnegative().nullable(),
+          healthCoverAmount: z.number().nonnegative().nullable(),
+          totalEmi: z.number().nonnegative().nullable(),
+          investmentBalance: z.number().nonnegative().nullable(),
+          monthlyInvestment: z.number().nonnegative().nullable(),
+          markCompleted: z.boolean().default(false),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const enc = (n: number | null): string | null =>
+          n === null ? null : encryptAmount(n);
+        const values = {
+          userId: ctx.user.id,
+          age: input.age,
+          isFreelancer: input.isFreelancer,
+          hasDependents: input.hasDependents,
+          hasCcCarryover: input.hasCcCarryover,
+          monthlyIncome: enc(input.monthlyIncome),
+          monthlyExpenses: enc(input.monthlyExpenses),
+          liquidSavings: enc(input.liquidSavings),
+          termCoverAmount: enc(input.termCoverAmount),
+          healthCoverAmount: enc(input.healthCoverAmount),
+          totalEmi: enc(input.totalEmi),
+          investmentBalance: enc(input.investmentBalance),
+          monthlyInvestment: enc(input.monthlyInvestment),
+          updatedAt: new Date(),
+          ...(input.markCompleted && { completedAt: new Date() }),
+        };
+
+        // Upsert: try update first; insert if no row exists.
+        const updated = await db
+          .update(financialProfiles)
+          .set(values)
+          .where(eq(financialProfiles.userId, ctx.user.id))
+          .returning();
+        if (updated.length === 0) {
+          await db.insert(financialProfiles).values(values);
+        }
+        return { ok: true };
+      }),
   }),
 });

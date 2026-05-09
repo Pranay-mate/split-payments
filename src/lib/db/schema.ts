@@ -394,3 +394,53 @@ export const personalEntries = pgTable(
 );
 
 export type PersonalEntry = typeof personalEntries.$inferSelect;
+
+/**
+ * Financial profile — backs the 5-pillar Financial Health Scorecard
+ * (Phase 2.5 v3). One row per user (UNIQUE(user_id)).
+ *
+ * Sensitive amount columns are encrypted at the application layer using
+ * the same AES-256-GCM helper as personal_entries. Demographic flags
+ * (age, freelancer, dependents, has_cc_carryover) stay plaintext —
+ * they're not value-sensitive and we may want to filter on them.
+ *
+ * All amount columns are nullable so the wizard can save partial
+ * progress between steps.
+ */
+export const financialProfiles = pgTable(
+  "financial_profiles",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull().unique(),
+
+    // Demographic — plaintext, not value-sensitive.
+    age: integer("age"),
+    isFreelancer: boolean("is_freelancer").notNull().default(false),
+    hasDependents: boolean("has_dependents").notNull().default(false),
+    hasCcCarryover: boolean("has_cc_carryover").notNull().default(false),
+
+    // Money flow — encrypted.
+    monthlyIncome: text("monthly_income"),
+    monthlyExpenses: text("monthly_expenses"),
+    liquidSavings: text("liquid_savings"),
+
+    // Insurance — encrypted.
+    termCoverAmount: text("term_cover_amount"),
+    healthCoverAmount: text("health_cover_amount"),
+
+    // Debt + investing — encrypted.
+    totalEmi: text("total_emi"),
+    investmentBalance: text("investment_balance"),
+    monthlyInvestment: text("monthly_investment"),
+
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+);
+
+export type FinancialProfile = typeof financialProfiles.$inferSelect;
