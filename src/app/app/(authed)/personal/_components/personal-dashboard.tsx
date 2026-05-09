@@ -253,86 +253,8 @@ export function PersonalDashboard() {
           </section>
         )}
 
-        {/* Charts (collapsible — recharts is lazy-loaded) */}
-        {summary && summary.entryCounts.expense + summary.entryCounts.income + summary.entryCounts.investment > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-            <button
-              type="button"
-              onClick={() => setShowCharts((v) => !v)}
-              aria-expanded={showCharts}
-              className="flex w-full items-center justify-between"
-            >
-              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <BarChart3 className="h-4 w-4 text-fuchsia-500" aria-hidden />
-                Charts
-              </h2>
-              <ChevronDown
-                className={`h-4 w-4 text-slate-400 transition ${showCharts ? "rotate-180" : ""}`}
-                aria-hidden
-              />
-            </button>
-            {showCharts && (
-              <div className="mt-4">
-                <PersonalCharts month={month} />
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* Add / Edit form */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-              <Plus className="h-4 w-4 text-emerald-500" aria-hidden />
-              {editing ? "Edit entry" : adding ? "Add entry" : "Add"}
-            </h2>
-            {!editing && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  const next = !adding;
-                  setAdding(next);
-                  if (next) focusForm();
-                }}
-                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden />
-                {adding ? "Cancel" : "New"}
-              </button>
-            )}
-          </div>
-
-          {(adding || editing) && (
-            <div ref={formRef} className="mt-4 scroll-mt-20">
-              <AddPersonalEntry
-                key={editingId ?? "new"}
-                editing={
-                  editing
-                    ? {
-                        id: editing.id,
-                        type: editing.type as EntryType,
-                        amount: editing.amount,
-                        currency: editing.currency,
-                        category: editing.category,
-                        description: editing.description,
-                        occurredAt: editing.occurredAt,
-                      }
-                    : null
-                }
-                onDone={() => {
-                  setAdding(false);
-                  setEditingId(null);
-                }}
-                onCancel={
-                  editing ? () => setEditingId(null) : () => setAdding(false)
-                }
-              />
-            </div>
-          )}
-        </section>
-
-        {/* Transactions list */}
+        {/* Transactions list — primary daily content surfaces above
+            charts/forms (charts are derived; FAB scrolls to add form). */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Transactions ({entries.length})
@@ -468,6 +390,89 @@ export function PersonalDashboard() {
                 </div>
               )}
             </>
+          )}
+        </section>
+
+        {/* Charts (collapsible — recharts is lazy-loaded). Now sits
+            below Transactions because charts are derived from the data
+            above; user sees the source of truth first. */}
+        {summary && summary.entryCounts.expense + summary.entryCounts.income + summary.entryCounts.investment > 0 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+            <button
+              type="button"
+              onClick={() => setShowCharts((v) => !v)}
+              aria-expanded={showCharts}
+              className="flex w-full items-center justify-between"
+            >
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <BarChart3 className="h-4 w-4 text-fuchsia-500" aria-hidden />
+                Charts
+              </h2>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition ${showCharts ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+            {showCharts && (
+              <div className="mt-4">
+                <PersonalCharts month={month} />
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Add / Edit form — last on the page since the FAB scrolls
+            this into view when triggered. Keeps the default-scroll
+            view focused on data, not on an empty form. */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <Plus className="h-4 w-4 text-emerald-500" aria-hidden />
+              {editing ? "Edit entry" : adding ? "Add entry" : "Add"}
+            </h2>
+            {!editing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  const next = !adding;
+                  setAdding(next);
+                  if (next) focusForm();
+                }}
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                {adding ? "Cancel" : "New"}
+              </button>
+            )}
+          </div>
+
+          {(adding || editing) && (
+            <div ref={formRef} className="mt-4 scroll-mt-20">
+              <AddPersonalEntry
+                key={editingId ?? "new"}
+                editing={
+                  editing
+                    ? {
+                        id: editing.id,
+                        type: editing.type as EntryType,
+                        amount: editing.amount,
+                        currency: editing.currency,
+                        category: editing.category,
+                        description: editing.description,
+                        occurredAt: editing.occurredAt,
+                      }
+                    : null
+                }
+                onDone={() => {
+                  setAdding(false);
+                  setEditingId(null);
+                }}
+                onCancel={
+                  editing ? () => setEditingId(null) : () => setAdding(false)
+                }
+              />
+            </div>
           )}
         </section>
       </div>
