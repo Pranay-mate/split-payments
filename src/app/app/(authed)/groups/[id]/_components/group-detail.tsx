@@ -396,83 +396,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </section>
         )}
 
-        {expenses.length > 0 && (() => {
-          // Shared export-data builder — same input shape for CSV + PDF.
-          const buildExportData = (): ExportInput => ({
-            groupName: group.name,
-            primaryCurrency: group.primaryCurrency,
-            members: members.map((m) => ({ id: m.userId, name: m.displayName })),
-            expenses: expenses.map((e) => ({
-              description: e.description,
-              amount: e.amount,
-              currency: e.currency,
-              convertedAmount: e.convertedAmount,
-              payerId: e.payerId,
-              category: (e as unknown as { category?: string | null }).category,
-              occurredAt: e.occurredAt,
-              splits: e.splits,
-            })),
-            settlements: (settlementsQuery.data ?? []).map((s) => ({
-              fromUserId: s.fromUserId,
-              toUserId: s.toUserId,
-              amount: s.amount,
-              note: s.note,
-              occurredAt: s.occurredAt,
-            })),
-            balances: (summary?.balances ?? []).map((b) => ({
-              userId: b.personId,
-              net: b.amount,
-            })),
-          });
-          const handleCsv = () => {
-            try {
-              downloadCsv(buildExportData());
-            } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Export failed");
-            }
-          };
-          const handlePdf = async () => {
-            setExportingPdf(true);
-            try {
-              await downloadPdf(buildExportData());
-            } catch (err) {
-              toast.error(
-                err instanceof Error ? err.message : "PDF export failed",
-              );
-            } finally {
-              setExportingPdf(false);
-            }
-          };
-          const csvBtnClass =
-            "inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
-          const pdfBtnClass =
-            "inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
-          return (
-            <div className="flex flex-wrap items-center gap-2 px-1 text-sm">
-              <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                <Download className="h-3.5 w-3.5 text-sky-500" aria-hidden />
-                Export
-              </span>
-              <button type="button" onClick={handleCsv} className={csvBtnClass}>
-                <Download className="h-3.5 w-3.5" aria-hidden /> CSV
-              </button>
-              <button
-                type="button"
-                disabled={exportingPdf}
-                onClick={handlePdf}
-                className={pdfBtnClass}
-              >
-                {exportingPdf ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <FileText className="h-3.5 w-3.5" aria-hidden />
-                )}
-                PDF
-              </button>
-            </div>
-          );
-        })()}
-
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
@@ -765,6 +688,83 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               )}
             </>
           )}
+
+          {/* Export footer — sits inside the Expenses card so it's
+              semantically tied to the data above it. Hairline divider
+              separates the buttons from the list/pagination controls. */}
+          {expenses.length > 0 && (() => {
+            const buildExportData = (): ExportInput => ({
+              groupName: group.name,
+              primaryCurrency: group.primaryCurrency,
+              members: members.map((m) => ({ id: m.userId, name: m.displayName })),
+              expenses: expenses.map((e) => ({
+                description: e.description,
+                amount: e.amount,
+                currency: e.currency,
+                convertedAmount: e.convertedAmount,
+                payerId: e.payerId,
+                category: (e as unknown as { category?: string | null }).category,
+                occurredAt: e.occurredAt,
+                splits: e.splits,
+              })),
+              settlements: (settlementsQuery.data ?? []).map((s) => ({
+                fromUserId: s.fromUserId,
+                toUserId: s.toUserId,
+                amount: s.amount,
+                note: s.note,
+                occurredAt: s.occurredAt,
+              })),
+              balances: (summary?.balances ?? []).map((b) => ({
+                userId: b.personId,
+                net: b.amount,
+              })),
+            });
+            const handleCsv = () => {
+              try {
+                downloadCsv(buildExportData());
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Export failed");
+              }
+            };
+            const handlePdf = async () => {
+              setExportingPdf(true);
+              try {
+                await downloadPdf(buildExportData());
+              } catch (err) {
+                toast.error(
+                  err instanceof Error ? err.message : "PDF export failed",
+                );
+              } finally {
+                setExportingPdf(false);
+              }
+            };
+            const btnClass =
+              "inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
+            return (
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <Download className="h-3 w-3 text-sky-500" aria-hidden />
+                  Export
+                </span>
+                <button type="button" onClick={handleCsv} className={btnClass}>
+                  <Download className="h-3 w-3" aria-hidden /> CSV
+                </button>
+                <button
+                  type="button"
+                  disabled={exportingPdf}
+                  onClick={handlePdf}
+                  className={btnClass}
+                >
+                  {exportingPdf ? (
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                  ) : (
+                    <FileText className="h-3 w-3" aria-hidden />
+                  )}
+                  PDF
+                </button>
+              </div>
+            );
+          })()}
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
