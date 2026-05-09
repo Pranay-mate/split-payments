@@ -5,6 +5,12 @@ import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { personalEntries } from "@/lib/db/schema";
 import { CATEGORY_KEYS } from "@/lib/categories";
+import {
+  decryptAmount,
+  decryptValue,
+  encryptAmount,
+  encryptValue,
+} from "@/lib/encryption";
 
 const typeSchema = z.enum(["income", "expense", "investment"]);
 const categorySchema = z.enum(CATEGORY_KEYS);
@@ -76,12 +82,20 @@ export const personalRouter = router({
         .limit(input?.limit ?? 100);
       return rows.map((r) => ({
         ...r,
-        amount: Number(r.amount),
+        // Decrypt the encrypted columns. AES-GCM auth-tag verification
+        // means tampered or empty-string fields throw — surface those
+        // as a clear server error rather than silently returning 0/"".
+        amount: decryptAmount(r.amount),
+        description: decryptValue(r.description),
       }));
     }),
 
   /** Headline KPIs for the dashboard hero. Server-computed so the math
-   *  stays consistent with whatever filters the client uses. */
+   *  stays consistent with whatever filters the client uses.
+   *
+   *  Amounts are encrypted, so SUM() in SQL doesn't work — we pull every
+   *  row for the month, decrypt, and aggregate in app. For personal data
+   *  (typically <500 entries/month per user) this is cheap. */
   summary: protectedProcedure
     .input(
       z
@@ -95,8 +109,7 @@ export const personalRouter = router({
       const rows = await db
         .select({
           type: personalEntries.type,
-          total: sql<string>`SUM(${personalEntries.amount})::text`,
-          count: sql<number>`COUNT(*)::int`,
+          amount: personalEntries.amount,
         })
         .from(personalEntries)
         .where(
@@ -106,12 +119,14 @@ export const personalRouter = router({
             gte(personalEntries.occurredAt, start),
             lt(personalEntries.occurredAt, end),
           ),
-        )
-        .groupBy(personalEntries.type);
+        );
 
       const byType: Record<string, { total: number; count: number }> = {};
       for (const r of rows) {
-        byType[r.type] = { total: Number(r.total), count: r.count };
+        const amt = decryptAmount(r.amount);
+        const bucket = (byType[r.type] ??= { total: 0, count: 0 });
+        bucket.total += amt;
+        bucket.count += 1;
       }
       const income = byType.income?.total ?? 0;
       const expenses = byType.expense?.total ?? 0;
@@ -133,7 +148,8 @@ export const personalRouter = router({
       };
     }),
 
-  /** Top categories for the current month. Used in the dashboard list. */
+  /** Top categories for the current month. Used in the dashboard list.
+   *  Same encryption-aware aggregation as `summary`. */
   topCategoriesThisMonth: protectedProcedure
     .input(
       z
@@ -148,7 +164,7 @@ export const personalRouter = router({
       const rows = await db
         .select({
           category: personalEntries.category,
-          total: sql<string>`SUM(${personalEntries.amount})::text`,
+          amount: personalEntries.amount,
         })
         .from(personalEntries)
         .where(
@@ -159,14 +175,19 @@ export const personalRouter = router({
             gte(personalEntries.occurredAt, start),
             lt(personalEntries.occurredAt, end),
           ),
-        )
-        .groupBy(personalEntries.category)
-        .orderBy(desc(sql`SUM(${personalEntries.amount})`))
-        .limit(input?.limit ?? 5);
-      return rows.map((r) => ({
-        category: r.category,
-        total: Math.round(Number(r.total) * 100) / 100,
-      }));
+        );
+      const byCat = new Map<string, number>();
+      for (const r of rows) {
+        const amt = decryptAmount(r.amount);
+        byCat.set(r.category, (byCat.get(r.category) ?? 0) + amt);
+      }
+      return Array.from(byCat.entries())
+        .map(([category, total]) => ({
+          category,
+          total: Math.round(total * 100) / 100,
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, input?.limit ?? 5);
     }),
 
   create: protectedProcedure
@@ -199,10 +220,10 @@ export const personalRouter = router({
           ...(input.clientEventId && { id: input.clientEventId }),
           userId: ctx.user.id,
           type: input.type,
-          amount: input.amount.toFixed(2),
+          amount: encryptAmount(input.amount),
           currency: input.currency,
           category: input.category,
-          description: input.description.trim(),
+          description: encryptValue(input.description.trim()),
           occurredAt: input.occurredAt ?? new Date(),
         })
         .returning();
@@ -252,10 +273,10 @@ export const personalRouter = router({
         .update(personalEntries)
         .set({
           type: input.type,
-          amount: input.amount.toFixed(2),
+          amount: encryptAmount(input.amount),
           currency: input.currency,
           category: input.category,
-          description: input.description.trim(),
+          description: encryptValue(input.description.trim()),
           ...(input.occurredAt && { occurredAt: input.occurredAt }),
           updatedAt: new Date(),
         })

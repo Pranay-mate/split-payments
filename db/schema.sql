@@ -163,17 +163,20 @@ CREATE INDEX IF NOT EXISTS events_occurred_idx ON events(occurred_at);
 CREATE INDEX IF NOT EXISTS events_expense_idx  ON events(expense_id);
 
 
--- personal_entries: Personal Finance Tracker (Phase 2.5 v1). Track your own
--- income / expenses / investments separately from group splitting.
--- v1.0 stores plaintext; encryption (Option B, pgcrypto) ships in v1.1.
+-- personal_entries: Personal Finance Tracker (Phase 2.5).
+-- v1.1 encrypts amount + description at the field level (AES-256-GCM,
+-- key in PFT_ENCRYPTION_KEY env var). Postgres only ever sees base64
+-- ciphertext. Other columns (type, category, currency, occurred_at)
+-- stay plaintext — they're metadata, not value-sensitive, and we
+-- need them for SQL-side filtering / GROUP BY.
 CREATE TABLE IF NOT EXISTS personal_entries (
   id           uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      uuid          NOT NULL,
   type         text          NOT NULL,                          -- income | expense | investment
-  amount       numeric(14,2) NOT NULL,
+  amount       text          NOT NULL,                          -- encrypted (AES-256-GCM, base64)
   currency     varchar(3)    NOT NULL DEFAULT 'INR',
   category     text          NOT NULL DEFAULT 'other',          -- src/lib/categories.ts keys
-  description  text          NOT NULL DEFAULT '',
+  description  text          NOT NULL,                          -- encrypted (same scheme)
   occurred_at  timestamptz   NOT NULL DEFAULT now(),
   created_at   timestamptz   NOT NULL DEFAULT now(),
   updated_at   timestamptz   NOT NULL DEFAULT now(),

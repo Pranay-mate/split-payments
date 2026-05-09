@@ -364,13 +364,17 @@ export const personalEntries = pgTable(
     /** 'income' | 'expense' | 'investment' — strings rather than enum so
      *  we can extend without an ALTER TYPE migration. */
     type: text("type").notNull(),
-    /** Amount in `currency` (defaults to INR). */
-    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    /** Encrypted amount (AES-256-GCM, base64). See src/lib/encryption.ts.
+     *  Type column is text since the wire format is base64 — Postgres
+     *  never sees the numeric value. Server decrypts before any math. */
+    amount: text("amount").notNull(),
     currency: varchar("currency", { length: 3 }).notNull().default("INR"),
     /** Reuses the existing categories module — see src/lib/categories.ts.
      *  Income / investment / tax are added as keys for PFT. */
     category: text("category").notNull().default("other"),
-    description: text("description").notNull().default(""),
+    /** Encrypted description (same scheme as amount). Plaintext "" is
+     *  also encrypted so server doesn't have to special-case empty. */
+    description: text("description").notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

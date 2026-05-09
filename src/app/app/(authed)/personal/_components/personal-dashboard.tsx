@@ -102,8 +102,10 @@ export function PersonalDashboard() {
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
               Personal
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Your own income, expenses, and investments. Private to you.
+            <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+              <span aria-hidden>🔒</span>
+              Encrypted at the field level. Our database host can&apos;t read
+              your numbers.
             </p>
           </div>
           <select
