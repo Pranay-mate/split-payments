@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowRight, Check, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import type { TripSummary } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
+
+type SettleMode = "simplified" | "pairwise";
 
 type RecordedSettlement = {
   id: string;
@@ -235,70 +238,15 @@ export function BalancesView({
         </ul>
       </section>
 
-      {summary.settlements.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-5 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Suggested payments
-          </h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Minimum number of transfers to settle the group.
-          </p>
-          <ul className="mt-4 space-y-2">
-            {summary.settlements.map((s, idx) => {
-              const fromName = memberById.get(s.fromPersonId)?.name ?? "?";
-              const toName = memberById.get(s.toPersonId)?.name ?? "?";
-              return (
-                <li
-                  key={`${s.fromPersonId}-${s.toPersonId}-${idx}`}
-                  className="rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-900"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-2 truncate">
-                      <span className="font-medium">{fromName}</span>
-                      <ArrowRight
-                        className="h-4 w-4 text-slate-400"
-                        aria-hidden
-                      />
-                      <span className="font-medium">{toName}</span>
-                    </span>
-                    <span className="font-semibold tabular-nums">
-                      {formatINR(s.amount, 0)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const { queued } = await submitRecord({
-                          groupId,
-                          fromUserId: s.fromPersonId,
-                          toUserId: s.toPersonId,
-                          amount: s.amount,
-                        });
-                        if (!queued) toast.success("Settlement recorded");
-                      } catch (err) {
-                        toast.error(
-                          err instanceof Error ? err.message : "Failed",
-                        );
-                      }
-                    }}
-                    disabled={recordMutation.isPending}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
-                  >
-                    {recordMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <Check className="h-3.5 w-3.5" aria-hidden />
-                    )}
-                    Mark as paid
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+      {(summary.settlements.length > 0 || summary.pairwiseSettlements.length > 0) && (
+        <SuggestedPayments
+          summary={summary}
+          memberById={memberById}
+          groupId={groupId}
+          submitRecord={submitRecord}
+          recordPending={recordMutation.isPending}
+        />
       )}
-
       {recorded.length > 0 && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -357,5 +305,160 @@ export function BalancesView({
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Toggleable suggested-payments panel.
+ *
+ *   Simplified — minimum transfers via the greedy debt-minimisation algo.
+ *     Default. Best when the group just wants to settle up fast.
+ *
+ *   Pairwise — net debt per (debtor, creditor) pair from the actual
+ *     transactions. Pay back the person you actually transacted with.
+ *     Typically more rows, but no "wait, why am I paying this person?"
+ *     surprise.
+ *
+ * Both views show the same total money owed; just routed differently.
+ * The "Mark as paid" button writes a settlement either way.
+ */
+function SuggestedPayments({
+  summary,
+  memberById,
+  groupId,
+  submitRecord,
+  recordPending,
+}: {
+  summary: TripSummary;
+  memberById: Map<string, { id: string; name: string }>;
+  groupId: string;
+  submitRecord: (input: {
+    groupId: string;
+    fromUserId: string;
+    toUserId: string;
+    amount: number;
+  }) => Promise<{ queued: boolean }>;
+  recordPending: boolean;
+}) {
+  const [mode, setMode] = useState<SettleMode>("simplified");
+  const list =
+    mode === "simplified" ? summary.settlements : summary.pairwiseSettlements;
+  if (list.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-5 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Suggested payments
+        </h2>
+        <div
+          className="inline-flex rounded-full border border-slate-200 bg-white p-0.5 text-[11px] font-medium dark:border-slate-700 dark:bg-slate-900"
+          role="tablist"
+          aria-label="Settlement view"
+        >
+          {(
+            [
+              {
+                value: "simplified",
+                label: "Simplified",
+                title: "Minimum transfers (greedy algorithm)",
+              },
+              {
+                value: "pairwise",
+                label: "Pairwise",
+                title: "Pay the person you actually transacted with",
+              },
+            ] as { value: SettleMode; label: string; title: string }[]
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="tab"
+              aria-selected={mode === opt.value}
+              onClick={() => setMode(opt.value)}
+              title={opt.title}
+              className={`rounded-full px-2.5 py-0.5 transition ${
+                mode === opt.value
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        {mode === "simplified" ? (
+          <>
+            Minimum number of transfers to settle the group.
+            {summary.pairwiseSettlements.length > list.length && (
+              <span className="ml-1 text-slate-400">
+                · saves{" "}
+                {summary.pairwiseSettlements.length - list.length} transfer
+                {summary.pairwiseSettlements.length - list.length === 1
+                  ? ""
+                  : "s"}{" "}
+                vs. pairwise
+              </span>
+            )}
+          </>
+        ) : (
+          "Direct debts — pay back the person who actually paid for you."
+        )}
+      </p>
+      <ul className="mt-4 space-y-2">
+        {list.map((s, idx) => {
+          const fromName = memberById.get(s.fromPersonId)?.name ?? "?";
+          const toName = memberById.get(s.toPersonId)?.name ?? "?";
+          return (
+            <li
+              key={`${mode}-${s.fromPersonId}-${s.toPersonId}-${idx}`}
+              className="rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 truncate">
+                  <span className="font-medium">{fromName}</span>
+                  <ArrowRight className="h-4 w-4 text-slate-400" aria-hidden />
+                  <span className="font-medium">{toName}</span>
+                </span>
+                <span className="font-semibold tabular-nums">
+                  {formatINR(s.amount, 0)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const { queued } = await submitRecord({
+                      groupId,
+                      fromUserId: s.fromPersonId,
+                      toUserId: s.toPersonId,
+                      amount: s.amount,
+                    });
+                    if (!queued) toast.success("Settlement recorded");
+                  } catch (err) {
+                    toast.error(
+                      err instanceof Error ? err.message : "Failed",
+                    );
+                  }
+                }}
+                disabled={recordPending}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
+              >
+                {recordPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <Check className="h-3.5 w-3.5" aria-hidden />
+                )}
+                Mark as paid
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

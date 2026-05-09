@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   calculateBalances,
   equalSplits,
+  pairwiseDebts,
   simplifyPayments,
   summariseTrip,
   type Person,
   type Expense,
+  type Settlement,
 } from "./trip-split";
 
 const A: Person = { id: "a", name: "Amit" };
@@ -331,5 +333,155 @@ describe("summariseTrip end-to-end", () => {
     ];
     const summary = summariseTrip([A, B, C, D], expenses);
     expect(summary.settlements).toEqual([]);
+  });
+});
+
+describe("pairwiseDebts", () => {
+  const makeExpense = (
+    id: string,
+    payerId: string,
+    amount: number,
+    splits: { personId: string; amount: number }[],
+  ): Expense => ({
+    id,
+    description: id,
+    amount,
+    payerId,
+    splitMode: "equal",
+    splits,
+  });
+
+  it("returns empty for no expenses", () => {
+    expect(pairwiseDebts([], [])).toEqual([]);
+  });
+
+  it("returns one debt when A pays for B's share", () => {
+    // A paid ₹200, split equally among A, B
+    const out = pairwiseDebts(
+      [
+        makeExpense("e1", "a", 200, [
+          { personId: "a", amount: 100 },
+          { personId: "b", amount: 100 },
+        ]),
+      ],
+      [],
+    );
+    expect(out).toEqual([{ fromPersonId: "b", toPersonId: "a", amount: 100 }]);
+  });
+
+  it("nets reverse pairs (A owes B 500, B owes A 200 → A owes B 300)", () => {
+    const out = pairwiseDebts(
+      [
+        // A paid 1000 split A+B → B owes A 500
+        makeExpense("e1", "a", 1000, [
+          { personId: "a", amount: 500 },
+          { personId: "b", amount: 500 },
+        ]),
+        // B paid 400 split A+B → A owes B 200
+        makeExpense("e2", "b", 400, [
+          { personId: "a", amount: 200 },
+          { personId: "b", amount: 200 },
+        ]),
+      ],
+      [],
+    );
+    // Net: B owes A 300
+    expect(out).toEqual([{ fromPersonId: "b", toPersonId: "a", amount: 300 }]);
+  });
+
+  it("subtracts recorded settlements from the matching pair", () => {
+    const expenses = [
+      makeExpense("e1", "a", 1000, [
+        { personId: "a", amount: 500 },
+        { personId: "b", amount: 500 },
+      ]),
+    ];
+    // B already paid back 200 of the 500
+    const settlements: Settlement[] = [
+      { fromPersonId: "b", toPersonId: "a", amount: 200 },
+    ];
+    const out = pairwiseDebts(expenses, settlements);
+    expect(out).toEqual([{ fromPersonId: "b", toPersonId: "a", amount: 300 }]);
+  });
+
+  it("drops zeroed-out pairs", () => {
+    // B owes A 300; B then pays back exactly 300
+    const out = pairwiseDebts(
+      [
+        makeExpense("e1", "a", 600, [
+          { personId: "a", amount: 300 },
+          { personId: "b", amount: 300 },
+        ]),
+      ],
+      [{ fromPersonId: "b", toPersonId: "a", amount: 300 }],
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("never produces self-debts (payer's own split row is skipped)", () => {
+    const out = pairwiseDebts(
+      [
+        makeExpense("e1", "a", 300, [
+          { personId: "a", amount: 100 },
+          { personId: "b", amount: 100 },
+          { personId: "c", amount: 100 },
+        ]),
+      ],
+      [],
+    );
+    // Only B→A and C→A; no A→A
+    expect(out).toHaveLength(2);
+    for (const d of out) {
+      expect(d.fromPersonId).not.toBe(d.toPersonId);
+    }
+  });
+
+  it("sorts by amount descending", () => {
+    const out = pairwiseDebts(
+      [
+        makeExpense("small", "a", 100, [
+          { personId: "a", amount: 50 },
+          { personId: "b", amount: 50 },
+        ]),
+        makeExpense("big", "a", 1000, [
+          { personId: "a", amount: 500 },
+          { personId: "c", amount: 500 },
+        ]),
+      ],
+      [],
+    );
+    expect(out[0].amount).toBe(500); // C→A first
+    expect(out[1].amount).toBe(50); // B→A second
+  });
+
+  it("net balance per person matches simplifyPayments (different presentation, same money)", () => {
+    // Three-way: A pays 600 split equally; B pays 300 split equally
+    const expenses = [
+      makeExpense("e1", "a", 600, [
+        { personId: "a", amount: 200 },
+        { personId: "b", amount: 200 },
+        { personId: "c", amount: 200 },
+      ]),
+      makeExpense("e2", "b", 300, [
+        { personId: "a", amount: 100 },
+        { personId: "b", amount: 100 },
+        { personId: "c", amount: 100 },
+      ]),
+    ];
+    const pairwise = pairwiseDebts(expenses, []);
+    // Sum the net amount each person owes/is owed under pairwise:
+    const net = new Map<string, number>();
+    for (const d of pairwise) {
+      net.set(d.fromPersonId, (net.get(d.fromPersonId) ?? 0) - d.amount);
+      net.set(d.toPersonId, (net.get(d.toPersonId) ?? 0) + d.amount);
+    }
+    // Compare to calculateBalances. Same nets.
+    const balances = calculateBalances(
+      [A, B, { id: "c", name: "C" }],
+      expenses,
+    );
+    for (const b of balances) {
+      expect(net.get(b.personId) ?? 0).toBeCloseTo(b.amount, 2);
+    }
   });
 });

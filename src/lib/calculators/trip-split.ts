@@ -147,7 +147,10 @@ export function simplifyPayments(balances: Balance[]): Settlement[] {
 
 export type TripSummary = {
   balances: Balance[];
+  /** Simplified (greedy debt-minimisation) — fewest transfers possible. */
   settlements: Settlement[];
+  /** Pairwise — pay back the person you actually transacted with. ≥ simplified count. */
+  pairwiseSettlements: Settlement[];
   totalSpent: number;
   totalSettled: number;
 };
@@ -176,6 +179,73 @@ export function applySettlements(
   return balances.map((b) => ({ ...b, amount: round2(map.get(b.personId) ?? 0) }));
 }
 
+/**
+ * Pairwise debts — net amount owed between every pair of people based on the
+ * actual transactions, NOT the simplified greedy graph. Use this when users
+ * want to "pay back the person you actually transacted with" rather than
+ * having the algorithm route them through a third party.
+ *
+ * Algorithm:
+ *   1. For each expense, every non-payer split row creates a (debtor → payer)
+ *      debt of split.amount.
+ *   2. Recorded settlements subtract from the matching pair (from → to).
+ *   3. For each unordered pair {A, B}, net the two directions: if A→B is
+ *      ₹500 and B→A is ₹200, output A→B for ₹300 and drop B→A.
+ *   4. Drop pairs that net to zero (within 1 paisa).
+ *   5. Sort by amount descending so the biggest debts surface first.
+ *
+ * Note: simplifyPayments(balances) and pairwiseDebts(expenses, settlements)
+ * give the same NET balance per person — they just present differently.
+ * Pairwise typically has more transfers (≥ simplified count).
+ */
+export function pairwiseDebts(
+  expenses: Expense[],
+  recordedSettlements: Settlement[] = [],
+): Settlement[] {
+  // Pair key: "from|to" — direction matters here.
+  const debts = new Map<string, number>();
+  const bump = (from: string, to: string, amount: number) => {
+    if (amount <= 0 || from === to) return;
+    const key = `${from}|${to}`;
+    debts.set(key, (debts.get(key) ?? 0) + amount);
+  };
+
+  for (const e of expenses) {
+    for (const s of e.splits) {
+      if (s.personId === e.payerId) continue;
+      bump(s.personId, e.payerId, s.amount);
+    }
+  }
+
+  // Settlements reduce the matching directional debt.
+  for (const s of recordedSettlements) {
+    if (s.amount <= 0) continue;
+    const key = `${s.fromPersonId}|${s.toPersonId}`;
+    debts.set(key, (debts.get(key) ?? 0) - s.amount);
+  }
+
+  // Net out reverse pairs and emit the dominant direction.
+  const out: Settlement[] = [];
+  const seen = new Set<string>();
+  for (const [key, amount] of debts) {
+    if (seen.has(key)) continue;
+    const [from, to] = key.split("|");
+    const reverseKey = `${to}|${from}`;
+    const reverse = debts.get(reverseKey) ?? 0;
+    seen.add(key);
+    seen.add(reverseKey);
+    const net = round2(amount - reverse);
+    if (Math.abs(net) < EPSILON) continue;
+    if (net > 0) {
+      out.push({ fromPersonId: from, toPersonId: to, amount: net });
+    } else {
+      out.push({ fromPersonId: to, toPersonId: from, amount: -net });
+    }
+  }
+
+  return out.sort((a, b) => b.amount - a.amount);
+}
+
 export function summariseTrip(
   people: Person[],
   expenses: Expense[],
@@ -184,10 +254,17 @@ export function summariseTrip(
   const rawBalances = calculateBalances(people, expenses);
   const balances = applySettlements(rawBalances, recordedSettlements);
   const settlements = simplifyPayments(balances);
+  const pairwiseSettlements = pairwiseDebts(expenses, recordedSettlements);
   const totalSpent = expenses.reduce((sum, e) => sum + Math.max(0, e.amount), 0);
   const totalSettled = recordedSettlements.reduce(
     (sum, s) => sum + Math.max(0, s.amount),
     0,
   );
-  return { balances, settlements, totalSpent, totalSettled };
+  return {
+    balances,
+    settlements,
+    pairwiseSettlements,
+    totalSpent,
+    totalSettled,
+  };
 }
