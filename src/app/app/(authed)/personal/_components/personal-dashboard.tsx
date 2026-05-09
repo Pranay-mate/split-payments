@@ -54,12 +54,16 @@ function formatMonthLabel(key: string): string {
   });
 }
 
-const TYPE_BADGE: Record<EntryType, string> = {
+/** Tinted background for the leading emoji avatar in a transaction row.
+ *  The colour conveys type (green/rose/cyan) so the row no longer needs
+ *  a separate "income/expense/investment" text chip. */
+const TYPE_AVATAR: Record<EntryType, string> = {
   income:
-    "bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-300",
-  expense: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
+    "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/60 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-800/60",
+  expense:
+    "bg-rose-100 text-rose-700 ring-1 ring-rose-200/60 dark:bg-rose-950/60 dark:text-rose-200 dark:ring-rose-800/60",
   investment:
-    "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
+    "bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200/60 dark:bg-cyan-950/60 dark:text-cyan-200 dark:ring-cyan-800/60",
 };
 
 export function PersonalDashboard() {
@@ -352,97 +356,89 @@ export function PersonalDashboard() {
                   return (
                     <li
                       key={e.id}
-                      className={`animate-row-in rounded-xl border p-3 transition ${
+                      className={`animate-row-in flex items-center gap-3 rounded-xl border p-2.5 transition sm:p-3 ${
                         editingId === e.id
                           ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/30"
                           : "border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/40"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          {/* Description on its own line so it can use the
-                              full row width before the badges land below. */}
-                          <p className="truncate text-sm font-medium">
-                            {e.description || meta.label}
-                          </p>
-                          <p className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <span
-                              className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${TYPE_BADGE[t]}`}
-                            >
-                              {t}
-                            </span>
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.chipClass}`}
-                            >
-                              <span aria-hidden>{meta.emoji}</span>
-                              {meta.label}
-                            </span>
-                          </p>
-                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                            {new Date(e.occurredAt).toLocaleDateString(
-                              undefined,
-                              {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              },
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span
-                            className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
-                              t === "income"
-                                ? "text-emerald-700 dark:text-emerald-400"
-                                : t === "expense"
-                                  ? "text-rose-700 dark:text-rose-400"
-                                  : "text-cyan-700 dark:text-cyan-400"
+                      {/* Type-tinted emoji avatar — color carries the
+                          type signal, emoji carries the category. Replaces
+                          the old type+category chip pair. */}
+                      <span
+                        aria-hidden
+                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg ${TYPE_AVATAR[t]}`}
+                      >
+                        {meta.emoji}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">
+                          {e.description || meta.label}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                          {meta.label}
+                          {" · "}
+                          {new Date(e.occurredAt).toLocaleDateString(
+                            undefined,
+                            { day: "numeric", month: "short" },
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span
+                          className={`whitespace-nowrap text-sm font-bold tabular-nums ${
+                            t === "income"
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : t === "expense"
+                                ? "text-rose-700 dark:text-rose-400"
+                                : "text-cyan-700 dark:text-cyan-400"
+                          }`}
+                        >
+                          {sign}
+                          {formatINR(e.amount, 0)}
+                        </span>
+                        <div className="flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAdding(false);
+                              setEditingId(e.id);
+                              focusForm();
+                            }}
+                            aria-pressed={editingId === e.id}
+                            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md transition ${
+                              editingId === e.id
+                                ? "bg-indigo-500 text-white"
+                                : "text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                             }`}
+                            aria-label="Edit entry"
                           >
-                            {sign}
-                            {formatINR(e.amount, 0)}
-                          </span>
-                          <div className="flex">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAdding(false);
-                                setEditingId(e.id);
-                                focusForm();
-                              }}
-                              aria-pressed={editingId === e.id}
-                              className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
-                                editingId === e.id
-                                  ? "bg-indigo-500 text-white"
-                                  : "text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                              }`}
-                              aria-label="Edit entry"
-                            >
-                              <Pencil className="h-4 w-4" aria-hidden />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!confirm("Remove this entry?")) return;
-                                if (editingId === e.id) setEditingId(null);
-                                try {
-                                  await deleteMutation.mutateAsync({ id: e.id });
-                                  toast.success("Entry removed");
-                                } catch (err) {
-                                  toast.error(
-                                    err instanceof Error
-                                      ? err.message
-                                      : "Delete failed",
-                                  );
-                                }
-                              }}
-                              disabled={deleteMutation.isPending}
-                              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                              aria-label="Remove entry"
-                            >
-                              <Trash2 className="h-4 w-4" aria-hidden />
-                            </button>
-                          </div>
+                            <Pencil className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!confirm("Remove this entry?")) return;
+                              if (editingId === e.id) setEditingId(null);
+                              try {
+                                await deleteMutation.mutateAsync({ id: e.id });
+                                toast.success("Entry removed");
+                              } catch (err) {
+                                toast.error(
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Delete failed",
+                                );
+                              }
+                            }}
+                            disabled={deleteMutation.isPending}
+                            className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 transition hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                            aria-label="Remove entry"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          </button>
                         </div>
                       </div>
                     </li>
