@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Flame, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import type { ScoreResult } from "@/lib/financial-score";
+import { trpc } from "@/lib/trpc/client";
+import {
+  ScoreTrajectory,
+  summariseSnapshots,
+} from "./score-trajectory";
 
 const BAND_GRADIENT: Record<ScoreResult["band"], string> = {
   red: "from-rose-500 via-rose-600 to-red-700",
@@ -121,26 +126,74 @@ export function Scorecard({
     );
   }
 
+  return <ScorecardWithHistory score={score} />;
+}
+
+function ScorecardWithHistory({ score }: { score: ScoreResult }) {
+  const historyQuery = trpc.personal.profile.history.useQuery({ limit: 24 });
+  const summary = summariseSnapshots(historyQuery.data ?? []);
+
+  // Sort pillars: gaps (<15) first, maxed (≥15) collapsed below — surfaces
+  // what to fix without forcing the user to scan past their wins.
+  const gapPillars = score.pillars.filter((p) => p.score < 15);
+  const maxedPillars = score.pillars.filter((p) => p.score >= 15);
+
+  // Top action: highest-value next-action across the gap pillars.
+  const topAction = gapPillars.find((p) => p.nextAction)?.nextAction ?? null;
+
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-      {/* Hero band — total score */}
+      {/* Hero band — total score + delta + streak */}
       <div
         className={`bg-gradient-to-br ${BAND_GRADIENT[score.band]} px-5 py-5 text-white`}
       >
         <div className="flex items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
               Financial Health Score
             </p>
-            <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
-              {score.total}
-              <span className="ml-1 text-xl font-medium text-white/70">
-                /100
-              </span>
-            </p>
-            <p className="mt-1 text-sm font-medium text-white/90">
+            <div className="mt-1 flex items-baseline gap-3">
+              <p className="text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
+                {score.total}
+                <span className="ml-1 text-xl font-medium text-white/70">
+                  /100
+                </span>
+              </p>
+              {summary.delta !== null && summary.delta !== 0 && (
+                <span
+                  className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    summary.delta > 0
+                      ? "bg-white/20 text-white"
+                      : "bg-black/20 text-white/95"
+                  }`}
+                >
+                  {summary.delta > 0 ? (
+                    <TrendingUp className="h-3 w-3" aria-hidden />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" aria-hidden />
+                  )}
+                  {summary.delta > 0 ? "+" : ""}
+                  {summary.delta} since last
+                </span>
+              )}
+            </div>
+            <p className="mt-1 flex flex-wrap items-center gap-2 text-sm font-medium text-white/90">
               {BAND_LABEL[score.band]}
+              {summary.streakMonths >= 2 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold backdrop-blur">
+                  <Flame className="h-3 w-3" aria-hidden />
+                  {summary.streakMonths}-month green streak
+                </span>
+              )}
             </p>
+            {topAction && (
+              <p className="mt-3 text-xs text-white/95">
+                <span className="font-semibold uppercase tracking-wider text-white/70">
+                  Top action ·{" "}
+                </span>
+                {topAction}
+              </p>
+            )}
           </div>
           <Link
             href="/app/personal/onboard"
@@ -151,9 +204,11 @@ export function Scorecard({
         </div>
       </div>
 
-      {/* Pillars */}
+      {/* Pillars — gap pillars first (full detail), maxed ones in a
+          condensed strip below so the user's eye lands on what they
+          can actually improve. */}
       <ul className="divide-y divide-slate-100 px-5 py-3 dark:divide-slate-800">
-        {score.pillars.map((p) => (
+        {gapPillars.map((p) => (
           <li key={p.key} className="flex items-start gap-3 py-3">
             <PillarRing score={p.score} />
             <div className="min-w-0 flex-1">
@@ -176,6 +231,42 @@ export function Scorecard({
           </li>
         ))}
       </ul>
+
+      {maxedPillars.length > 0 && (
+        <div className="border-t border-slate-100 bg-slate-50/40 px-5 py-3 dark:border-slate-800 dark:bg-slate-800/30">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Nailed it · {maxedPillars.length} pillar
+            {maxedPillars.length === 1 ? "" : "s"} maxed
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {maxedPillars.map((p) => (
+              <li
+                key={p.key}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm dark:bg-slate-900 dark:text-slate-200"
+                title={p.message}
+              >
+                <span aria-hidden>{p.emoji}</span>
+                {p.label}
+                <span className="text-[10px] tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {p.score}/20
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {summary.history.length > 0 && (
+        <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Trajectory · last {summary.history.length}{" "}
+            {summary.history.length === 1 ? "snapshot" : "snapshots"}
+          </p>
+          <div className="mt-2">
+            <ScoreTrajectory />
+          </div>
+        </div>
+      )}
 
       <p className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
         Rules of thumb, not financial advice. We&apos;re not a SEBI-registered

@@ -3,7 +3,11 @@ import { and, asc, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
-import { financialProfiles, personalEntries } from "@/lib/db/schema";
+import {
+  financialProfiles,
+  personalEntries,
+  scoreSnapshots,
+} from "@/lib/db/schema";
 import { CATEGORY_KEYS } from "@/lib/categories";
 import {
   decryptAmount,
@@ -535,7 +539,72 @@ export const personalRouter = router({
         if (updated.length === 0) {
           await db.insert(financialProfiles).values(values);
         }
+
+        // Snapshot the score on every "Compute" submit so the
+        // trajectory chart + streak badge have a data point. Only on
+        // markCompleted to avoid noisy partial-progress snapshots.
+        if (input.markCompleted) {
+          const inputs: ScoreInputs = {
+            age: input.age,
+            retirementAge: input.retirementAge,
+            isFreelancer: input.isFreelancer,
+            hasDependents: input.hasDependents,
+            hasCcCarryover: input.hasCcCarryover,
+            monthlyIncome: input.monthlyIncome,
+            monthlyExpenses: input.monthlyExpenses,
+            liquidSavings: input.liquidSavings,
+            termCoverAmount: input.termCoverAmount,
+            healthCoverAmount: input.healthCoverAmount,
+            totalEmi: input.totalEmi,
+            investmentBalance: input.investmentBalance,
+            monthlyInvestment: input.monthlyInvestment,
+          };
+          const score = computeScore(inputs);
+          if (score.hasEnoughData) {
+            const pillarScores: Record<string, number> = {};
+            for (const p of score.pillars) pillarScores[p.key] = p.score;
+            await db.insert(scoreSnapshots).values({
+              userId: ctx.user.id,
+              total: score.total,
+              band: score.band,
+              pillarScores: JSON.stringify(pillarScores),
+            });
+          }
+        }
         return { ok: true };
+      }),
+
+    /**
+     * Score history — last N snapshots, oldest first so charts render
+     * left-to-right. Used by the trajectory line chart + streak/delta
+     * computation in the scorecard hero.
+     */
+    history: protectedProcedure
+      .input(
+        z
+          .object({ limit: z.number().int().min(1).max(120).default(24) })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const rows = await db
+          .select()
+          .from(scoreSnapshots)
+          .where(eq(scoreSnapshots.userId, ctx.user.id))
+          .orderBy(asc(scoreSnapshots.snapshottedAt))
+          .limit(input?.limit ?? 24);
+        return rows.map((r) => ({
+          id: r.id,
+          total: r.total,
+          band: r.band as "red" | "amber" | "emerald" | "green",
+          snapshottedAt: r.snapshottedAt,
+          pillarScores: ((): Record<string, number> => {
+            try {
+              return JSON.parse(r.pillarScores);
+            } catch {
+              return {};
+            }
+          })(),
+        }));
       }),
   }),
 });

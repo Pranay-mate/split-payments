@@ -248,3 +248,17 @@ ALTER TABLE expenses
 -- v3.6: retirement_age added for the investing-pillar glide path.
 ALTER TABLE financial_profiles
   ADD COLUMN IF NOT EXISTS retirement_age integer;
+
+-- v4.0: score_snapshots — append-only history of the Financial Health Score.
+-- Written on every profile.upsert(markCompleted=true). Drives trajectory
+-- chart, monthly delta, and the streak badge.
+CREATE TABLE IF NOT EXISTS score_snapshots (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid        NOT NULL,
+  total           integer     NOT NULL,
+  band            text        NOT NULL,
+  pillar_scores   text        NOT NULL,                 -- JSON
+  snapshotted_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS score_snapshots_user_idx    ON score_snapshots(user_id);
+CREATE INDEX IF NOT EXISTS score_snapshots_user_at_idx ON score_snapshots(user_id, snapshotted_at);

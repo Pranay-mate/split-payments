@@ -447,3 +447,36 @@ export const financialProfiles = pgTable(
 );
 
 export type FinancialProfile = typeof financialProfiles.$inferSelect;
+
+/**
+ * Append-only history of the Financial Health Score (Phase 2.5 v4).
+ * Written on every profile.upsert with markCompleted=true. Powers the
+ * trajectory chart, the "+12 since last month" delta, and the streak
+ * badge ("3 months in the green band").
+ *
+ * pillar_scores stored as JSON-encoded text — same convention as the
+ * events table — so we can extend the pillar set without an ALTER
+ * COLUMN migration.
+ */
+export const scoreSnapshots = pgTable(
+  "score_snapshots",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** 0..100 */
+    total: integer("total").notNull(),
+    /** "red" | "amber" | "emerald" | "green" */
+    band: text("band").notNull(),
+    /** JSON: { emergency: 20, insurance: 8, debt: 20, savingsRate: 20, investing: 13 } */
+    pillarScores: text("pillar_scores").notNull(),
+    snapshottedAt: timestamp("snapshotted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("score_snapshots_user_idx").on(t.userId),
+    index("score_snapshots_user_at_idx").on(t.userId, t.snapshottedAt),
+  ],
+);
+
+export type ScoreSnapshot = typeof scoreSnapshots.$inferSelect;
