@@ -163,7 +163,7 @@ export function GroupCharts({
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
           <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/70">
+            <p className="text-[10px] uppercase tracking-wider text-white/90">
               Expenses
             </p>
             <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
@@ -171,7 +171,7 @@ export function GroupCharts({
             </p>
           </div>
           <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/70">
+            <p className="text-[10px] uppercase tracking-wider text-white/90">
               Active days
             </p>
             <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
@@ -179,7 +179,7 @@ export function GroupCharts({
             </p>
           </div>
           <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/70">
+            <p className="text-[10px] uppercase tracking-wider text-white/90">
               Daily avg
             </p>
             <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">

@@ -23,6 +23,7 @@ export function TopNavTabs() {
     >
       <Link
         href="/app/groups"
+        aria-label="Groups"
         aria-current={onGroups ? "page" : undefined}
         className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
           onGroups
@@ -35,6 +36,7 @@ export function TopNavTabs() {
       </Link>
       <Link
         href="/app/personal"
+        aria-label="Personal"
         aria-current={onPersonal ? "page" : undefined}
         className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
           onPersonal

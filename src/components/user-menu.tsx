@@ -53,6 +53,7 @@ export function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label="Account menu"
         className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 text-sm font-semibold text-white transition hover:shadow-md"
       >
         {meQuery.data?.avatarUrl ? (

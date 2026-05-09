@@ -170,7 +170,7 @@ export function PersonalDashboard() {
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
             <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/70">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/90">
                 <ArrowDown className="h-3 w-3" aria-hidden /> In
               </p>
               <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
@@ -178,7 +178,7 @@ export function PersonalDashboard() {
               </p>
             </div>
             <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/70">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/90">
                 <ArrowUp className="h-3 w-3" aria-hidden /> Out
               </p>
               <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
@@ -186,7 +186,7 @@ export function PersonalDashboard() {
               </p>
             </div>
             <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/70">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/90">
                 <Wallet className="h-3 w-3" aria-hidden /> Saved
               </p>
               <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
@@ -195,7 +195,7 @@ export function PersonalDashboard() {
             </div>
           </div>
           {summary && summary.investments > 0 && (
-            <p className="mt-3 flex items-center gap-1 text-[11px] text-white/70">
+            <p className="mt-3 flex items-center gap-1 text-[11px] text-white/90">
               <TrendingUp className="h-3 w-3" aria-hidden />
               {formatINR(summary.investments, 0)} invested · counted as money
               that left your account but built your future

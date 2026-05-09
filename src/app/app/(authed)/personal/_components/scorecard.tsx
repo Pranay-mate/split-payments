@@ -167,7 +167,7 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
             <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
               <p className="text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
                 {score.total}
-                <span className="ml-1 text-xl font-medium text-white/70">
+                <span className="ml-1 text-xl font-medium text-white/90">
                   /100
                 </span>
               </p>
@@ -200,7 +200,7 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
             </p>
             {topAction && (
               <p className="mt-3 text-xs text-white/95">
-                <span className="font-semibold uppercase tracking-wider text-white/70">
+                <span className="font-semibold uppercase tracking-wider text-white/90">
                   Top action ·{" "}
                 </span>
                 {topAction}
