@@ -103,13 +103,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     return m;
   }, [membersQuery.data]);
 
-  const summary = useMemo(() => {
-    if (!membersQuery.data || !expensesQuery.data) return null;
-    const people: Person[] = membersQuery.data.map((m) => ({
-      id: m.userId,
-      name: m.displayName,
-    }));
-    const tripExpenses: TripExpense[] = expensesQuery.data.map((e) => ({
+  // Memo'd separately so BalancesView's "Why?" expander can use the
+  // raw expense ledger to compute per-person breakdowns without a
+  // duplicate transformation.
+  const tripExpenses = useMemo<TripExpense[]>(() => {
+    if (!expensesQuery.data) return [];
+    return expensesQuery.data.map((e) => ({
       id: e.id,
       description: e.description,
       amount: e.convertedAmount,
@@ -120,13 +119,21 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         amount: s.amount,
       })),
     }));
+  }, [expensesQuery.data]);
+
+  const summary = useMemo(() => {
+    if (!membersQuery.data || !expensesQuery.data) return null;
+    const people: Person[] = membersQuery.data.map((m) => ({
+      id: m.userId,
+      name: m.displayName,
+    }));
     const recordedSettlements = (settlementsQuery.data ?? []).map((s) => ({
       fromPersonId: s.fromUserId,
       toPersonId: s.toUserId,
       amount: s.amount,
     }));
     return summariseTrip(people, tripExpenses, recordedSettlements);
-  }, [membersQuery.data, expensesQuery.data, settlementsQuery.data]);
+  }, [membersQuery.data, expensesQuery.data, settlementsQuery.data, tripExpenses]);
 
   const copyInviteLink = async () => {
     if (!groupQuery.data) return;
@@ -312,6 +319,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             summary={summary}
             memberById={memberById}
             recorded={settlementsQuery.data ?? []}
+            tripExpenses={tripExpenses}
           />
         )}
 

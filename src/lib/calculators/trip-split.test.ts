@@ -3,6 +3,7 @@ import {
   calculateBalances,
   equalSplits,
   pairwiseDebts,
+  personBreakdown,
   simplifyPayments,
   summariseTrip,
   type Person,
@@ -483,5 +484,78 @@ describe("pairwiseDebts", () => {
     for (const b of balances) {
       expect(net.get(b.personId) ?? 0).toBeCloseTo(b.amount, 2);
     }
+  });
+});
+
+describe("personBreakdown", () => {
+  it("returns zeros for a person not involved in any expense", () => {
+    const expenses = [exp("e1", 300, A.id, [A.id, B.id], "Lunch")];
+    const result = personBreakdown(C.id, expenses);
+    expect(result.paid).toBe(0);
+    expect(result.share).toBe(0);
+    expect(result.net).toBe(0);
+    expect(result.contributions).toEqual([]);
+  });
+
+  it("records paid amount when person is the payer", () => {
+    // Alice pays ₹300; she + Bob each share ₹150.
+    const expenses = [exp("e1", 300, A.id, [A.id, B.id], "Lunch")];
+    const result = personBreakdown(A.id, expenses);
+    expect(result.paid).toBe(300);
+    expect(result.share).toBe(150);
+    expect(result.net).toBe(150);
+    expect(result.contributions).toHaveLength(1);
+    expect(result.contributions[0]).toMatchObject({
+      expenseId: "e1",
+      description: "Lunch",
+      paid: 300,
+      share: 150,
+      net: 150,
+    });
+  });
+
+  it("records share-only when person is sharer but not payer", () => {
+    const expenses = [exp("e1", 300, A.id, [A.id, B.id], "Lunch")];
+    const result = personBreakdown(B.id, expenses);
+    expect(result.paid).toBe(0);
+    expect(result.share).toBe(150);
+    expect(result.net).toBe(-150);
+  });
+
+  it("aggregates across multiple expenses correctly", () => {
+    const expenses = [
+      exp("e1", 600, A.id, [A.id, B.id, C.id], "Dinner"), // A pays 600, share 200 each
+      exp("e2", 300, C.id, [A.id, C.id], "Coffee"), // C pays 300, share 150 each
+    ];
+    const a = personBreakdown(A.id, expenses);
+    expect(a.paid).toBe(600);
+    expect(a.share).toBe(350); // 200 + 150
+    expect(a.net).toBe(250);
+    expect(a.contributions).toHaveLength(2);
+  });
+
+  it("net per-person sums match calculateBalances", () => {
+    // Property check: the breakdown's net should equal the balance for any
+    // person — they're computed from the same source by definition.
+    const expenses = [
+      exp("e1", 600, A.id, [A.id, B.id, C.id], "Dinner"),
+      exp("e2", 300, C.id, [A.id, B.id, C.id], "Coffee"),
+      exp("e3", 240, B.id, [A.id, B.id], "Cab"),
+    ];
+    const balances = calculateBalances([A, B, C], expenses);
+    for (const b of balances) {
+      const bd = personBreakdown(b.personId, expenses);
+      expect(bd.net).toBeCloseTo(b.amount, 2);
+    }
+  });
+
+  it("drops expenses where person had no involvement", () => {
+    const expenses = [
+      exp("e1", 200, A.id, [A.id, B.id], "Pizza"),
+      exp("e2", 300, C.id, [C.id, D.id], "Movie"), // A not involved
+    ];
+    const a = personBreakdown(A.id, expenses);
+    expect(a.contributions).toHaveLength(1);
+    expect(a.contributions[0].expenseId).toBe("e1");
   });
 });

@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, Loader2, Trash2 } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
-import type { TripSummary } from "@/lib/calculators/trip-split";
+import {
+  personBreakdown,
+  type Expense as TripExpense,
+  type TripSummary,
+} from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
@@ -120,11 +124,15 @@ export function BalancesView({
   summary,
   memberById,
   recorded,
+  tripExpenses,
 }: {
   groupId: string;
   summary: TripSummary;
   memberById: Map<string, { id: string; name: string }>;
   recorded: RecordedSettlement[];
+  /** Raw expense ledger — used by the "Why?" expander to show how each
+   *  simplified-payment row derived from per-person paid vs. share. */
+  tripExpenses: TripExpense[];
 }) {
   const utils = trpc.useUtils();
   const recordMutation = trpc.settlements.create.useMutation({
@@ -245,6 +253,7 @@ export function BalancesView({
           groupId={groupId}
           submitRecord={submitRecord}
           recordPending={recordMutation.isPending}
+          tripExpenses={tripExpenses}
         />
       )}
       {recorded.length > 0 && (
@@ -328,6 +337,7 @@ function SuggestedPayments({
   groupId,
   submitRecord,
   recordPending,
+  tripExpenses,
 }: {
   summary: TripSummary;
   memberById: Map<string, { id: string; name: string }>;
@@ -339,8 +349,12 @@ function SuggestedPayments({
     amount: number;
   }) => Promise<{ queued: boolean }>;
   recordPending: boolean;
+  tripExpenses: TripExpense[];
 }) {
   const [mode, setMode] = useState<SettleMode>("simplified");
+  // Track which simplified row's "Why?" expander is open. Pairwise rows
+  // don't need the explainer — those are the underlying debts already.
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const list =
     mode === "simplified" ? summary.settlements : summary.pairwiseSettlements;
   if (list.length === 0) {
@@ -413,9 +427,11 @@ function SuggestedPayments({
         {list.map((s, idx) => {
           const fromName = memberById.get(s.fromPersonId)?.name ?? "?";
           const toName = memberById.get(s.toPersonId)?.name ?? "?";
+          const rowKey = `${mode}-${s.fromPersonId}-${s.toPersonId}-${idx}`;
+          const isExpanded = expandedKey === rowKey;
           return (
             <li
-              key={`${mode}-${s.fromPersonId}-${s.toPersonId}-${idx}`}
+              key={rowKey}
               className="rounded-xl border border-slate-200 bg-white p-3 text-sm dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="flex items-center justify-between gap-3">
@@ -428,37 +444,185 @@ function SuggestedPayments({
                   {formatINR(s.amount, 0)}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const { queued } = await submitRecord({
-                      groupId,
-                      fromUserId: s.fromPersonId,
-                      toUserId: s.toPersonId,
-                      amount: s.amount,
-                    });
-                    if (!queued) toast.success("Settlement recorded");
-                  } catch (err) {
-                    toast.error(
-                      err instanceof Error ? err.message : "Failed",
-                    );
-                  }
-                }}
-                disabled={recordPending}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
-              >
-                {recordPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <Check className="h-3.5 w-3.5" aria-hidden />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const { queued } = await submitRecord({
+                        groupId,
+                        fromUserId: s.fromPersonId,
+                        toUserId: s.toPersonId,
+                        amount: s.amount,
+                      });
+                      if (!queued) toast.success("Settlement recorded");
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error ? err.message : "Failed",
+                      );
+                    }
+                  }}
+                  disabled={recordPending}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
+                >
+                  {recordPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  Mark as paid
+                </button>
+                {/* "Why?" only for simplified — pairwise debts are
+                    already the underlying transactions. */}
+                {mode === "simplified" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedKey(isExpanded ? null : rowKey)
+                    }
+                    aria-expanded={isExpanded}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    Why?
+                    <ChevronDown
+                      className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                      aria-hidden
+                    />
+                  </button>
                 )}
-                Mark as paid
-              </button>
+              </div>
+              {isExpanded && mode === "simplified" && (
+                <WhyExpander
+                  fromName={fromName}
+                  toName={toName}
+                  fromBreakdown={personBreakdown(s.fromPersonId, tripExpenses)}
+                  toBreakdown={personBreakdown(s.toPersonId, tripExpenses)}
+                  amount={s.amount}
+                />
+              )}
             </li>
           );
         })}
       </ul>
     </section>
+  );
+}
+
+/**
+ * Per-row "Why?" panel — opens beneath a simplified-payment row to
+ * explain how the amount was derived. Honest first-principles math:
+ *   debtor.net  = paid − share  (negative number = owes)
+ *   creditor.net = paid − share  (positive number = is owed)
+ *   transfer = min(|debtor.net|, creditor.net)
+ *
+ * We don't try to walk the greedy algorithm's intermediate transfers
+ * (debtor → middleman → creditor) — those are an implementation detail
+ * that doesn't help users trust the math. The two breakdowns + their
+ * net amounts cancelling out is the cleanest explanation.
+ */
+function WhyExpander({
+  fromName,
+  toName,
+  fromBreakdown,
+  toBreakdown,
+  amount,
+}: {
+  fromName: string;
+  toName: string;
+  fromBreakdown: ReturnType<typeof personBreakdown>;
+  toBreakdown: ReturnType<typeof personBreakdown>;
+  amount: number;
+}) {
+  return (
+    <div className="mt-3 space-y-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-[12px] dark:border-slate-800 dark:bg-slate-800/40">
+      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        How {formatINR(amount, 0)} was derived — each person&apos;s net
+        balance from the expense ledger:
+      </p>
+
+      <PersonBreakdownBlock
+        name={fromName}
+        breakdown={fromBreakdown}
+        role="debtor"
+      />
+      <PersonBreakdownBlock
+        name={toName}
+        breakdown={toBreakdown}
+        role="creditor"
+      />
+
+      <p className="border-t border-slate-200 pt-2 text-[11px] text-slate-600 dark:border-slate-700 dark:text-slate-300">
+        {fromName}&apos;s {formatINR(Math.abs(fromBreakdown.net), 0)} debt
+        cancels with {toName}&apos;s {formatINR(toBreakdown.net, 0)} surplus
+        through this {formatINR(amount, 0)} transfer.
+      </p>
+    </div>
+  );
+}
+
+function PersonBreakdownBlock({
+  name,
+  breakdown,
+  role,
+}: {
+  name: string;
+  breakdown: ReturnType<typeof personBreakdown>;
+  role: "debtor" | "creditor";
+}) {
+  const netLabel =
+    role === "debtor"
+      ? `owes ${formatINR(Math.abs(breakdown.net), 0)}`
+      : `is owed ${formatINR(breakdown.net, 0)}`;
+  const tone =
+    role === "debtor"
+      ? "text-rose-700 dark:text-rose-400"
+      : "text-emerald-700 dark:text-emerald-400";
+  return (
+    <div>
+      <p className="font-semibold">
+        {name} <span className={`font-medium ${tone}`}>· {netLabel}</span>
+      </p>
+      <ul className="mt-1 space-y-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+        <li className="flex justify-between gap-2 tabular-nums">
+          <span>Paid out</span>
+          <span>{formatINR(breakdown.paid, 0)}</span>
+        </li>
+        <li className="flex justify-between gap-2 tabular-nums">
+          <span>Share of expenses</span>
+          <span>{formatINR(breakdown.share, 0)}</span>
+        </li>
+        <li className="flex justify-between gap-2 border-t border-slate-200 pt-0.5 font-semibold tabular-nums dark:border-slate-700">
+          <span>Net</span>
+          <span className={tone}>
+            {breakdown.net >= 0 ? "+" : "−"}
+            {formatINR(Math.abs(breakdown.net), 0)}
+          </span>
+        </li>
+      </ul>
+      {breakdown.contributions.length > 0 && (
+        <details className="mt-1.5">
+          <summary className="cursor-pointer text-[10.5px] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+            From {breakdown.contributions.length} expense
+            {breakdown.contributions.length === 1 ? "" : "s"}
+          </summary>
+          <ul className="mt-1 space-y-0.5 pl-2 text-[10.5px] text-slate-500 dark:text-slate-400">
+            {breakdown.contributions.map((c) => (
+              <li
+                key={c.expenseId}
+                className="flex justify-between gap-2 tabular-nums"
+              >
+                <span className="truncate">
+                  {c.description || "(no description)"}
+                </span>
+                <span>
+                  {c.net >= 0 ? "+" : "−"}
+                  {formatINR(Math.abs(c.net), 0)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
   );
 }

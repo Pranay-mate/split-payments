@@ -95,6 +95,64 @@ export function calculateBalances(
 }
 
 /**
+ * Per-person breakdown — how a single person's net balance was built
+ * from the expense ledger. Used by the "Why?" expander on simplified
+ * settlements: surfacing these two numbers (paid vs. share) explains
+ * where the debt came from in honest first-principles terms — no need
+ * to walk the greedy algorithm's intermediate transfers.
+ *
+ *   net = paid − share
+ *
+ * `contributions` is the per-expense slice for users who want to drill
+ * deeper. Each row holds:
+ *   { description, paid, share, net }
+ * where `paid` is the full amount if this person was the payer (else 0),
+ * `share` is their split row from that expense (0 if they weren't a
+ * sharer), and `net = paid − share`. Rows where both are 0 are dropped.
+ */
+export type PersonBreakdown = {
+  paid: number;
+  share: number;
+  net: number;
+  contributions: Array<{
+    expenseId: string;
+    description: string;
+    paid: number;
+    share: number;
+    net: number;
+  }>;
+};
+
+export function personBreakdown(
+  personId: string,
+  expenses: Expense[],
+): PersonBreakdown {
+  let paid = 0;
+  let share = 0;
+  const contributions: PersonBreakdown["contributions"] = [];
+  for (const e of expenses) {
+    const p = e.payerId === personId ? e.amount : 0;
+    const s = e.splits.find((x) => x.personId === personId)?.amount ?? 0;
+    if (p === 0 && s === 0) continue;
+    paid += p;
+    share += s;
+    contributions.push({
+      expenseId: e.id,
+      description: e.description,
+      paid: round2(p),
+      share: round2(s),
+      net: round2(p - s),
+    });
+  }
+  return {
+    paid: round2(paid),
+    share: round2(share),
+    net: round2(paid - share),
+    contributions,
+  };
+}
+
+/**
  * Greedy debt minimiser. Pairs largest creditor with largest debtor each
  * iteration. ≤ N − 1 transfers for N non-zero balances.
  */
