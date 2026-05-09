@@ -162,27 +162,27 @@ export function GroupCharts({
           {formatINR(totals.total, 0)}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-          <div className="rounded-lg bg-white/15 px-3 py-2 backdrop-blur">
+          <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
             <p className="text-[10px] uppercase tracking-wider text-white/70">
               Expenses
             </p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums">
+            <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
               {totals.count}
             </p>
           </div>
-          <div className="rounded-lg bg-white/15 px-3 py-2 backdrop-blur">
+          <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
             <p className="text-[10px] uppercase tracking-wider text-white/70">
               Active days
             </p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums">
+            <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
               {totals.days}
             </p>
           </div>
-          <div className="rounded-lg bg-white/15 px-3 py-2 backdrop-blur">
+          <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
             <p className="text-[10px] uppercase tracking-wider text-white/70">
               Daily avg
             </p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums">
+            <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
               {formatINR(totals.dailyAvg, 0)}
             </p>
           </div>

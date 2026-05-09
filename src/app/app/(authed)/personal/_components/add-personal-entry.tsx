@@ -204,7 +204,7 @@ export function AddPersonalEntry({
                 type="button"
                 onClick={() => setType(t)}
                 aria-pressed={active}
-                className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition ${
+                className={`flex items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-xs font-medium transition sm:gap-1.5 sm:px-2 sm:text-sm ${
                   active
                     ? t === "income"
                       ? "bg-green-500 text-white"
@@ -215,7 +215,7 @@ export function AddPersonalEntry({
                 }`}
               >
                 <span aria-hidden>{meta.emoji}</span>
-                {meta.label}
+                <span className="truncate">{meta.label}</span>
               </button>
             );
           })}

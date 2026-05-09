@@ -349,12 +349,12 @@ function SuggestedPayments({
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-5 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Suggested payments
         </h2>
         <div
-          className="inline-flex rounded-full border border-slate-200 bg-white p-0.5 text-[11px] font-medium dark:border-slate-700 dark:bg-slate-900"
+          className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white p-0.5 text-[11px] font-medium dark:border-slate-700 dark:bg-slate-900"
           role="tablist"
           aria-label="Settlement view"
         >

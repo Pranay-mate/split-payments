@@ -152,7 +152,7 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
             <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
               Financial Health Score
             </p>
-            <div className="mt-1 flex items-baseline gap-3">
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
               <p className="text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
                 {score.total}
                 <span className="ml-1 text-xl font-medium text-white/70">
@@ -161,7 +161,7 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
               </p>
               {summary.delta !== null && summary.delta !== 0 && (
                 <span
-                  className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
                     summary.delta > 0
                       ? "bg-white/20 text-white"
                       : "bg-black/20 text-white/95"
