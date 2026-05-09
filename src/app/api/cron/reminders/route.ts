@@ -14,16 +14,20 @@
 
 import { NextResponse } from "next/server";
 import webpush from "web-push";
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   expenseSplits,
   expenses,
   groupMembers,
   groups,
+  personalEntries,
   pushSubscriptions,
   settlements,
 } from "@/lib/db/schema";
+import { decryptAmount } from "@/lib/encryption";
+import { detectAnomalies } from "@/lib/anomaly-detect";
+import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,11 +47,12 @@ type SubscriptionRow = {
   p256dh: string;
   auth: string;
   preferences: string;
+  lastNotifiedAt: Date | null;
 };
 
 async function sendOne(
   sub: SubscriptionRow,
-  payload: { title: string; body: string; url?: string },
+  payload: { title: string; body: string; url?: string; tag?: string },
 ): Promise<"sent" | "expired" | "error"> {
   try {
     await webpush.sendNotification(
@@ -95,19 +100,100 @@ export async function GET(request: Request) {
   let errors = 0;
   let skipped = 0;
 
-  // Compute per-user "amount you owe across all groups, older than 7 days".
-  // Simplistic: look at expense_splits where the user is on the hook (not the
-  // payer of the underlying expense) and the expense is older than 7 days,
-  // minus what they've paid back via settlements.
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const personalRangeStart = new Date(
+    now.getFullYear(),
+    now.getMonth() - 6,
+    1,
+  );
+  const personalRangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   for (const sub of subs) {
-    let prefs: { balanceReminders?: boolean } = {};
+    let prefs: {
+      balanceReminders?: boolean;
+      spendingAnomalies?: boolean;
+    } = {};
     try {
       prefs = JSON.parse(sub.preferences);
     } catch {
-      // empty preferences = default-on
+      // empty preferences = default-on for both
     }
+
+    // Throttle: at most one push per subscription per 7 days. Keeps the
+    // promise of "we won't spam" — applies across both alert types.
+    if (
+      sub.lastNotifiedAt &&
+      now.getTime() - new Date(sub.lastNotifiedAt).getTime() <
+        7 * 24 * 60 * 60 * 1000
+    ) {
+      skipped++;
+      continue;
+    }
+
+    // ── Anomaly pass (runs first; more time-sensitive than balance reminders) ──
+    if (prefs.spendingAnomalies !== false) {
+      const personalRows = await db
+        .select({
+          category: personalEntries.category,
+          amount: personalEntries.amount,
+          occurredAt: personalEntries.occurredAt,
+        })
+        .from(personalEntries)
+        .where(
+          and(
+            eq(personalEntries.userId, sub.userId),
+            isNull(personalEntries.deletedAt),
+            eq(personalEntries.type, "expense"),
+            gte(personalEntries.occurredAt, personalRangeStart),
+            lt(personalEntries.occurredAt, personalRangeEnd),
+          ),
+        );
+      if (personalRows.length > 0) {
+        const decrypted = personalRows.map((r) => {
+          const d = new Date(r.occurredAt);
+          const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          let amount = 0;
+          try {
+            amount = decryptAmount(r.amount);
+          } catch {
+            // Ciphertext from a different key (key rotation, etc) — skip.
+          }
+          return { monthKey, category: r.category, amount };
+        });
+        const anomalies = detectAnomalies(decrypted, currentMonthKey);
+        if (anomalies.length > 0) {
+          const top = anomalies[0];
+          const meta = CATEGORIES[toCategoryKey(top.category)];
+          const pct = Math.round(top.severity * 100);
+          const result = await sendOne(sub, {
+            title: `${meta.emoji} ${meta.label} up ${pct}% this month`,
+            body: `Currently ₹${Math.round(top.current).toLocaleString("en-IN")} (usual: ₹${Math.round(top.baseline).toLocaleString("en-IN")}). Anything off?`,
+            url: "/app/personal",
+            tag: "easysplits-anomaly",
+          });
+          if (result === "sent") {
+            sent++;
+            await db
+              .update(pushSubscriptions)
+              .set({ lastNotifiedAt: new Date() })
+              .where(eq(pushSubscriptions.id, sub.id));
+            continue; // don't also send the balance reminder
+          } else if (result === "expired") {
+            expired++;
+            await db
+              .delete(pushSubscriptions)
+              .where(eq(pushSubscriptions.id, sub.id));
+            continue;
+          } else {
+            errors++;
+          }
+        }
+      }
+    }
+
+    // ── Balance-reminder pass ──
     if (prefs.balanceReminders === false) {
       skipped++;
       continue;

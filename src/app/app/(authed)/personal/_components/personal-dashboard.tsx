@@ -19,6 +19,7 @@ import { trpc } from "@/lib/trpc/client";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
 import { AddPersonalEntry, type EntryType } from "./add-personal-entry";
+import { AnomalyBanner } from "./anomaly-banner";
 import { Scorecard } from "./scorecard";
 
 const PersonalCharts = dynamic(
@@ -194,6 +195,9 @@ export function PersonalDashboard() {
             </p>
           )}
         </section>
+
+        {/* Anomaly heads-up — only renders when there's something to flag */}
+        <AnomalyBanner />
 
         {/* Scorecard — the differentiator */}
         <Scorecard

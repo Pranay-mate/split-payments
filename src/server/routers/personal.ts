@@ -12,6 +12,7 @@ import {
   encryptValue,
 } from "@/lib/encryption";
 import { computeScore, type ScoreInputs } from "@/lib/financial-score";
+import { detectAnomalies } from "@/lib/anomaly-detect";
 
 const typeSchema = z.enum(["income", "expense", "investment"]);
 const categorySchema = z.enum(CATEGORY_KEYS);
@@ -375,6 +376,48 @@ export const personalRouter = router({
             ) / 100,
         }));
     }),
+
+  /**
+   * Detect spending anomalies in the current month — categories where
+   * spend is meaningfully above the user's own historical average. Used
+   * by the dashboard banner and by the cron's anomaly-push pass.
+   */
+  anomalies: protectedProcedure.query(async ({ ctx }) => {
+    // Pull the last 7 months of expense entries (current + 6 baseline).
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const rows = await db
+      .select({
+        category: personalEntries.category,
+        amount: personalEntries.amount,
+        occurredAt: personalEntries.occurredAt,
+      })
+      .from(personalEntries)
+      .where(
+        and(
+          eq(personalEntries.userId, ctx.user.id),
+          isNull(personalEntries.deletedAt),
+          eq(personalEntries.type, "expense"),
+          gte(personalEntries.occurredAt, start),
+          lt(personalEntries.occurredAt, end),
+        ),
+      );
+
+    const decryptedEntries = rows.map((r) => {
+      const d = new Date(r.occurredAt);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return {
+        monthKey,
+        category: r.category,
+        amount: decryptAmount(r.amount),
+      };
+    });
+
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return detectAnomalies(decryptedEntries, currentMonthKey);
+  }),
 
   /** List of months the user has any entry in — populates a month picker. */
   availableMonths: protectedProcedure.query(async ({ ctx }) => {
