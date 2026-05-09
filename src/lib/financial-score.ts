@@ -43,6 +43,11 @@ export type Pillar = {
   /** Concrete action to bump this pillar by ~+5pts. Drives the
    *  "What's missing for +X points" UX. */
   nextAction: string | null;
+  /** Indian-household benchmark for context — surfaced as "vs. typical
+   *  Indian household" italic line under each pillar. Static numbers
+   *  cited from NCAER/RBI/IRDAI/NSO; not fetched. See PEER_CITATIONS
+   *  below for the source list. */
+  peerBaseline: string;
 };
 
 export type ScoreResult = {
@@ -72,6 +77,9 @@ function bandFor(total: number): ScoreResult["band"] {
  *   Target months = 6 (stable employment) or 9 (freelance).
  *   Score scales linearly to that target; cap at target.
  */
+const EMERGENCY_BASELINE =
+  "Typical Indian household: ~1.5 months of expenses in liquid savings (RBI Household Finance Committee, 2017).";
+
 function emergencyPillar(i: ScoreInputs): Pillar {
   const target = i.isFreelancer ? 9 : 6;
   if (!i.liquidSavings || !i.monthlyExpenses || i.monthlyExpenses <= 0) {
@@ -82,6 +90,7 @@ function emergencyPillar(i: ScoreInputs): Pillar {
       score: 0,
       message: "Tell us your monthly expenses and savings to score this.",
       nextAction: "Add your monthly expenses + liquid savings",
+      peerBaseline: EMERGENCY_BASELINE,
     };
   }
   const months = i.liquidSavings / i.monthlyExpenses;
@@ -94,6 +103,7 @@ function emergencyPillar(i: ScoreInputs): Pillar {
       score: 20,
       message: `${months.toFixed(1)} months covered — past your ${target}-month target. 🎯`,
       nextAction: null,
+      peerBaseline: EMERGENCY_BASELINE,
     };
   }
   const monthsToGo = Math.max(0, target - months);
@@ -108,6 +118,7 @@ function emergencyPillar(i: ScoreInputs): Pillar {
       rupeesNeeded > 0
         ? `Add ₹${rupeesNeeded.toLocaleString("en-IN")} to liquid savings`
         : null,
+    peerBaseline: EMERGENCY_BASELINE,
   };
 }
 
@@ -185,6 +196,8 @@ function insurancePillar(i: ScoreInputs): Pillar {
     score,
     message: `${termMessage} ${healthMessage}`.trim(),
     nextAction,
+    peerBaseline:
+      "Typical Indian: ~3% have term life cover (IRDAI, FY23); avg health cover ₹4–5L vs ₹15L target (Policybazaar, 2024).",
   };
 }
 
@@ -235,6 +248,8 @@ function debtPillar(i: ScoreInputs): Pillar {
     score,
     message: `${emiMessage} ${ccMessage}`.trim(),
     nextAction,
+    peerBaseline:
+      "Indian household debt ≈ 40% of GDP; median EMI/income ≈ 25–30% (RBI Financial Stability Report, 2024).",
   };
 }
 
@@ -255,6 +270,8 @@ function savingsRatePillar(i: ScoreInputs): Pillar {
       score: 0,
       message: "Add your income + expenses to score this.",
       nextAction: "Fill in monthly income + expenses",
+      peerBaseline:
+        "Indian household net savings rate ≈ 18–21% of disposable income (NSO, FY23).",
     };
   }
   const saved = i.monthlyIncome - i.monthlyExpenses;
@@ -285,6 +302,8 @@ function savingsRatePillar(i: ScoreInputs): Pillar {
     score,
     message,
     nextAction,
+    peerBaseline:
+      "Indian household net savings rate ≈ 18–21% of disposable income (NSO, FY23).",
   };
 }
 
@@ -377,6 +396,8 @@ function investingPillar(i: ScoreInputs): Pillar {
     score,
     message: `${balanceMessage} ${sipMessage}`.trim(),
     nextAction,
+    peerBaseline:
+      "Only ~5% of Indians invest in equity directly; SIP book grew to ₹26,400 cr/mo by FY25 (NSE, AMFI, 2025).",
   };
 }
 
@@ -388,6 +409,19 @@ function investingPillar(i: ScoreInputs): Pillar {
  * income, monthly expenses, term/health cover (or hasDependents=false
  * for the term half), and either liquidSavings or investmentBalance.
  */
+/**
+ * Sources for the peerBaseline strings on each pillar — referenced by
+ * the scorecard footer so users can verify the numbers. Kept short:
+ * we cite the institution + year, not full paper titles.
+ */
+export const PEER_CITATIONS = [
+  "RBI Household Finance Committee (Indian Household Finance), 2017",
+  "RBI Financial Stability Report, 2024",
+  "NSO Household Savings (PFCE-vs-disposable-income), FY23",
+  "IRDAI Annual Report on insurance penetration, FY23",
+  "AMFI/NSE SIP and equity-participation figures, 2025",
+] as const;
+
 export function computeScore(inputs: ScoreInputs): ScoreResult {
   const pillars: Pillar[] = [
     emergencyPillar(inputs),

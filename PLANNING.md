@@ -229,6 +229,7 @@
 | `personal_entries` (id, user_id, type, amount [encrypted], currency, category, description [encrypted], occurred_at, soft-delete) | ✅ shipped (v1.1) |
 | `financial_profiles` (id, user_id UNIQUE, age, retirement_age, isFreelancer, hasDependents, hasCcCarryover, monthly_income/expenses/savings/term/health/emi/investment_balance/monthly_investment [all encrypted], completed_at) | ✅ shipped (v3 + v3.6) |
 | `score_snapshots` (id, user_id, total, band, pillar_scores JSON, snapshotted_at) — append-only history | ✅ shipped (v4.0) |
+| `financial_goals` (id, user_id, goal_kind=pillar\|total, pillar_key, label, target_score, target_date, current_value, completed_at, archived_at) — pillar 0..20 / total 0..100 targets, no encryption | ✅ shipped (v4.2) |
 | `personal_recurrences` (auto-fill salary/rent/SIP on schedule) | ⬜ deferred |
 | `personal_holdings` (MF/FD/stock positions) | ⬜ Phase 3 |
 
@@ -253,15 +254,14 @@
 | **v3.5** | Anomaly alerts (banner + push, ≥50% category deviation) | ✅ |
 | **v3.6** | Age-based investing target + retirement-age glide · single-page wizard rebuild | ✅ |
 | **v4.0** | Score history snapshots · trajectory area chart · delta indicator · streak badge · gap-first pillars (max-pillars collapse) | ✅ |
+| **v4.1** | Achievement badges (Safety Net · Well Insured · Debt Free · Power Saver · Compounder · Green Band · +10 Improvement · Consistent Green) · per-pillar mini-sparklines (inline SVG, no recharts) | ✅ |
+| **v4.2** | Goals system — pillar/total score targets with optional target date · progress bar refreshed on profile re-submit · 6 quick-pick templates + custom date · auto-flips `completed_at` on first crossing | ✅ |
+| **v4.3** | Indian peer benchmarks — NCAER/RBI/IRDAI/NSO/AMFI baseline numbers cited under each pillar message + sources expander in scorecard footer | ✅ |
 | **v4.4** | "Send test notification" button in Reminders settings — bypasses 7-day throttle + qualifying-data check, prunes 410-Gone subscriptions inline | ✅ shipped (commit `e70d717`) |
 
 ### Active queue (next push)
 
-| Sub-version | What | Effort |
-|---|---|---|
-| **v4.1** | Achievement badges ("First 6mo emergency fund hit") · per-pillar mini-sparklines beside each ring | ~3h |
-| **v4.2** | Goals system — set "raise health cover to ₹15L by Aug 2026" · progress bar that updates on profile re-submits · saved goal list | ~3h |
-| **v4.3** | Indian peer benchmarks — NCAER/RBI baseline numbers cited beside each pillar ("Your 71% savings rate is well above the Indian household ~20%") | ~1h |
+_(Empty — v4.0 → v4.4 all shipped 2026-05-09. Next candidates: v4.5 mute-category for anomaly alerts, 2-alerts-per-month rate cap, `/insights` dedicated route. None blocking.)_
 
 ### Effort spent
 

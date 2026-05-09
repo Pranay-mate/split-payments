@@ -480,3 +480,58 @@ export const scoreSnapshots = pgTable(
 );
 
 export type ScoreSnapshot = typeof scoreSnapshots.$inferSelect;
+
+/**
+ * Financial goals (Phase 2.5 v4.2). User-defined milestones tied to
+ * either a single pillar score (0..20) or the total score (0..100).
+ *
+ * Why pillar/total scores rather than raw money targets? Three reasons:
+ *   1. No encryption boundary — target_score is not value-sensitive.
+ *   2. Progress is trivially derived from existing score_snapshots.
+ *   3. Side-steps "what currency, what unit" UX ("₹15L health cover" vs
+ *      "20% savings rate" vs "6 months emergency fund") — every pillar
+ *      already encodes those rules of thumb in its 0..20 scoring.
+ *
+ * goalKind:
+ *   "pillar" — target_score is 0..20 (and pillar_key is set)
+ *   "total"  — target_score is 0..100 (and pillar_key is null)
+ *
+ * current_value is snapshotted on every profile.upsert(markCompleted=true)
+ * so we don't need to recompute scores when listing goals. completed_at
+ * is auto-set the first time current_value crosses target_score.
+ */
+export const financialGoals = pgTable(
+  "financial_goals",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** "pillar" | "total" */
+    goalKind: text("goal_kind").notNull(),
+    /** "emergency" | "insurance" | "debt" | "savingsRate" | "investing" — null when goalKind = "total" */
+    pillarKey: text("pillar_key"),
+    /** User-facing description — autopopulated from a template, editable. */
+    label: text("label").notNull(),
+    /** Pillar goals: 0..20. Total goals: 0..100. */
+    targetScore: integer("target_score").notNull(),
+    /** Optional self-imposed deadline. Used to compute "behind/on track". */
+    targetDate: timestamp("target_date", { withTimezone: true }),
+    /** Latest known score for this pillar/total — updated on profile upsert. */
+    currentValue: integer("current_value").notNull().default(0),
+    /** Set the first time current_value >= target_score. */
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    /** Soft-archive — user dismissed the goal but we keep it for history. */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("financial_goals_user_idx").on(t.userId),
+    index("financial_goals_user_active_idx").on(t.userId, t.archivedAt),
+  ],
+);
+
+export type FinancialGoal = typeof financialGoals.$inferSelect;

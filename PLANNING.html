@@ -242,9 +242,6 @@
   <table><tbody>
     <tr><td class="task">Categories (7 predefined buckets — done in 1.C)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task"><strong>Charts &amp; visualisations</strong> (Recharts, lazy-loaded; redesigned with hero KPI + donut + area + custom payer list)</td><td class="status"><span class="status-cell"><span class="dot in-progress"></span>shipped · needs manual verify</span></td></tr>
-    <tr><td class="task">↳ Per-member contribution bar at top of group page</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">↳ Balance bars (green = gets · red = owes) replacing text rows</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
-    <tr><td class="task">↳ Settlement progress ring ("65% settled")</td><td class="status"><span class="status-cell"><span class="dot todo"></span>not started</span></td></tr>
     <tr><td class="task">↳ Per-member contribution bar at top of group page</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">↳ Balance bars (green = gets · red = owes) replacing text rows</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task">↳ Settlement progress ring (% settled)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
@@ -284,44 +281,49 @@
     <tr><td class="task"><strong>v3.5</strong> — anomaly alerts (banner + push, ≥50% category deviation)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task"><strong>v3.6</strong> — age-based investing target with retirement_age glide · single-page wizard rebuild</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task"><strong>v4.0</strong> — score history snapshots · trajectory chart · delta indicator · streak badge · gap-first pillars</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v4.1</strong> — Achievement badges (8 badges from snapshot history) · per-pillar mini-sparklines (inline SVG, no recharts)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v4.2</strong> — Goals system · pillar/total score targets · 6 quick-pick templates + optional date · progress bar refreshed on profile re-submit</td><td class="status"><span class="status-cell"><span class="dot done"></span>done · needs db migration</span></td></tr>
+    <tr><td class="task"><strong>v4.3</strong> — Indian peer benchmarks (NCAER · RBI · IRDAI · NSO · AMFI cited under each pillar + sources expander)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task"><strong>v4.4</strong> — "Send test notification" button (Reminders settings) — bypasses 7-day throttle + qualifying-data check, prunes 410-Gone subscriptions inline</td><td class="status"><span class="status-cell"><span class="dot done"></span>done · commit e70d717</span></td></tr>
   </tbody></table>
 
   <h3>Active queue (next push)</h3>
-  <table><tbody>
-    <tr><td class="task"><strong>v4.1</strong> — Achievement badges ("First 6mo emergency fund hit") · per-pillar mini-sparklines beside each ring</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~3h</span></td></tr>
-    <tr><td class="task"><strong>v4.2</strong> — Goals system: "raise health cover to ₹15L by Aug 2026" · progress bar that updates on profile re-submits · saved goal list</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~3h</span></td></tr>
-    <tr><td class="task"><strong>v4.3</strong> — Indian peer benchmarks (NCAER/RBI baseline numbers cited beside each pillar)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~1h</span></td></tr>
-  </tbody></table>
+  <p class="meta"><em>Empty — v4.0 → v4.4 all shipped 2026-05-09. Next candidates: v4.5 mute-category for anomaly alerts, 2-alerts-per-month rate cap, <code>/insights</code> dedicated route. None blocking.</em></p>
 
   <h3>Locked decisions</h3>
   <table><tbody>
-    <tr><td class="task"><strong>Encryption</strong> — Option B: server-side field-level via <code>pgcrypto.PGP_SYM_ENCRYPT/DECRYPT</code> with key in <code>SUPABASE_SECRET_KEY</code>. Sensitive columns (income, savings, insurance, debt, term cover) stored as ciphertext. Server holds key for scoring/analytics/exports.</td><td class="status">🔒 locked 2026-05-09 · industry-standard for fintechs · NOT E2EE (developer can read for product features)</td></tr>
-    <tr><td class="task"><strong>Honest copy</strong> — Onboarding text: "Encrypted at the field level. Our database hosting provider can't read your data. We use it to compute your score and show you analytics. We never sell or share it with anyone."</td><td class="status">🔒 locked · NEVER claim "even we can't read it"</td></tr>
+    <tr><td class="task"><strong>Encryption</strong> — Option B: application-layer <strong>AES-256-GCM</strong> with key in <code>PFT_ENCRYPTION_KEY</code> env. Sensitive columns (amount + description on <code>personal_entries</code>; all amount columns on <code>financial_profiles</code>) stored as base64 ciphertext. Server holds the key, decrypts when needed for scoring/analytics/exports. <strong>Swapped from the originally-locked pgcrypto approach</strong> for simpler Drizzle integration + no Postgres-extension dependency; security guarantees identical.</td><td class="status">🔒 locked 2026-05-09 · industry-standard for fintechs · NOT E2EE</td></tr>
+    <tr><td class="task"><strong>Honest copy</strong> — Dashboard subtitle: <em>"🔐 Your salary is your secret. We encrypt every amount before storing — our database only ever sees scrambled text, not your numbers."</em> Wizard caption: <em>"🔐 We encrypt every amount before storing — our database only ever sees scrambled text."</em> Every word verifiable under Option B.</td><td class="status">🔒 locked · NEVER claim "even we can't read it"</td></tr>
     <tr><td class="task"><strong>Privacy isolation</strong> — Each user sees only their own entries (server filters by ctx.user.id every query)</td><td class="status">🔒 locked</td></tr>
     <tr><td class="task"><strong>Score logic</strong> — Lives server-side (depends on decrypted values); precludes future move to E2EE without rewrite</td><td class="status">🔒 locked</td></tr>
   </tbody></table>
-  <h3>Data model (proposed)</h3>
+
+  <h3>Data model — shipped ✅</h3>
   <table><tbody>
-    <tr><td class="task">New table: <code>personal_entries</code> (user_id, type=income/expense/investment, amount, currency, category, occurred_at, note, recurring_id?)</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task">New table: <code>personal_recurrences</code> (user_id, kind=salary/rent/sip/etc., schedule, next_due, amount, category)</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task">Optional: <code>personal_holdings</code> for investment tracking (mutual funds, FDs, stocks — symbol/AMC, units, NAV-as-of)</td><td class="status">⬜ phase 3 candidate</td></tr>
-    <tr><td class="task">Reuse existing <code>profiles</code>, <code>categories</code> (extend with Income, Investment, Tax)</td><td class="status">⬜ not started</td></tr>
+    <tr><td class="task"><code>personal_entries</code> (id, user_id, type, amount [encrypted], currency, category, description [encrypted], occurred_at, soft-delete)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v1.1)</span></td></tr>
+    <tr><td class="task"><code>financial_profiles</code> (id, user_id UNIQUE, age, retirement_age, isFreelancer, hasDependents, hasCcCarryover, monthly_income/expenses/savings/term/health/emi/investment_balance/monthly_investment [all encrypted], completed_at)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3 + v3.6)</span></td></tr>
+    <tr><td class="task"><code>score_snapshots</code> (id, user_id, total, band, pillar_scores JSON, snapshotted_at) — append-only history</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v4.0)</span></td></tr>
+    <tr><td class="task"><code>financial_goals</code> (id, user_id, goal_kind, pillar_key, label, target_score, target_date, current_value, completed_at, archived_at) — pillar 0..20 / total 0..100, no encryption</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v4.2)</span></td></tr>
+    <tr><td class="task"><code>personal_recurrences</code> (auto-fill salary/rent/SIP on schedule)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>deferred</span></td></tr>
+    <tr><td class="task"><code>personal_holdings</code> (MF/FD/stock positions, symbol/AMC, units, NAV-as-of)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>Phase 3 candidate</span></td></tr>
   </tbody></table>
-  <h3>Routes + UI (proposed)</h3>
+
+  <h3>Routes — shipped ✅</h3>
   <table><tbody>
-    <tr><td class="task"><code>/app/personal</code> — dashboard: this month's spend vs income, savings rate, top categories</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task"><code>/app/personal/transactions</code> — full ledger, by month, filters by category/type</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task"><code>/app/personal/insights</code> — auto-generated narratives ("food up 35% MoM", "savings rate 22%"), goal tracking</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task"><code>/app/personal/wealth</code> — net-worth tracker, investment positions, growth chart over time</td><td class="status">⬜ phase 3 candidate</td></tr>
+    <tr><td class="task"><code>/app/personal</code> — dashboard (hero KPI + scorecard + anomaly banner + top categories + add form + transactions list + charts toggle)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v1.0 → v4.0)</span></td></tr>
+    <tr><td class="task"><code>/app/personal/onboard</code> — single-page financial health scorecard wizard</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.0, redesigned single-page in v3.6)</span></td></tr>
+    <tr><td class="task"><code>/app/personal/transactions</code> — separate full-ledger view</td><td class="status"><span class="status-cell"><span class="dot todo"></span>deferred · current dashboard list paginates well at 5/page + Show all</span></td></tr>
+    <tr><td class="task"><code>/app/personal/insights</code> — auto-narratives</td><td class="status"><span class="status-cell"><span class="dot todo"></span>deferred · current insights inline on dashboard</span></td></tr>
+    <tr><td class="task"><code>/app/personal/wealth</code> — net-worth tracker, investment positions, growth chart</td><td class="status"><span class="status-cell"><span class="dot todo"></span>Phase 3 candidate</span></td></tr>
   </tbody></table>
-  <h3>Insights to surface (planned)</h3>
+
+  <h3>Insights surfaced — status</h3>
   <table><tbody>
-    <tr><td class="task">Monthly summary card — income · expenses · savings · savings %</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task">Category drift — &quot;Food spending +35% vs 6-month avg&quot;</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task">Recurring-vs-discretionary split (rent + bills + subs vs everything else)</td><td class="status">⬜ not started</td></tr>
-    <tr><td class="task">Wealth trajectory — net-worth chart, savings goal progress</td><td class="status">⬜ phase 3 candidate</td></tr>
-    <tr><td class="task">Smart nudges — &quot;You'd hit your goal 4mo earlier if you cut Entertainment by 20%&quot;</td><td class="status">⬜ phase 3 candidate (LLM-driven)</td></tr>
+    <tr><td class="task">Monthly summary card — income · expenses · savings · savings %</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v1.0 hero KPI)</span></td></tr>
+    <tr><td class="task">Category drift — &quot;Food up 60% this month&quot; (≥50% category deviation, ≥3 entries/mo gate)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5 anomaly alerts + push)</span></td></tr>
+    <tr><td class="task">Recurring-vs-discretionary split (rent + bills + subs vs everything else)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>deferred · needs <code>personal_recurrences</code></span></td></tr>
+    <tr><td class="task">Wealth trajectory — net-worth chart, savings goal progress</td><td class="status"><span class="status-cell"><span class="dot todo"></span>Phase 3 candidate</span></td></tr>
+    <tr><td class="task">Smart nudges — &quot;You'd hit your goal 4mo earlier if you cut Entertainment by 20%&quot;</td><td class="status"><span class="status-cell"><span class="dot todo"></span>Phase 3 candidate (LLM-driven)</span></td></tr>
   </tbody></table>
   <h3>Reused infra (free wins)</h3>
   <table><tbody>
@@ -331,7 +333,7 @@
     <tr><td class="task">Offline queue + clientEventId idempotency</td><td class="status">✅ existing</td></tr>
     <tr><td class="task">Auto-detect category (~150 keyword rules)</td><td class="status">✅ existing</td></tr>
   </tbody></table>
-  <p class="meta">Effort estimate: <strong>~2 weeks</strong> for v1 (transactions + dashboard + monthly insights). Wealth tracking is a separate Phase 3 push.</p>
+  <p class="meta">Original effort estimate: <strong>~2 weeks</strong> for v1. <strong>Actual: 1 day of focused build (2026-05-09)</strong> — v1.0 → v4.0 shipped same-day. Wealth tracking remains a separate Phase 3 push.</p>
 
   <h3>v3 — Financial Health Scorecard <span class="badge badge-ok">shipped</span></h3>
   <p class="meta">The differentiator. India has no good free tool for "am I doing well with my money?" — this fills the gap. Builds on top of v1 tracker data so we don't ask users to type "current monthly expenses" by hand.</p>
@@ -350,11 +352,12 @@
   <h3>v3.5 — Anomaly alerts <span class="badge badge-ok">shipped</span></h3>
   <p class="meta">Pairs with Phase 2.6 Reminder-nudges infrastructure (Web Push + service worker + Vercel Cron daily). Same plumbing, different message.</p>
   <table><tbody>
-    <tr><td class="task">Detect category-spend deviation &gt;50% from rolling 6-month average (only on categories with ≥3 entries/month)</td><td class="status">⬜ planned · depends on Phase 2.6</td></tr>
-    <tr><td class="task">Notification copy: "Food up 60% this month — anything off?" (amber not red, "hey look" not emergency)</td><td class="status">⬜ planned</td></tr>
-    <tr><td class="task">Cap 2 alerts/user/month · push + in-app banner · tap → drill into that category's month</td><td class="status">⬜ planned</td></tr>
-    <tr><td class="task">"Mute this category for 30 days" link on every alert</td><td class="status">⬜ planned</td></tr>
-    <tr><td class="task">Reuses Phase 2.6's <code>push_subscriptions</code> table + Vercel Cron endpoint (anomaly pass runs after unsettled-balance pass)</td><td class="status">⬜ planned</td></tr>
+    <tr><td class="task">Detect category-spend deviation &gt;50% from rolling 6-month average (only on categories with ≥3 entries/month)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5)</span></td></tr>
+    <tr><td class="task">Notification copy: "Food up 60% this month — anything off?" (amber not red, "hey look" not emergency)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5)</span></td></tr>
+    <tr><td class="task">Push + in-app banner · tap → drill into that category's month</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (push + banner)</span></td></tr>
+    <tr><td class="task">Cap 2 alerts/user/month rate-limit</td><td class="status"><span class="status-cell"><span class="dot todo"></span>add-on · not yet shipped</span></td></tr>
+    <tr><td class="task">"Mute this category for 30 days" link on every alert</td><td class="status"><span class="status-cell"><span class="dot todo"></span>add-on · not yet shipped</span></td></tr>
+    <tr><td class="task">Reuses Phase 2.6's <code>push_subscriptions</code> table + Vercel Cron endpoint (anomaly pass runs after unsettled-balance pass)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5 reuses Phase 2.6 plumbing)</span></td></tr>
   </tbody></table>
   <p class="meta"><strong>Effort:</strong> ~3h on top of Reminder nudges. The infrastructure does the heavy lifting; new bits are the rolling-average SQL + alert message templates.</p>
 
@@ -369,10 +372,10 @@
   </tbody></table>
   <p class="meta">Skipped: heatmap calendars · expense-by-member pie (redundant with balance bars) · time-series line for ongoing rent groups (noise).</p>
 
-  <h2>Phase 2.7 — Group balances polish <span class="badge">planned</span></h2>
-  <p class="meta">Suggested Payments today only ships the Simplified view (greedy debt-minimisation). Some users prefer paying back the person they actually transacted with — Pairwise gives them that option. "Why?" explains how a Simplified row was derived for users who want to verify or trust the math.</p>
+  <h2>Phase 2.7 — Group balances polish <span class="badge badge-ok">v1.0 shipped</span></h2>
+  <p class="meta">Suggested Payments originally only shipped the Simplified view (greedy debt-minimisation). Some users prefer paying back the person they actually transacted with — Pairwise gives them that option. "Why?" explains how a Simplified row was derived for users who want to verify or trust the math.</p>
   <table><tbody>
-    <tr><td class="task"><strong>v1.0</strong> — Simplified ⇄ Pairwise toggle. Default stays Simplified. Pairwise = net debt per (debtor, creditor) pair, applies recorded settlements, nets reverses.</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~1h</span></td></tr>
+    <tr><td class="task"><strong>v1.0</strong> — Simplified ⇄ Pairwise toggle. Default stays Simplified. Pairwise = net debt per (debtor, creditor) pair, applies recorded settlements, nets reverses. "Saves N transfers vs. pairwise" tip when applicable.</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (2026-05-09)</span></td></tr>
     <tr><td class="task"><strong>v1.1</strong> — "Why?" chain expander on each Simplified row, showing the underlying graph traversal that produced it.</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~1.5h</span></td></tr>
   </tbody></table>
   <p class="meta"><strong>Skipped:</strong> per-expense view (already covered by the expense list which shows splits per row).</p>

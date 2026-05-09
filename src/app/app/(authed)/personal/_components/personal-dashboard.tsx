@@ -20,6 +20,7 @@ import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
 import { AddPersonalEntry, type EntryType } from "./add-personal-entry";
 import { AnomalyBanner } from "./anomaly-banner";
+import { GoalsCard } from "./goals-card";
 import { Scorecard } from "./scorecard";
 
 const PersonalCharts = dynamic(
@@ -207,6 +208,11 @@ export function PersonalDashboard() {
           exists={profileQuery.data?.exists ?? false}
           loading={profileQuery.isLoading}
         />
+
+        {/* Goals — only meaningful once the profile exists */}
+        {profileQuery.data?.exists && profileQuery.data?.score?.hasEnoughData && (
+          <GoalsCard />
+        )}
 
         {/* Top categories */}
         {topCats.length > 0 && (

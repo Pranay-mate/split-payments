@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import {
+  financialGoals,
   financialProfiles,
   personalEntries,
   scoreSnapshots,
@@ -569,6 +570,35 @@ export const personalRouter = router({
               band: score.band,
               pillarScores: JSON.stringify(pillarScores),
             });
+
+            // Refresh active goals' current_value + completed_at so the
+            // goals card shows accurate progress without recomputing on
+            // every read. Only active (non-archived) goals are touched.
+            const active = await db
+              .select()
+              .from(financialGoals)
+              .where(
+                and(
+                  eq(financialGoals.userId, ctx.user.id),
+                  isNull(financialGoals.archivedAt),
+                ),
+              );
+            for (const g of active) {
+              const value =
+                g.goalKind === "total"
+                  ? score.total
+                  : pillarScores[g.pillarKey ?? ""] ?? 0;
+              const justCompleted =
+                g.completedAt === null && value >= g.targetScore;
+              await db
+                .update(financialGoals)
+                .set({
+                  currentValue: value,
+                  ...(justCompleted && { completedAt: new Date() }),
+                  updatedAt: new Date(),
+                })
+                .where(eq(financialGoals.id, g.id));
+            }
           }
         }
         return { ok: true };
@@ -605,6 +635,181 @@ export const personalRouter = router({
             }
           })(),
         }));
+      }),
+  }),
+
+  /**
+   * Financial goals (Phase 2.5 v4.2). User-defined milestones tied to
+   * pillar scores or the total score. CurrentValue is refreshed by
+   * profile.upsert on every Compute submit; goals.list just reads it.
+   */
+  goals: router({
+    list: protectedProcedure
+      .input(
+        z
+          .object({ includeArchived: z.boolean().default(false) })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const filters = [eq(financialGoals.userId, ctx.user.id)];
+        if (!input?.includeArchived) {
+          filters.push(isNull(financialGoals.archivedAt));
+        }
+        const rows = await db
+          .select()
+          .from(financialGoals)
+          .where(and(...filters))
+          .orderBy(asc(financialGoals.createdAt));
+        return rows.map((r) => ({
+          id: r.id,
+          goalKind: r.goalKind as "pillar" | "total",
+          pillarKey: r.pillarKey,
+          label: r.label,
+          targetScore: r.targetScore,
+          targetDate: r.targetDate,
+          currentValue: r.currentValue,
+          completedAt: r.completedAt,
+          archivedAt: r.archivedAt,
+          createdAt: r.createdAt,
+        }));
+      }),
+
+    create: protectedProcedure
+      .input(
+        z
+          .object({
+            goalKind: z.enum(["pillar", "total"]),
+            pillarKey: z
+              .enum(["emergency", "insurance", "debt", "savingsRate", "investing"])
+              .nullable(),
+            label: z.string().min(1).max(120),
+            targetScore: z.number().int().positive(),
+            targetDate: z.date().nullable(),
+          })
+          .refine(
+            (v) =>
+              v.goalKind === "total"
+                ? v.pillarKey === null && v.targetScore <= 100
+                : v.pillarKey !== null && v.targetScore <= 20,
+            "pillar goals need a pillarKey and target ≤20; total goals need null pillarKey and target ≤100",
+          ),
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Seed currentValue from the user's latest profile so the new
+        // goal already reflects today's progress (otherwise it'd show 0%
+        // until the user re-submits the wizard).
+        const [profile] = await db
+          .select()
+          .from(financialProfiles)
+          .where(eq(financialProfiles.userId, ctx.user.id))
+          .limit(1);
+        let currentValue = 0;
+        if (profile) {
+          const decrypt = (s: string | null): number | null =>
+            s === null ? null : decryptAmount(s);
+          const score = computeScore({
+            age: profile.age,
+            retirementAge: profile.retirementAge,
+            isFreelancer: profile.isFreelancer,
+            hasDependents: profile.hasDependents,
+            hasCcCarryover: profile.hasCcCarryover,
+            monthlyIncome: decrypt(profile.monthlyIncome),
+            monthlyExpenses: decrypt(profile.monthlyExpenses),
+            liquidSavings: decrypt(profile.liquidSavings),
+            termCoverAmount: decrypt(profile.termCoverAmount),
+            healthCoverAmount: decrypt(profile.healthCoverAmount),
+            totalEmi: decrypt(profile.totalEmi),
+            investmentBalance: decrypt(profile.investmentBalance),
+            monthlyInvestment: decrypt(profile.monthlyInvestment),
+          });
+          if (score.hasEnoughData) {
+            currentValue =
+              input.goalKind === "total"
+                ? score.total
+                : score.pillars.find((p) => p.key === input.pillarKey)?.score ??
+                  0;
+          }
+        }
+
+        const [created] = await db
+          .insert(financialGoals)
+          .values({
+            userId: ctx.user.id,
+            goalKind: input.goalKind,
+            pillarKey: input.pillarKey,
+            label: input.label.trim(),
+            targetScore: input.targetScore,
+            targetDate: input.targetDate ?? null,
+            currentValue,
+            completedAt:
+              currentValue >= input.targetScore ? new Date() : null,
+          })
+          .returning();
+        return created;
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          label: z.string().min(1).max(120).optional(),
+          targetScore: z.number().int().positive().optional(),
+          targetDate: z.date().nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select()
+          .from(financialGoals)
+          .where(eq(financialGoals.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        const next = {
+          ...(input.label !== undefined && { label: input.label.trim() }),
+          ...(input.targetScore !== undefined && {
+            targetScore: input.targetScore,
+          }),
+          ...(input.targetDate !== undefined && {
+            targetDate: input.targetDate,
+          }),
+          updatedAt: new Date(),
+        };
+        // If targetScore moved below currentValue, mark complete; if it
+        // moved above, un-complete (user raised the bar).
+        const newTarget = input.targetScore ?? existing.targetScore;
+        const finalNext = {
+          ...next,
+          completedAt:
+            existing.currentValue >= newTarget
+              ? existing.completedAt ?? new Date()
+              : null,
+        };
+        const [updated] = await db
+          .update(financialGoals)
+          .set(finalNext)
+          .where(eq(financialGoals.id, input.id))
+          .returning();
+        return updated;
+      }),
+
+    archive: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: financialGoals.userId })
+          .from(financialGoals)
+          .where(eq(financialGoals.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db
+          .update(financialGoals)
+          .set({ archivedAt: new Date() })
+          .where(eq(financialGoals.id, input.id));
+        return { ok: true };
       }),
   }),
 });

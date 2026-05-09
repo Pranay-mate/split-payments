@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { ArrowRight, Flame, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
-import type { ScoreResult } from "@/lib/financial-score";
+import { PEER_CITATIONS, type ScoreResult } from "@/lib/financial-score";
+import { pillarSeries } from "@/lib/financial-badges";
 import { trpc } from "@/lib/trpc/client";
+import { BadgesStrip } from "./badges-strip";
+import { PillarSparkline } from "./pillar-sparkline";
 import {
   ScoreTrajectory,
   summariseSnapshots,
@@ -28,6 +31,13 @@ const PILLAR_RING: Record<ScoreResult["band"], string> = {
   amber: "stroke-amber-500",
   emerald: "stroke-emerald-500",
   green: "stroke-green-500",
+};
+
+const PILLAR_SPARK_HEX: Record<ScoreResult["band"], string> = {
+  red: "#f43f5e",
+  amber: "#f59e0b",
+  emerald: "#10b981",
+  green: "#16a34a",
 };
 
 function ringFor(score: number): keyof typeof PILLAR_RING {
@@ -131,7 +141,9 @@ export function Scorecard({
 
 function ScorecardWithHistory({ score }: { score: ScoreResult }) {
   const historyQuery = trpc.personal.profile.history.useQuery({ limit: 24 });
-  const summary = summariseSnapshots(historyQuery.data ?? []);
+  const history = historyQuery.data ?? [];
+  const summary = summariseSnapshots(history);
+  const series = pillarSeries(history);
 
   // Sort pillars: gaps (<15) first, maxed (≥15) collapsed below — surfaces
   // what to fix without forcing the user to scan past their wins.
@@ -208,19 +220,32 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
           condensed strip below so the user's eye lands on what they
           can actually improve. */}
       <ul className="divide-y divide-slate-100 px-5 py-3 dark:divide-slate-800">
-        {gapPillars.map((p) => (
+        {gapPillars.map((p) => {
+          const pillarSpark = (series[p.key] ?? []).map((s) => s.score);
+          return (
           <li key={p.key} className="flex items-start gap-3 py-3">
             <PillarRing score={p.score} />
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-sm font-semibold">
                 <span aria-hidden>{p.emoji}</span>
                 {p.label}
-                <span className="ml-auto text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                  {p.score}/20
+                <span className="ml-auto flex items-center gap-2">
+                  {pillarSpark.length >= 2 && (
+                    <PillarSparkline
+                      series={pillarSpark}
+                      hex={PILLAR_SPARK_HEX[ringFor(p.score)]}
+                    />
+                  )}
+                  <span className="text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                    {p.score}/20
+                  </span>
                 </span>
               </p>
               <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                 {p.message}
+              </p>
+              <p className="mt-1 text-[10.5px] italic text-slate-500 dark:text-slate-500">
+                {p.peerBaseline}
               </p>
               {p.nextAction && (
                 <p className="mt-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
@@ -229,7 +254,8 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
               )}
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {maxedPillars.length > 0 && (
@@ -256,6 +282,8 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
         </div>
       )}
 
+      <BadgesStrip />
+
       {summary.history.length > 0 && (
         <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -268,10 +296,22 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
         </div>
       )}
 
-      <p className="border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
-        Rules of thumb, not financial advice. We&apos;re not a SEBI-registered
-        investment advisor — for major decisions, talk to one.
-      </p>
+      <div className="space-y-1 border-t border-slate-100 px-5 py-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+        <p>
+          Rules of thumb, not financial advice. We&apos;re not a SEBI-registered
+          investment advisor — for major decisions, talk to one.
+        </p>
+        <details className="text-[10.5px]">
+          <summary className="cursor-pointer text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300">
+            Peer-baseline sources
+          </summary>
+          <ul className="mt-1 space-y-0.5 pl-3">
+            {PEER_CITATIONS.map((c) => (
+              <li key={c}>· {c}</li>
+            ))}
+          </ul>
+        </details>
+      </div>
     </section>
   );
 }

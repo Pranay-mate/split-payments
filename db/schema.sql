@@ -262,3 +262,25 @@ CREATE TABLE IF NOT EXISTS score_snapshots (
 );
 CREATE INDEX IF NOT EXISTS score_snapshots_user_idx    ON score_snapshots(user_id);
 CREATE INDEX IF NOT EXISTS score_snapshots_user_at_idx ON score_snapshots(user_id, snapshotted_at);
+
+-- v4.2: financial_goals — user-defined targets keyed to pillar/total scores.
+-- See src/lib/db/schema.ts for the full design rationale (no encryption,
+-- pillar 0..20 / total 0..100, completed_at flips on first >= target_score
+-- crossing). current_value is snapshotted on profile.upsert(markCompleted=true)
+-- so listing goals doesn't need to recompute the score.
+CREATE TABLE IF NOT EXISTS financial_goals (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid        NOT NULL,
+  goal_kind       text        NOT NULL,                 -- 'pillar' | 'total'
+  pillar_key      text,                                  -- null when goal_kind='total'
+  label           text        NOT NULL,
+  target_score    integer     NOT NULL,
+  target_date     timestamptz,
+  current_value   integer     NOT NULL DEFAULT 0,
+  completed_at    timestamptz,
+  archived_at     timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS financial_goals_user_idx        ON financial_goals(user_id);
+CREATE INDEX IF NOT EXISTS financial_goals_user_active_idx ON financial_goals(user_id, archived_at);
