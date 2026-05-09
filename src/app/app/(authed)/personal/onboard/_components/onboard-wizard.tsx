@@ -244,8 +244,8 @@ export function OnboardWizard() {
             ))}
           </div>
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Step {step + 1} of {STEPS.length} · 🔒 Encrypted before storage —
-            Supabase can&apos;t read your numbers.
+            Step {step + 1} of {STEPS.length} · 🔐 We encrypt every amount
+            before storing — our database only ever sees scrambled text.
           </p>
         </div>
 

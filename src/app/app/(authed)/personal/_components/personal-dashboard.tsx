@@ -123,9 +123,10 @@ export function PersonalDashboard() {
               Personal
             </h1>
             <p className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-              <span aria-hidden>🔒</span>
-              Encrypted before it touches our database — Supabase can&apos;t
-              read it.
+              <span aria-hidden>🔐</span>
+              Your salary is your secret. We encrypt every amount before
+              storing — our database only ever sees scrambled text, not
+              your numbers.
             </p>
           </div>
           <select
