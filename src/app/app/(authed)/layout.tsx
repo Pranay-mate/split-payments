@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { UserMenu } from "@/components/user-menu";
 import { GroupSwitcher } from "@/components/group-switcher";
+import { TopNavTabs } from "@/components/top-nav-tabs";
 
 /**
  * Auth gate for everything under /app/(authed)/. Redirects to /app/login
@@ -22,8 +23,9 @@ export default async function AuthedLayout({
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-slate-800/80 dark:bg-slate-950/80 dark:supports-[backdrop-filter]:bg-slate-950/70">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <GroupSwitcher />
+          <TopNavTabs />
           <UserMenu />
         </div>
       </header>

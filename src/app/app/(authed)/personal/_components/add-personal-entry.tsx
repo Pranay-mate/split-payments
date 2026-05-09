@@ -1,0 +1,361 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Mic, MicOff, Plus, X } from "lucide-react";
+import { toast } from "sonner";
+import { trpc } from "@/lib/trpc/client";
+import { COMMON_CURRENCIES } from "@/lib/fx";
+import {
+  CATEGORIES,
+  CATEGORY_KEYS,
+  DEFAULT_CATEGORY,
+  toCategoryKey,
+  type CategoryKey,
+} from "@/lib/categories";
+import { detectCategory } from "@/lib/category-detect";
+import { parseVoiceTranscript } from "@/lib/voice-input";
+import { useVoiceInput } from "@/lib/use-voice-input";
+
+export type EntryType = "income" | "expense" | "investment";
+
+export type EditingPersonalEntry = {
+  id: string;
+  type: EntryType;
+  amount: number;
+  currency: string;
+  category: string | null;
+  description: string;
+  occurredAt: Date | string;
+};
+
+const TYPE_META: Record<
+  EntryType,
+  { label: string; emoji: string; defaultCategory: CategoryKey; chip: string }
+> = {
+  income: {
+    label: "Income",
+    emoji: "💰",
+    defaultCategory: "income",
+    chip:
+      "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300",
+  },
+  expense: {
+    label: "Expense",
+    emoji: "💸",
+    defaultCategory: "other",
+    chip: "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300",
+  },
+  investment: {
+    label: "Investment",
+    emoji: "📈",
+    defaultCategory: "investment",
+    chip: "bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300",
+  },
+};
+
+export function AddPersonalEntry({
+  editing,
+  onDone,
+  onCancel,
+}: {
+  editing?: EditingPersonalEntry | null;
+  onDone: () => void;
+  onCancel?: () => void;
+}) {
+  const isEditing = Boolean(editing);
+
+  const [type, setType] = useState<EntryType>(editing?.type ?? "expense");
+  const [description, setDescription] = useState(editing?.description ?? "");
+  const [amount, setAmount] = useState<number | "">(editing?.amount ?? "");
+  const [currency, setCurrency] = useState(editing?.currency ?? "INR");
+  const [category, setCategory] = useState<CategoryKey>(
+    toCategoryKey(editing?.category ?? null),
+  );
+  const [categoryTouched, setCategoryTouched] = useState<boolean>(
+    Boolean(editing?.category),
+  );
+  const [occurredAt, setOccurredAt] = useState<string>(
+    () =>
+      (editing?.occurredAt
+        ? new Date(editing.occurredAt)
+        : new Date()
+      )
+        .toISOString()
+        .slice(0, 10),
+  );
+
+  // Auto-detect category from description (same heuristics as group expenses).
+  // Skips once the user has clicked a chip — explicit picks win.
+  const detected = useMemo(() => detectCategory(description), [description]);
+  useEffect(() => {
+    if (categoryTouched) return;
+    if (!detected) return;
+    if (detected === category) return;
+    queueMicrotask(() => setCategory(detected));
+  }, [detected, categoryTouched, category]);
+
+  // Re-seed defaults when type flips, but only if the user hasn't already
+  // picked a category for this entry.
+  useEffect(() => {
+    if (categoryTouched) return;
+    const def = TYPE_META[type].defaultCategory;
+    queueMicrotask(() => setCategory(def));
+  }, [type, categoryTouched]);
+
+  const voice = useVoiceInput({
+    lang: "en-IN",
+    onResult: (transcript) => {
+      const parsed = parseVoiceTranscript(transcript);
+      if (parsed.description) setDescription(parsed.description);
+      if (typeof parsed.amount === "number" && parsed.amount > 0) {
+        setAmount(parsed.amount);
+      }
+    },
+    onError: (err) => {
+      if (err === "no-speech" || err === "aborted") return;
+      toast.error(`Voice input: ${err}`);
+    },
+  });
+
+  const numericAmount = typeof amount === "number" ? amount : 0;
+  const valid = numericAmount > 0;
+
+  const utils = trpc.useUtils();
+  const createMutation = trpc.personal.create.useMutation();
+  const updateMutation = trpc.personal.update.useMutation();
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const reset = () => {
+    setDescription("");
+    setAmount("");
+    setCurrency("INR");
+    setType("expense");
+    setCategory(DEFAULT_CATEGORY);
+    setCategoryTouched(false);
+    setOccurredAt(new Date().toISOString().slice(0, 10));
+  };
+
+  const handleSubmit = async () => {
+    if (!valid) return;
+    try {
+      const occurred = new Date(`${occurredAt}T00:00:00`);
+      if (editing) {
+        await updateMutation.mutateAsync({
+          id: editing.id,
+          type,
+          amount: numericAmount,
+          currency,
+          category,
+          description: description.trim(),
+          occurredAt: occurred,
+          clientUpdatedAt: new Date(),
+        });
+        toast.success("Entry updated");
+      } else {
+        await createMutation.mutateAsync({
+          type,
+          amount: numericAmount,
+          currency,
+          category,
+          description: description.trim(),
+          occurredAt: occurred,
+        });
+        toast.success("Entry added");
+        reset();
+      }
+      utils.personal.list.invalidate();
+      utils.personal.summary.invalidate();
+      utils.personal.topCategoriesThisMonth.invalidate();
+      utils.personal.availableMonths.invalidate();
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+      {isEditing && (
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Edit entry</h3>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
+              <X className="h-3 w-3" aria-hidden /> Cancel
+            </button>
+          )}
+        </div>
+      )}
+
+      <div>
+        <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+          Type
+        </span>
+        <div className="mt-1 grid grid-cols-3 gap-1.5 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+          {(["income", "expense", "investment"] as const).map((t) => {
+            const meta = TYPE_META[t];
+            const active = type === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                aria-pressed={active}
+                className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition ${
+                  active
+                    ? t === "income"
+                      ? "bg-green-500 text-white"
+                      : t === "expense"
+                        ? "bg-rose-500 text-white"
+                        : "bg-cyan-500 text-white"
+                    : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                }`}
+              >
+                <span aria-hidden>{meta.emoji}</span>
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
+        <div className="flex items-stretch gap-1.5">
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={
+              voice.listening
+                ? "Listening…"
+                : type === "income"
+                  ? "What's this income for?"
+                  : type === "investment"
+                    ? "What's this investment?"
+                    : "What's this expense for?"
+            }
+            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+            aria-label="Entry description"
+          />
+          {voice.supported && (
+            <button
+              type="button"
+              onClick={() => (voice.listening ? voice.stop() : voice.start())}
+              aria-pressed={voice.listening}
+              aria-label={voice.listening ? "Stop dictation" : "Dictate"}
+              className={`grid h-auto w-10 shrink-0 place-items-center rounded-lg border transition ${
+                voice.listening
+                  ? "animate-pulse border-rose-400 bg-rose-500 text-white"
+                  : "border-slate-300 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              }`}
+            >
+              {voice.listening ? (
+                <MicOff className="h-4 w-4" aria-hidden />
+              ) : (
+                <Mic className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white pr-2 dark:border-slate-700 dark:bg-slate-900">
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={1}
+            value={amount}
+            onChange={(e) =>
+              setAmount(e.target.value === "" ? "" : Number(e.target.value))
+            }
+            placeholder="0"
+            className="w-full bg-transparent px-3 py-2 text-base outline-none tabular-nums"
+            aria-label="Amount"
+          />
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="border-l border-slate-300 bg-transparent py-2 pl-2 text-xs font-semibold text-slate-600 outline-none dark:border-slate-700 dark:text-slate-300"
+            aria-label="Currency"
+          >
+            {COMMON_CURRENCIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-baseline justify-between">
+          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+            Category
+          </span>
+          {!categoryTouched && detected && (
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              Auto-detected from description
+            </span>
+          )}
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {CATEGORY_KEYS.map((key) => {
+            const meta = CATEGORIES[key];
+            const active = category === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setCategory(key);
+                  setCategoryTouched(true);
+                }}
+                aria-pressed={active}
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  active
+                    ? `${meta.chipClass} border-current/20 ring-2 ring-current/20`
+                    : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                }`}
+              >
+                <span aria-hidden>{meta.emoji}</span>
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <label className="block">
+        <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+          Date
+        </span>
+        <input
+          type="date"
+          value={occurredAt}
+          onChange={(e) => setOccurredAt(e.target.value)}
+          max={new Date().toISOString().slice(0, 10)}
+          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900 sm:w-auto"
+        />
+      </label>
+
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={!valid || isPending}
+        className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition disabled:bg-slate-300 disabled:dark:bg-slate-700 sm:w-auto ${
+          isEditing
+            ? "bg-indigo-600 hover:bg-indigo-500"
+            : "bg-emerald-600 hover:bg-emerald-500"
+        }`}
+      >
+        {isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        ) : isEditing ? null : (
+          <Plus className="h-4 w-4" aria-hidden />
+        )}
+        {isEditing ? "Save changes" : `Add ${TYPE_META[type].label.toLowerCase()}`}
+      </button>
+    </div>
+  );
+}

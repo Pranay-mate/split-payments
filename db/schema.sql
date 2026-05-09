@@ -163,6 +163,26 @@ CREATE INDEX IF NOT EXISTS events_occurred_idx ON events(occurred_at);
 CREATE INDEX IF NOT EXISTS events_expense_idx  ON events(expense_id);
 
 
+-- personal_entries: Personal Finance Tracker (Phase 2.5 v1). Track your own
+-- income / expenses / investments separately from group splitting.
+-- v1.0 stores plaintext; encryption (Option B, pgcrypto) ships in v1.1.
+CREATE TABLE IF NOT EXISTS personal_entries (
+  id           uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      uuid          NOT NULL,
+  type         text          NOT NULL,                          -- income | expense | investment
+  amount       numeric(14,2) NOT NULL,
+  currency     varchar(3)    NOT NULL DEFAULT 'INR',
+  category     text          NOT NULL DEFAULT 'other',          -- src/lib/categories.ts keys
+  description  text          NOT NULL DEFAULT '',
+  occurred_at  timestamptz   NOT NULL DEFAULT now(),
+  created_at   timestamptz   NOT NULL DEFAULT now(),
+  updated_at   timestamptz   NOT NULL DEFAULT now(),
+  deleted_at   timestamptz                                       -- soft delete; keep monthly comparisons stable
+);
+CREATE INDEX IF NOT EXISTS personal_entries_user_idx     ON personal_entries(user_id);
+CREATE INDEX IF NOT EXISTS personal_entries_occurred_idx ON personal_entries(occurred_at);
+
+
 -- push_subscriptions: Web Push API subscription endpoints (one per device per user)
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

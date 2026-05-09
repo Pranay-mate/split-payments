@@ -13,6 +13,9 @@ export const CATEGORY_KEYS = [
   "groceries",
   "bills",
   "entertainment",
+  "income",
+  "investment",
+  "tax",
   "other",
 ] as const;
 
@@ -70,6 +73,27 @@ export const CATEGORIES: Record<CategoryKey, CategoryMeta> = {
     chipClass:
       "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300",
     hex: "#f43f5e",
+  },
+  income: {
+    label: "Income",
+    emoji: "💰",
+    chipClass:
+      "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300",
+    hex: "#16a34a",
+  },
+  investment: {
+    label: "Investment",
+    emoji: "📈",
+    chipClass:
+      "bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300",
+    hex: "#06b6d4",
+  },
+  tax: {
+    label: "Tax",
+    emoji: "🏛️",
+    chipClass:
+      "bg-stone-200 text-stone-800 dark:bg-stone-800 dark:text-stone-200",
+    hex: "#78716c",
   },
   other: {
     label: "Other",

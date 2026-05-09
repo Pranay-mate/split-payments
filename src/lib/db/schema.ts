@@ -344,3 +344,49 @@ export const pushSubscriptions = pgTable(
 );
 
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
+
+/**
+ * Personal Finance Tracker (Phase 2.5 v1). Track-your-own income +
+ * expenses + investments, separately from group splitting.
+ *
+ * v1.0 stores values in plaintext. Field-level encryption (Option B,
+ * pgcrypto.PGP_SYM_ENCRYPT) ships in v1.1 — when it does, the
+ * onboarding copy can promise "encrypted at the field level". Until
+ * then the UI claims nothing about encryption.
+ */
+export const personalEntries = pgTable(
+  "personal_entries",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** 'income' | 'expense' | 'investment' — strings rather than enum so
+     *  we can extend without an ALTER TYPE migration. */
+    type: text("type").notNull(),
+    /** Amount in `currency` (defaults to INR). */
+    amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).notNull().default("INR"),
+    /** Reuses the existing categories module — see src/lib/categories.ts.
+     *  Income / investment / tax are added as keys for PFT. */
+    category: text("category").notNull().default("other"),
+    description: text("description").notNull().default(""),
+    occurredAt: timestamp("occurred_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Soft delete — keep the row so monthly comparisons stay stable. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("personal_entries_user_idx").on(t.userId),
+    index("personal_entries_occurred_idx").on(t.occurredAt),
+  ],
+);
+
+export type PersonalEntry = typeof personalEntries.$inferSelect;
