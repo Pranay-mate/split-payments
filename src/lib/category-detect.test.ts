@@ -28,6 +28,16 @@ describe("detectCategory", () => {
       ["petrol", "travel"],
       ["fastag recharge", "travel"],
       ["metro card", "travel"],
+      // v3.5.1 — vehicle-name keywords that previously misfired (or
+      // routed to "other"). Cover personal-vehicle expenses.
+      ["car service", "travel"],
+      ["bike servicing", "travel"],
+      ["scooter petrol top-up", "travel"],
+      ["motorcycle insurance — wait, that's insurance not travel", "travel"],
+      ["bullet maintenance", "travel"],
+      ["zoomcar weekend rental", "travel"],
+      ["auto rickshaw to office", "travel"],
+      ["yulu ride", "travel"],
     ])("detects '%s' → %s", (text, expected) => {
       expect(detectCategory(text)).toBe(expected);
     });

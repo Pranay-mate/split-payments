@@ -166,4 +166,62 @@ describe("parseVoiceTranscript", () => {
       expect(out.amount).toBeUndefined();
     });
   });
+
+  describe("Hindi / Marathi number words", () => {
+    it("'auto tees rupay' → 30 (the originally reported bug)", () => {
+      expect(parseVoiceTranscript("auto tees rupay")).toEqual({
+        description: "auto",
+        amount: 30,
+      });
+    });
+
+    it("'chai do sau' → 200", () => {
+      expect(parseVoiceTranscript("chai do sau")).toEqual({
+        description: "chai",
+        amount: 200,
+      });
+    });
+
+    it("'rent ek hazaar paach sau' → 1500", () => {
+      expect(parseVoiceTranscript("rent ek hazaar paach sau")).toEqual({
+        description: "rent",
+        amount: 1500,
+      });
+    });
+
+    it("'samosa pachpan' → 55 (single-token compound numeral)", () => {
+      expect(parseVoiceTranscript("samosa pachpan")).toEqual({
+        description: "samosa",
+        amount: 55,
+      });
+    });
+
+    it("'pani vees rupaye' → 20 (Marathi vees, with rupaye filler)", () => {
+      expect(parseVoiceTranscript("pani vees rupaye")).toEqual({
+        description: "pani",
+        amount: 20,
+      });
+    });
+
+    it("'milk pannas' → 50 (Marathi pannas)", () => {
+      expect(parseVoiceTranscript("milk pannas")).toEqual({
+        description: "milk",
+        amount: 50,
+      });
+    });
+
+    it("'ek lakh' → 100000 (works alongside English lakh)", () => {
+      expect(parseVoiceTranscript("salary ek lakh")).toEqual({
+        description: "salary",
+        amount: 100000,
+      });
+    });
+
+    it("ignores 'ka' filler in 'tea pachas ka'", () => {
+      expect(parseVoiceTranscript("tea pachas ka")).toEqual({
+        description: "tea",
+        amount: 50,
+      });
+    });
+  });
 });

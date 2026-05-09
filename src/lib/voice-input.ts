@@ -14,7 +14,7 @@ export type VoiceParseResult = {
   amount?: number;
 };
 
-const WORD_NUMBERS: Record<string, number> = {
+const ENGLISH_NUMBERS: Record<string, number> = {
   zero: 0,
   one: 1,
   two: 2,
@@ -51,7 +51,197 @@ const WORD_NUMBERS: Record<string, number> = {
   lacs: 100000,
 };
 
+/**
+ * Hindi + Marathi numerals (romanised). Single-token lookups so the
+ * parser can recognise utterances like "tees rupay" → 30. Includes
+ * common Marathi-specific variants (saha=6, daha=10, vees=20,
+ * pannas=50, ainshi=80, navvad=90, shambhar=100). Compound numerals
+ * (24=chaubees etc.) are listed individually rather than decomposed —
+ * Hindi/Marathi don't have an "X+Y" surface form like English's
+ * "twenty four".
+ */
+const HINDI_NUMBERS: Record<string, number> = {
+  // 1-9
+  ek: 1,
+  do: 2,
+  teen: 3,
+  tin: 3,
+  char: 4,
+  chaar: 4,
+  paanch: 5,
+  panch: 5,
+  paach: 5,
+  chhe: 6,
+  che: 6,
+  chha: 6,
+  saha: 6, // mr
+  saat: 7,
+  aath: 8,
+  nau: 9,
+  nav: 9,
+  // 10-19
+  das: 10,
+  dus: 10,
+  daha: 10, // mr
+  gyarah: 11,
+  egyarah: 11,
+  akra: 11,
+  barah: 12,
+  bara: 12,
+  terah: 13,
+  tera: 13,
+  chaudah: 14,
+  chauda: 14,
+  pandrah: 15,
+  pandra: 15,
+  solah: 16,
+  sola: 16,
+  satrah: 17,
+  satra: 17,
+  atharah: 18,
+  athara: 18,
+  athra: 18,
+  unnees: 19,
+  unees: 19,
+  // 20-29
+  bees: 20,
+  vees: 20, // mr
+  ikkees: 21,
+  ekkees: 21,
+  baees: 22,
+  baais: 22,
+  teyees: 23,
+  teis: 23,
+  taees: 23,
+  chaubees: 24,
+  pachees: 25,
+  pachis: 25,
+  chhabbees: 26,
+  sattaees: 27,
+  satais: 27,
+  atthaees: 28,
+  untees: 29,
+  // 30s
+  tees: 30,
+  tris: 30, // mr
+  ikatees: 31,
+  battees: 32,
+  battis: 32,
+  taittees: 33,
+  chautees: 34,
+  paintees: 35,
+  chhattees: 36,
+  chhattis: 36,
+  saintees: 37,
+  athtees: 38,
+  adhtees: 38,
+  untalees: 39,
+  // 40s
+  chalees: 40,
+  chalis: 40,
+  chaalis: 40,
+  iktalees: 41,
+  bayalees: 42,
+  tetalees: 43,
+  chavalees: 44,
+  paintalees: 45,
+  chhayalees: 46,
+  saitalees: 47,
+  athalees: 48,
+  unchaas: 49,
+  // 50s
+  pachaas: 50,
+  pachas: 50,
+  pannas: 50, // mr
+  pannaas: 50, // mr
+  ikyaavan: 51,
+  baavan: 52,
+  trepan: 53,
+  chauvan: 54,
+  pachpan: 55,
+  chhappan: 56,
+  sattavan: 57,
+  atthaavan: 58,
+  unsath: 59,
+  // 60s
+  saath: 60,
+  iksath: 61,
+  baasath: 62,
+  tirsath: 63,
+  chausath: 64,
+  paisath: 65,
+  chhiyaasath: 66,
+  sadsath: 67,
+  satsath: 67,
+  adhsath: 68,
+  unhattar: 69,
+  // 70s
+  sattar: 70,
+  ikhattar: 71,
+  bahattar: 72,
+  tihattar: 73,
+  chauhattar: 74,
+  pachhattar: 75,
+  chhihattar: 76,
+  sathattar: 77,
+  athhattar: 78,
+  unaasi: 79,
+  // 80s
+  assi: 80,
+  ainshi: 80, // mr
+  ikaasi: 81,
+  bayaasi: 82,
+  tiraasi: 83,
+  chauraasi: 84,
+  pachaasi: 85,
+  chhiyaasi: 86,
+  sataasi: 87,
+  athaasi: 88,
+  navaasi: 89,
+  // 90s
+  nabbe: 90,
+  nabe: 90,
+  navvad: 90, // mr
+  ikyaanve: 91,
+  baanave: 92,
+  tiraanve: 93,
+  chauraanve: 94,
+  pachaanve: 95,
+  chhiyaanve: 96,
+  sataanve: 97,
+  athaanve: 98,
+  ninyaanve: 99,
+  // Multipliers
+  sau: 100,
+  shambhar: 100, // mr
+  hazaar: 1000,
+  hazar: 1000,
+};
+
+const WORD_NUMBERS: Record<string, number> = {
+  ...ENGLISH_NUMBERS,
+  ...HINDI_NUMBERS,
+};
+
 const MULTIPLIERS = new Set([100, 1000, 100000]);
+
+/** Filler words harmlessly stripped during number-token runs. Hindi/
+ *  Marathi additions (rupay, rupaye, rupaya, ka, ki, ke) so utterances
+ *  like "tees rupay" or "pachas ka" parse cleanly. */
+const NUMBER_FILLERS = new Set([
+  "and",
+  "rupees",
+  "rupee",
+  "rs",
+  "rupay",
+  "rupaye",
+  "rupaya",
+  "paisa",
+  "paise",
+  "ka",
+  "ki",
+  "ke",
+]);
 
 /**
  * Parse a sequence of number words into a single integer.
@@ -68,7 +258,7 @@ function parseWordNumber(words: string[]): number | null {
   for (const w of words) {
     const v = WORD_NUMBERS[w];
     if (v === undefined) {
-      if (w === "and" || w === "rupees" || w === "rupee" || w === "rs") continue;
+      if (NUMBER_FILLERS.has(w)) continue;
       return null;
     }
     if (MULTIPLIERS.has(v)) {
@@ -136,12 +326,7 @@ export function parseVoiceTranscript(transcript: string): VoiceParseResult {
       // Need this run to extend to the end (modulo trailing rupees/and).
       const tail = words.slice(i);
       const allKnown = tail.every(
-        (w) =>
-          WORD_NUMBERS[w] !== undefined ||
-          w === "and" ||
-          w === "rupees" ||
-          w === "rupee" ||
-          w === "rs",
+        (w) => WORD_NUMBERS[w] !== undefined || NUMBER_FILLERS.has(w),
       );
       if (allKnown) {
         wordStart = i;
