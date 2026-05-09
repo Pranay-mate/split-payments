@@ -350,6 +350,23 @@ query and the alert message templates).
 
 Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars), time-series line for ongoing rent groups (noise).
 
+## Phase 2.7 — Group balances polish (planned)
+
+> Suggested Payments today only ships the Simplified view (greedy
+> debt-minimisation). Some users prefer paying back the person they
+> actually transacted with — Pairwise gives them that option. The
+> "Why?" expander explains how a Simplified row was derived for users
+> who want to verify or trust the math.
+
+| Sub-version | What | Effort |
+|---|---|---|
+| **v1.0** | Simplified ⇄ Pairwise toggle. Segmented control at the top of the Suggested Payments section. Pairwise = net debt per `(debtor, creditor)` pair, applies recorded settlements, drops zeros, nets reverses. New `pairwiseDebts` helper in `trip-split.ts` + unit tests. Default stays Simplified — the value-add of the algo. | ~1h |
+| **v1.1** | "Why?" chain expander on each Simplified row. Shows the underlying graph traversal: *"A→C ₹500 = A owes B ₹500 (dinner) · B owes C ₹500 (Uber)"*. Closes the trust gap that drives the request for raw mode in the first place. | ~1.5h |
+
+**Skipped:** per-expense view (already covered by the expense list which shows splits per row).
+
+---
+
 ## Phase 2.6 — Free Phase 3 picks (active)
 
 > User decision (2026-05-09): cherry-pick the Phase 3 features that have a
@@ -472,5 +489,8 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-09 | ↳ v4.0 — Score trajectory + streak: `score_snapshots` table written on every Compute submit. Hero band shows delta + streak badge ("🔥 N-month green streak"). Gap-first pillars (under-15 expanded, maxed pillars collapse to chip strip). Smooth gradient area chart with green-band reference line. |
 | 2026-05-09 | Microcopy alignment: encryption tagline rewritten to "🔐 Your salary is your secret. We encrypt every amount before storing — our database only ever sees scrambled text, not your numbers." consistent across dashboard + wizard. |
 | 2026-05-09 | Bug fix: wizard blank fields now correctly default to 0 for has-none answers (EMI, term cover, health cover, investments, SIP, savings); income/expenses still required. Score no longer mis-reads "blank" as "haven't told us yet" when user means "I have none". |
+| 2026-05-09 | **Activity feed live-update fix**: every event-writing mutation now invalidates `events.listByGroup` (and `events.listByExpense` where applicable), so the feed refreshes immediately after add/edit/delete/comment/settle without a manual F5. Five files patched. |
+| 2026-05-09 | **PFT v4.4 — "Send test" notification button** shipped: bypasses the 7-day throttle + qualifying-data check so users can verify the push pipeline post-setup with one tap. Prunes 410-Gone subscriptions inline. |
+| 2026-05-09 | Planning: added **Phase 2.7 — Group balances polish** for the Simplified ⇄ Pairwise toggle (default Simplified) + a "Why?" chain expander follow-up that explains the algorithm's chain. |
 | 2026-05-09 | **Voice input** shipped: mic button in AddExpense via browser Web Speech API (en-IN), parser splits transcripts like "pizza six hundred" / "uber 350" into description + amount, auto-prefills the form. No API costs, hidden on Firefox. |
 | 2026-05-09 | Planning: locked **Option B** (server-side field-level encryption via `pgcrypto`) for PFT sensitive columns. Added **5-pillar Financial Health Scorecard** sub-plan (Emergency / Insurance / Debt / Savings rate / Investing), India-specific rule set, onboarding wizard scope, locked disclaimers. Added **v3.5 Anomaly alerts** that piggyback on Phase 2.6 reminder-nudges infrastructure. |

@@ -369,6 +369,14 @@
   </tbody></table>
   <p class="meta">Skipped: heatmap calendars · expense-by-member pie (redundant with balance bars) · time-series line for ongoing rent groups (noise).</p>
 
+  <h2>Phase 2.7 — Group balances polish <span class="badge">planned</span></h2>
+  <p class="meta">Suggested Payments today only ships the Simplified view (greedy debt-minimisation). Some users prefer paying back the person they actually transacted with — Pairwise gives them that option. "Why?" explains how a Simplified row was derived for users who want to verify or trust the math.</p>
+  <table><tbody>
+    <tr><td class="task"><strong>v1.0</strong> — Simplified ⇄ Pairwise toggle. Default stays Simplified. Pairwise = net debt per (debtor, creditor) pair, applies recorded settlements, nets reverses.</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~1h</span></td></tr>
+    <tr><td class="task"><strong>v1.1</strong> — "Why?" chain expander on each Simplified row, showing the underlying graph traversal that produced it.</td><td class="status"><span class="status-cell"><span class="dot todo"></span>~1.5h</span></td></tr>
+  </tbody></table>
+  <p class="meta"><strong>Skipped:</strong> per-expense view (already covered by the expense list which shows splits per row).</p>
+
   <h2>Phase 2.6 — Free Phase 3 picks <span class="badge badge-ok">shipped</span></h2>
   <p class="meta">User decision (2026-05-09): cherry-pick the Phase 3 features that have a fully-free implementation path (browser API or built-in cron) and ship them now. Both shipped in production same-day.</p>
   <table><tbody>
@@ -460,6 +468,9 @@
       <tr><td>2026-05-09</td><td>↳ <strong>v4.0</strong> — Score trajectory + streak: <code>score_snapshots</code> table written on every Compute submit. Hero band shows delta + streak badge ("🔥 N-month green streak"). Gap-first pillars (under-15 expanded, maxed pillars collapse to chip strip). Smooth gradient area chart with green-band reference line.</td></tr>
       <tr><td>2026-05-09</td><td>Microcopy alignment: encryption tagline rewritten to "🔐 Your salary is your secret. We encrypt every amount before storing — our database only ever sees scrambled text, not your numbers." consistent across dashboard + wizard.</td></tr>
       <tr><td>2026-05-09</td><td>Bug fix: wizard blank fields now correctly default to 0 for has-none answers (EMI, term/health cover, investments, SIP, savings); income/expenses still required.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>Activity feed live-update fix</strong>: every event-writing mutation now invalidates <code>events.listByGroup</code> (and <code>events.listByExpense</code> where applicable). No more F5 to see your own latest action. Five files patched.</td></tr>
+      <tr><td>2026-05-09</td><td><strong>PFT v4.4 — "Send test" notification button</strong>: bypasses the 7-day throttle + qualifying-data check so users can verify the push pipeline post-setup with one tap. Prunes 410-Gone subscriptions inline.</td></tr>
+      <tr><td>2026-05-09</td><td>Planning: added <strong>Phase 2.7 — Group balances polish</strong> for the Simplified ⇄ Pairwise toggle (default Simplified) + a "Why?" chain expander follow-up.</td></tr>
     </tbody>
   </table>
 </div>
