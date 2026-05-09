@@ -355,8 +355,8 @@
     <tr><td class="task">Detect category-spend deviation &gt;50% from rolling 6-month average (only on categories with ≥3 entries/month)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5)</span></td></tr>
     <tr><td class="task">Notification copy: "Food up 60% this month — anything off?" (amber not red, "hey look" not emergency)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5)</span></td></tr>
     <tr><td class="task">Push + in-app banner · tap → drill into that category's month</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (push + banner)</span></td></tr>
-    <tr><td class="task">Cap 2 alerts/user/month rate-limit</td><td class="status"><span class="status-cell"><span class="dot todo"></span>add-on · not yet shipped</span></td></tr>
-    <tr><td class="task">"Mute this category for 30 days" link on every alert</td><td class="status"><span class="status-cell"><span class="dot todo"></span>add-on · not yet shipped</span></td></tr>
+    <tr><td class="task">Cap 2 alerts/user/month rate-limit</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5.1)</span></td></tr>
+    <tr><td class="task">"Mute this category for 30 days" link on every alert</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5.1)</span></td></tr>
     <tr><td class="task">Reuses Phase 2.6's <code>push_subscriptions</code> table + Vercel Cron endpoint (anomaly pass runs after unsettled-balance pass)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.5 reuses Phase 2.6 plumbing)</span></td></tr>
   </tbody></table>
   <p class="meta"><strong>Effort:</strong> ~3h on top of Reminder nudges. The infrastructure does the heavy lifting; new bits are the rolling-average SQL + alert message templates.</p>

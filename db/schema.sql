@@ -284,3 +284,22 @@ CREATE TABLE IF NOT EXISTS financial_goals (
 );
 CREATE INDEX IF NOT EXISTS financial_goals_user_idx        ON financial_goals(user_id);
 CREATE INDEX IF NOT EXISTS financial_goals_user_active_idx ON financial_goals(user_id, archived_at);
+
+-- v3.5.1: anomaly_mutes — per-(user, category) "Mute 30 days" overrides.
+-- Both the in-app anomaly query and the cron pass filter out categories
+-- with muted_until > now(). Re-muting bumps the existing row.
+CREATE TABLE IF NOT EXISTS anomaly_mutes (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid        NOT NULL,
+  category      text        NOT NULL,
+  muted_until   timestamptz NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS anomaly_mutes_user_category_uniq ON anomaly_mutes(user_id, category);
+CREATE INDEX        IF NOT EXISTS anomaly_mutes_user_idx           ON anomaly_mutes(user_id);
+
+-- v3.5.1: 2-alerts/month cap on anomaly pushes. Reset when month rolls over.
+ALTER TABLE push_subscriptions
+  ADD COLUMN IF NOT EXISTS anomaly_count_this_month integer NOT NULL DEFAULT 0;
+ALTER TABLE push_subscriptions
+  ADD COLUMN IF NOT EXISTS anomaly_count_month text NOT NULL DEFAULT '';

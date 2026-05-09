@@ -17,6 +17,7 @@ import webpush from "web-push";
 import { and, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  anomalyMutes,
   expenseSplits,
   expenses,
   groupMembers,
@@ -48,6 +49,9 @@ type SubscriptionRow = {
   auth: string;
   preferences: string;
   lastNotifiedAt: Date | null;
+  /** v3.5.1: anomaly-only rate-limit. Reset on month rollover. */
+  anomalyCountThisMonth: number;
+  anomalyCountMonth: string;
 };
 
 async function sendOne(
@@ -133,61 +137,93 @@ export async function GET(request: Request) {
     }
 
     // ── Anomaly pass (runs first; more time-sensitive than balance reminders) ──
+    // v3.5.1: also enforce a 2-alerts/month cap and skip muted categories.
     if (prefs.spendingAnomalies !== false) {
-      const personalRows = await db
-        .select({
-          category: personalEntries.category,
-          amount: personalEntries.amount,
-          occurredAt: personalEntries.occurredAt,
-        })
-        .from(personalEntries)
-        .where(
-          and(
-            eq(personalEntries.userId, sub.userId),
-            isNull(personalEntries.deletedAt),
-            eq(personalEntries.type, "expense"),
-            gte(personalEntries.occurredAt, personalRangeStart),
-            lt(personalEntries.occurredAt, personalRangeEnd),
-          ),
-        );
-      if (personalRows.length > 0) {
-        const decrypted = personalRows.map((r) => {
-          const d = new Date(r.occurredAt);
-          const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-          let amount = 0;
-          try {
-            amount = decryptAmount(r.amount);
-          } catch {
-            // Ciphertext from a different key (key rotation, etc) — skip.
-          }
-          return { monthKey, category: r.category, amount };
-        });
-        const anomalies = detectAnomalies(decrypted, currentMonthKey);
-        if (anomalies.length > 0) {
-          const top = anomalies[0];
-          const meta = CATEGORIES[toCategoryKey(top.category)];
-          const pct = Math.round(top.severity * 100);
-          const result = await sendOne(sub, {
-            title: `${meta.emoji} ${meta.label} up ${pct}% this month`,
-            body: `Currently ₹${Math.round(top.current).toLocaleString("en-IN")} (usual: ₹${Math.round(top.baseline).toLocaleString("en-IN")}). Anything off?`,
-            url: "/app/personal",
-            tag: "easysplits-anomaly",
+      // Reset count if month rolled over.
+      const currentCount =
+        sub.anomalyCountMonth === currentMonthKey
+          ? sub.anomalyCountThisMonth
+          : 0;
+      if (currentCount >= 2) {
+        // Already hit the monthly cap for this device — skip anomaly pass.
+      } else {
+        const personalRows = await db
+          .select({
+            category: personalEntries.category,
+            amount: personalEntries.amount,
+            occurredAt: personalEntries.occurredAt,
+          })
+          .from(personalEntries)
+          .where(
+            and(
+              eq(personalEntries.userId, sub.userId),
+              isNull(personalEntries.deletedAt),
+              eq(personalEntries.type, "expense"),
+              gte(personalEntries.occurredAt, personalRangeStart),
+              lt(personalEntries.occurredAt, personalRangeEnd),
+            ),
+          );
+        if (personalRows.length > 0) {
+          const decrypted = personalRows.map((r) => {
+            const d = new Date(r.occurredAt);
+            const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            let amount = 0;
+            try {
+              amount = decryptAmount(r.amount);
+            } catch {
+              // Ciphertext from a different key (key rotation, etc) — skip.
+            }
+            return { monthKey, category: r.category, amount };
           });
-          if (result === "sent") {
-            sent++;
-            await db
-              .update(pushSubscriptions)
-              .set({ lastNotifiedAt: new Date() })
-              .where(eq(pushSubscriptions.id, sub.id));
-            continue; // don't also send the balance reminder
-          } else if (result === "expired") {
-            expired++;
-            await db
-              .delete(pushSubscriptions)
-              .where(eq(pushSubscriptions.id, sub.id));
-            continue;
-          } else {
-            errors++;
+          let anomalies = detectAnomalies(decrypted, currentMonthKey);
+
+          // Drop muted categories before picking the top one.
+          if (anomalies.length > 0) {
+            const activeMutes = await db
+              .select({ category: anomalyMutes.category })
+              .from(anomalyMutes)
+              .where(
+                and(
+                  eq(anomalyMutes.userId, sub.userId),
+                  gte(anomalyMutes.mutedUntil, now),
+                ),
+              );
+            if (activeMutes.length > 0) {
+              const mutedSet = new Set(activeMutes.map((m) => m.category));
+              anomalies = anomalies.filter((a) => !mutedSet.has(a.category));
+            }
+          }
+
+          if (anomalies.length > 0) {
+            const top = anomalies[0];
+            const meta = CATEGORIES[toCategoryKey(top.category)];
+            const pct = Math.round(top.severity * 100);
+            const result = await sendOne(sub, {
+              title: `${meta.emoji} ${meta.label} up ${pct}% this month`,
+              body: `Currently ₹${Math.round(top.current).toLocaleString("en-IN")} (usual: ₹${Math.round(top.baseline).toLocaleString("en-IN")}). Anything off?`,
+              url: "/app/personal",
+              tag: "easysplits-anomaly",
+            });
+            if (result === "sent") {
+              sent++;
+              await db
+                .update(pushSubscriptions)
+                .set({
+                  lastNotifiedAt: new Date(),
+                  anomalyCountThisMonth: currentCount + 1,
+                  anomalyCountMonth: currentMonthKey,
+                })
+                .where(eq(pushSubscriptions.id, sub.id));
+              continue; // don't also send the balance reminder
+            } else if (result === "expired") {
+              expired++;
+              await db
+                .delete(pushSubscriptions)
+                .where(eq(pushSubscriptions.id, sub.id));
+              continue;
+            } else {
+              errors++;
+            }
           }
         }
       }

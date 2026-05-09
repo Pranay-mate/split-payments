@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, BellOff } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
-import { CATEGORIES, toCategoryKey } from "@/lib/categories";
+import { CATEGORIES, toCategoryKey, type CategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
 
 /**
@@ -15,9 +16,16 @@ import { formatINR } from "@/lib/format";
  *   - Up to 2 anomalies max (the detector enforces this).
  *   - Show absolute current + baseline so the framing is "you usually
  *     spend X here, this month it's Y", not just a percentage.
+ *   - "Mute 30d" link per row (v3.5.1) — hides this category from both
+ *     the banner and the cron's anomaly push for 30 days.
  */
 export function AnomalyBanner() {
   const q = trpc.personal.anomalies.useQuery();
+  const utils = trpc.useUtils();
+  const muteMutation = trpc.personal.mutes.create.useMutation({
+    onSuccess: () => utils.personal.anomalies.invalidate(),
+    onError: (err) => toast.error(err.message),
+  });
   const anomalies = q.data ?? [];
   if (q.isLoading || anomalies.length === 0) return null;
 
@@ -34,14 +42,17 @@ export function AnomalyBanner() {
           <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
             Heads-up — anything off this month?
           </p>
-          <ul className="mt-1.5 space-y-1.5 text-xs text-amber-900/90 dark:text-amber-200/90">
+          <ul className="mt-2 space-y-2 text-xs text-amber-900/90 dark:text-amber-200/90">
             {anomalies.map((a) => {
               const meta = CATEGORIES[toCategoryKey(a.category)];
               const pct = Math.round(a.severity * 100);
               return (
-                <li key={a.category} className="flex items-baseline gap-1.5">
-                  <span aria-hidden>{meta.emoji}</span>
-                  <span>
+                <li
+                  key={a.category}
+                  className="flex flex-wrap items-baseline gap-x-2 gap-y-1"
+                >
+                  <span className="flex-1 min-w-0">
+                    <span aria-hidden>{meta.emoji}</span>{" "}
                     <strong>{meta.label}</strong> up{" "}
                     <strong className="tabular-nums">{pct}%</strong> ·{" "}
                     {formatINR(a.current, 0)} this month vs{" "}
@@ -52,6 +63,29 @@ export function AnomalyBanner() {
                       {a.entryCount === 1 ? "entry" : "entries"})
                     </span>
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      muteMutation.mutate(
+                        {
+                          category: toCategoryKey(a.category) as CategoryKey,
+                          days: 30,
+                        },
+                        {
+                          onSuccess: () =>
+                            toast.success(
+                              `${meta.label} muted for 30 days`,
+                            ),
+                        },
+                      );
+                    }}
+                    disabled={muteMutation.isPending}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300 bg-white/60 px-2 py-0.5 text-[10.5px] font-medium text-amber-800 transition hover:bg-white disabled:opacity-60 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/70"
+                    title={`Hide ${meta.label} alerts for 30 days`}
+                  >
+                    <BellOff className="h-3 w-3" aria-hidden />
+                    Mute 30d
+                  </button>
                 </li>
               );
             })}

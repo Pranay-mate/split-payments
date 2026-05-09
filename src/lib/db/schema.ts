@@ -339,6 +339,15 @@ export const pushSubscriptions = pgTable(
       .notNull()
       .defaultNow(),
     lastNotifiedAt: timestamp("last_notified_at", { withTimezone: true }),
+    /** v3.5.1 rate cap on anomaly pushes. Reset when the month rolls over.
+     *  Stored on the subscription row (not user row) so a user with both
+     *  desktop + phone gets at most 2 anomaly pushes per device per
+     *  month — same UX as a user with one device. */
+    anomalyCountThisMonth: integer("anomaly_count_this_month")
+      .notNull()
+      .default(0),
+    /** Month bucket for the count above, e.g. "2026-05". */
+    anomalyCountMonth: text("anomaly_count_month").notNull().default(""),
   },
   (t) => [index("push_subscriptions_user_idx").on(t.userId)],
 );
@@ -535,3 +544,31 @@ export const financialGoals = pgTable(
 );
 
 export type FinancialGoal = typeof financialGoals.$inferSelect;
+
+/**
+ * Anomaly category mutes (v3.5.1). When a user clicks "Mute 30 days"
+ * on the anomaly banner for a category, we record (user_id, category,
+ * muted_until) here. Both the in-app banner query and the cron's
+ * anomaly pass filter out categories with `muted_until > now()`.
+ *
+ * Unique (user_id, category) — re-muting bumps the existing row's
+ * muted_until rather than creating a duplicate.
+ */
+export const anomalyMutes = pgTable(
+  "anomaly_mutes",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    category: text("category").notNull(),
+    mutedUntil: timestamp("muted_until", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("anomaly_mutes_user_category_uniq").on(t.userId, t.category),
+    index("anomaly_mutes_user_idx").on(t.userId),
+  ],
+);
+
+export type AnomalyMute = typeof anomalyMutes.$inferSelect;

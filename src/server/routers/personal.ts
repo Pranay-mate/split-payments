@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import {
+  anomalyMutes,
   financialGoals,
   financialProfiles,
   personalEntries,
@@ -421,7 +422,24 @@ export const personalRouter = router({
     });
 
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    return detectAnomalies(decryptedEntries, currentMonthKey);
+    const detected = detectAnomalies(decryptedEntries, currentMonthKey);
+
+    // Filter out user-muted categories. Pull active mutes (muted_until > now)
+    // and drop matching anomalies.
+    if (detected.length > 0) {
+      const activeMutes = await db
+        .select({ category: anomalyMutes.category })
+        .from(anomalyMutes)
+        .where(
+          and(
+            eq(anomalyMutes.userId, ctx.user.id),
+            gte(anomalyMutes.mutedUntil, now),
+          ),
+        );
+      const mutedSet = new Set(activeMutes.map((m) => m.category));
+      return detected.filter((a) => !mutedSet.has(a.category));
+    }
+    return detected;
   }),
 
   /** List of months the user has any entry in — populates a month picker. */
@@ -809,6 +827,78 @@ export const personalRouter = router({
           .update(financialGoals)
           .set({ archivedAt: new Date() })
           .where(eq(financialGoals.id, input.id));
+        return { ok: true };
+      }),
+  }),
+
+  /**
+   * Anomaly category mutes (v3.5.1). The in-app anomalies query and
+   * the cron's anomaly pass both filter out categories present here
+   * with `muted_until > now`. Per-user; one row per category max.
+   */
+  mutes: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const now = new Date();
+      const rows = await db
+        .select()
+        .from(anomalyMutes)
+        .where(
+          and(
+            eq(anomalyMutes.userId, ctx.user.id),
+            gte(anomalyMutes.mutedUntil, now),
+          ),
+        );
+      return rows.map((r) => ({
+        category: r.category,
+        mutedUntil: r.mutedUntil,
+      }));
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          category: z.enum(CATEGORY_KEYS),
+          days: z.number().int().min(1).max(365).default(30),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const mutedUntil = new Date(
+          Date.now() + input.days * 24 * 60 * 60 * 1000,
+        );
+        // Upsert via try-update-then-insert. Drizzle's onConflict needs
+        // the unique-index name; this pattern matches what financial_profiles
+        // does and stays portable across providers.
+        const updated = await db
+          .update(anomalyMutes)
+          .set({ mutedUntil })
+          .where(
+            and(
+              eq(anomalyMutes.userId, ctx.user.id),
+              eq(anomalyMutes.category, input.category),
+            ),
+          )
+          .returning();
+        if (updated.length === 0) {
+          await db.insert(anomalyMutes).values({
+            userId: ctx.user.id,
+            category: input.category,
+            mutedUntil,
+          });
+        }
+        return { mutedUntil };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ category: z.enum(CATEGORY_KEYS) }))
+      .mutation(async ({ ctx, input }) => {
+        await db
+          .delete(anomalyMutes)
+          .where(
+            and(
+              eq(anomalyMutes.userId, ctx.user.id),
+              eq(anomalyMutes.category, input.category),
+            ),
+          );
         return { ok: true };
       }),
   }),
