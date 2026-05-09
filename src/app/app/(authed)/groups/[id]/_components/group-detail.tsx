@@ -85,6 +85,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const removeMemberMutation = trpc.groups.removeMember.useMutation({
     onSuccess: () => {
       utils.groups.members.invalidate({ groupId });
+      utils.events.listByGroup.invalidate({ groupId });
       toast.success("Member removed");
     },
     onError: (err) => toast.error(err.message),
@@ -93,6 +94,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const addGuestMutation = trpc.groups.addGuest.useMutation({
     onSuccess: () => {
       utils.groups.members.invalidate({ groupId });
+      utils.events.listByGroup.invalidate({ groupId });
       setGuestName("");
       toast.success("Guest added");
     },
@@ -115,6 +117,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const deleteMutation = trpc.expenses.delete.useMutation({
     onSuccess: () => {
       utils.expenses.listByGroup.invalidate({ groupId });
+      utils.events.listByGroup.invalidate({ groupId });
     },
   });
   const submitDelete = useMutationWithQueue("expenses.delete", deleteMutation, {
@@ -568,7 +571,10 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         : null
                     }
                 onSuccess={(queued) => {
-                  if (!queued) utils.expenses.listByGroup.invalidate({ groupId });
+                  if (!queued) {
+                    utils.expenses.listByGroup.invalidate({ groupId });
+                    utils.events.listByGroup.invalidate({ groupId });
+                  }
                   if (editingId) {
                     setEditingId(null);
                     if (!queued) toast.success("Expense updated");
@@ -747,6 +753,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     </div>
                     {commentingOn === e.id && meQuery.data?.id && (
                       <CommentsThread
+                        groupId={groupId}
                         expenseId={e.id}
                         currentUserId={meQuery.data.id}
                         memberById={memberById}

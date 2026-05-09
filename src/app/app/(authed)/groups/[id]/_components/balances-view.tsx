@@ -127,11 +127,13 @@ export function BalancesView({
   const recordMutation = trpc.settlements.create.useMutation({
     onSuccess: () => {
       utils.settlements.listByGroup.invalidate({ groupId });
+      utils.events.listByGroup.invalidate({ groupId });
     },
   });
   const deleteMutation = trpc.settlements.delete.useMutation({
     onSuccess: () => {
       utils.settlements.listByGroup.invalidate({ groupId });
+      utils.events.listByGroup.invalidate({ groupId });
     },
   });
   const submitRecord = useMutationWithQueue(

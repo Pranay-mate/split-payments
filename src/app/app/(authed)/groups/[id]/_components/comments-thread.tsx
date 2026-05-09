@@ -35,10 +35,14 @@ function relativeTime(date: Date | string): string {
 }
 
 export function CommentsThread({
+  groupId,
   expenseId,
   currentUserId,
   memberById,
 }: {
+  /** Needed so the activity feed (events.listByGroup) refreshes after
+   *  add/delete — comments write events too. */
+  groupId: string;
   expenseId: string;
   currentUserId: string;
   memberById: Map<string, { id: string; name: string }>;
@@ -56,11 +60,15 @@ export function CommentsThread({
   const addMutation = trpc.comments.add.useMutation({
     onSuccess: () => {
       utils.comments.listByExpense.invalidate({ expenseId });
+      utils.events.listByGroup.invalidate({ groupId });
+      utils.events.listByExpense.invalidate({ expenseId });
     },
   });
   const deleteMutation = trpc.comments.delete.useMutation({
     onSuccess: () => {
       utils.comments.listByExpense.invalidate({ expenseId });
+      utils.events.listByGroup.invalidate({ groupId });
+      utils.events.listByExpense.invalidate({ expenseId });
     },
   });
   const submitAdd = useMutationWithQueue("comments.add", addMutation, {

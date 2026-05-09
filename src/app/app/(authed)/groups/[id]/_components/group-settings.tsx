@@ -43,6 +43,7 @@ export function GroupSettings({
     onSuccess: () => {
       utils.groups.list.invalidate();
       utils.groups.byId.invalidate({ id: group.id });
+      utils.events.listByGroup.invalidate({ groupId: group.id });
       toast.success("Group updated");
     },
     onError: (err) => toast.error(err.message),
