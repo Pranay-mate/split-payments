@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   Bell,
   BellOff,
+  Link2,
   Loader2,
   LogOut,
   Save,
   Send,
   Settings,
   Trash2,
+  UserMinus,
+  UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,21 +27,69 @@ type GroupForSettings = {
   primaryCurrency: string;
 };
 
+type MemberForSettings = {
+  userId: string;
+  displayName: string;
+  isGuest: boolean;
+};
+
 export function GroupSettings({
   group,
   expenseCount,
   isCreator,
+  members,
+  meId,
 }: {
   group: GroupForSettings;
   expenseCount: number;
   /** Only the group creator can delete the whole group. */
   isCreator: boolean;
+  /** Member list — same shape as group-detail uses. */
+  members: MemberForSettings[];
+  /** Logged-in user's id, so we can hide "remove" on self. */
+  meId: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(group.name);
+  const [guestName, setGuestName] = useState("");
 
   const utils = trpc.useUtils();
+
+  // Member-management mutations live in Settings now (single source of
+  // truth for add/remove/claim); the standalone Members card on the
+  // page is read-only chips.
+  const addGuestMutation = trpc.groups.addGuest.useMutation({
+    onSuccess: () => {
+      utils.groups.members.invalidate({ groupId: group.id });
+      utils.events.listByGroup.invalidate({ groupId: group.id });
+      setGuestName("");
+      toast.success("Guest added");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const removeMemberMutation = trpc.groups.removeMember.useMutation({
+    onSuccess: () => {
+      utils.groups.members.invalidate({ groupId: group.id });
+      utils.events.listByGroup.invalidate({ groupId: group.id });
+      toast.success("Member removed");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const claimTokenMutation = trpc.groups.createClaimToken.useMutation({
+    onSuccess: async ({ token }) => {
+      const url = `${window.location.origin}/app/claim/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Claim link copied — share it with your guest");
+      } catch {
+        toast.success(`Link: ${url}`);
+      }
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const updateMutation = trpc.groups.update.useMutation({
     onSuccess: () => {
@@ -151,6 +203,122 @@ export function GroupSettings({
                     ? "Locked because expenses already exist. Create a new group to use a different currency."
                     : "Can be changed only while the group has no expenses (currently empty)."}
                 </p>
+              </div>
+
+              {/* Members management — moved here from the standalone
+                  Members card so all admin actions live in one place. */}
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <Users className="h-3.5 w-3.5" aria-hidden /> Members ·{" "}
+                  {members.length}
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {members.map((m) => {
+                    const isSelf = m.userId === meId;
+                    const isGuest = m.isGuest;
+                    return (
+                      <li
+                        key={m.userId}
+                        className="flex items-center gap-2 rounded-md bg-white px-2 py-1.5 text-xs dark:bg-slate-900"
+                      >
+                        <span
+                          aria-hidden
+                          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white ${
+                            isGuest
+                              ? "bg-gradient-to-br from-amber-500 to-rose-500"
+                              : "bg-gradient-to-br from-indigo-500 to-emerald-500"
+                          }`}
+                        >
+                          {m.displayName.slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">
+                          {m.displayName}
+                          {isSelf ? " (you)" : ""}
+                          {isGuest && (
+                            <span className="ml-1.5 rounded-full bg-amber-200/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
+                              guest
+                            </span>
+                          )}
+                        </span>
+                        {isGuest && isCreator && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              claimTokenMutation.mutate({
+                                groupId: group.id,
+                                shadowProfileId: m.userId,
+                              })
+                            }
+                            disabled={claimTokenMutation.isPending}
+                            className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-amber-700 transition hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-950"
+                            aria-label={`Generate claim link for ${m.displayName}`}
+                            title="Copy a single-use claim link to share with this guest"
+                          >
+                            <Link2 className="h-3 w-3" aria-hidden />
+                          </button>
+                        )}
+                        {!isSelf && (isGuest || isCreator) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                confirm(`Remove ${m.displayName} from this group?`)
+                              ) {
+                                removeMemberMutation.mutate({
+                                  groupId: group.id,
+                                  userId: m.userId,
+                                });
+                              }
+                            }}
+                            disabled={removeMemberMutation.isPending}
+                            className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-400 transition hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                            aria-label={`Remove ${m.displayName}`}
+                          >
+                            <UserMinus className="h-3 w-3" aria-hidden />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const trimmed = guestName.trim();
+                    if (!trimmed) return;
+                    addGuestMutation.mutate({
+                      groupId: group.id,
+                      name: trimmed,
+                    });
+                  }}
+                  className="mt-3 flex flex-wrap items-center gap-2"
+                >
+                  <label className="sr-only" htmlFor="settings-guest-name">
+                    Guest name
+                  </label>
+                  <input
+                    id="settings-guest-name"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Add by name (no signup)"
+                    maxLength={60}
+                    className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950"
+                  />
+                  <button
+                    type="submit"
+                    disabled={
+                      !guestName.trim() || addGuestMutation.isPending
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-2.5 py-1.5 text-[11px] font-medium text-white transition hover:bg-indigo-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
+                  >
+                    {addGuestMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                    ) : (
+                      <UserPlus className="h-3 w-3" aria-hidden />
+                    )}
+                    Add
+                  </button>
+                </form>
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">

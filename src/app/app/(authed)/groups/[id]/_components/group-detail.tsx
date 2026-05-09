@@ -10,16 +10,13 @@ import {
   Download,
   FileText,
   Loader2,
-  Link2,
   MessageSquare,
   Pencil,
   Plus,
   Receipt,
   Share2,
   Trash2,
-  UserPlus,
   Users,
-  UserMinus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -65,7 +62,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
   const [showCharts, setShowCharts] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
-  const [guestName, setGuestName] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const focusForm = () => {
@@ -82,37 +78,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const settlementsQuery = trpc.settlements.listByGroup.useQuery({ groupId });
   const utils = trpc.useUtils();
 
-  const removeMemberMutation = trpc.groups.removeMember.useMutation({
-    onSuccess: () => {
-      utils.groups.members.invalidate({ groupId });
-      utils.events.listByGroup.invalidate({ groupId });
-      toast.success("Member removed");
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const addGuestMutation = trpc.groups.addGuest.useMutation({
-    onSuccess: () => {
-      utils.groups.members.invalidate({ groupId });
-      utils.events.listByGroup.invalidate({ groupId });
-      setGuestName("");
-      toast.success("Guest added");
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const claimTokenMutation = trpc.groups.createClaimToken.useMutation({
-    onSuccess: async ({ token }) => {
-      const url = `${window.location.origin}/app/claim/${token}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success("Claim link copied — share it with your guest");
-      } catch {
-        toast.success(`Link: ${url}`);
-      }
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  // Member-management mutations now live inside <GroupSettings />.
 
   const deleteMutation = trpc.expenses.delete.useMutation({
     onSuccess: () => {
@@ -307,6 +273,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                   }}
                   expenseCount={expenses.length}
                   isCreator={isCreator}
+                  members={members.map((m) => ({
+                    userId: m.userId,
+                    displayName: m.displayName,
+                    isGuest: m.isGuest,
+                  }))}
+                  meId={meQuery.data?.id ?? null}
                 />
               </div>
             </div>
@@ -332,14 +304,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </div>
         </div>
 
-        <ContributionBar
-          expenses={expenses.map((e) => ({
-            payerId: e.payerId,
-            convertedAmount: e.convertedAmount,
-          }))}
-          members={members.map((m) => ({ id: m.userId, name: m.displayName }))}
-        />
-
+        {/* Balances first — answers the #1 user question ("do I owe anyone?")
+            before showing supporting context like contribution share. */}
         {summary && summary.balances.length > 0 && (
           <BalancesView
             groupId={groupId}
@@ -348,6 +314,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             recorded={settlementsQuery.data ?? []}
           />
         )}
+
+        <ContributionBar
+          expenses={expenses.map((e) => ({
+            payerId: e.payerId,
+            convertedAmount: e.convertedAmount,
+          }))}
+          members={members.map((m) => ({ id: m.userId, name: m.displayName }))}
+        />
 
         <SubscriptionAudit
           expenses={expenses.map((e) => ({
@@ -358,43 +332,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           }))}
           primaryCurrency={group.primaryCurrency}
         />
-
-        {expenses.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-            <button
-              type="button"
-              onClick={() => setShowCharts((v) => !v)}
-              aria-expanded={showCharts}
-              className="flex w-full items-center justify-between"
-            >
-              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-                <BarChart3 className="h-4 w-4 text-fuchsia-500" aria-hidden />
-                Charts
-              </h2>
-              <ChevronDown
-                className={`h-4 w-4 text-slate-400 transition ${showCharts ? "rotate-180" : ""}`}
-                aria-hidden
-              />
-            </button>
-            {showCharts && (
-              <div className="mt-4">
-                <GroupCharts
-                  expenses={expenses.map((e) => ({
-                    payerId: e.payerId,
-                    convertedAmount: e.convertedAmount,
-                    occurredAt: e.occurredAt,
-                    category: (e as unknown as { category?: string | null })
-                      .category,
-                  }))}
-                  members={members.map((m) => ({
-                    id: m.userId,
-                    name: m.displayName,
-                  }))}
-                />
-              </div>
-            )}
-          </section>
-        )}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <div className="flex items-center justify-between">
@@ -767,125 +704,100 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           })()}
         </section>
 
+        {/* Charts — collapsed by default; lives below Expenses since
+            it's a derived view of the same data. */}
+        {expenses.length > 0 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+            <button
+              type="button"
+              onClick={() => setShowCharts((v) => !v)}
+              aria-expanded={showCharts}
+              className="flex w-full items-center justify-between"
+            >
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <BarChart3 className="h-4 w-4 text-fuchsia-500" aria-hidden />
+                Charts
+              </h2>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition ${showCharts ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+            {showCharts && (
+              <div className="mt-4">
+                <GroupCharts
+                  expenses={expenses.map((e) => ({
+                    payerId: e.payerId,
+                    convertedAmount: e.convertedAmount,
+                    occurredAt: e.occurredAt,
+                    category: (e as unknown as { category?: string | null })
+                      .category,
+                  }))}
+                  members={members.map((m) => ({
+                    id: m.userId,
+                    name: m.displayName,
+                  }))}
+                />
+              </div>
+            )}
+          </section>
+        )}
+
+        <ActivityFeed groupId={groupId} memberById={memberById} />
+
+        {/* Members — read-only chips. Add/remove/claim controls live in
+            Settings (header) since they're admin-mode actions. */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-          <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-            <Users className="h-4 w-4 text-indigo-500" aria-hidden />
-            Members
-          </h2>
-          <ul className="mt-4 flex flex-wrap gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <Users className="h-4 w-4 text-indigo-500" aria-hidden />
+              Members
+            </h2>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {members.length}
+            </span>
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-1.5">
             {members.map((m) => {
               const isSelf = m.userId === meQuery.data?.id;
               const isGuest = m.isGuest;
               return (
                 <li
                   key={m.userId}
-                  className={`inline-flex items-center gap-2 rounded-full border py-1 pl-3 pr-1 text-sm ${
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
                     isGuest
                       ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
                       : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
                   }`}
                 >
                   <span
-                    className={`grid h-5 w-5 place-items-center rounded-full text-[10px] font-semibold text-white ${
+                    aria-hidden
+                    className={`grid h-4 w-4 shrink-0 place-items-center rounded-full text-[9px] font-semibold text-white ${
                       isGuest
                         ? "bg-gradient-to-br from-amber-500 to-rose-500"
                         : "bg-gradient-to-br from-indigo-500 to-emerald-500"
                     }`}
-                    aria-hidden
                   >
                     {m.displayName.slice(0, 1).toUpperCase()}
                   </span>
                   <span>
                     {m.displayName}
                     {isSelf ? " (you)" : ""}
-                    {isGuest && (
-                      <span className="ml-1.5 rounded-full bg-amber-200/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
-                        guest
-                      </span>
-                    )}
                   </span>
-                  {isGuest && isCreator && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        claimTokenMutation.mutate({
-                          groupId,
-                          shadowProfileId: m.userId,
-                        })
-                      }
-                      disabled={claimTokenMutation.isPending}
-                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-amber-700 transition hover:bg-amber-200 dark:text-amber-300 dark:hover:bg-amber-900"
-                      aria-label={`Generate claim link for ${m.displayName}`}
-                      title="Copy a single-use claim link to share with this guest"
-                    >
-                      <Link2 className="h-3 w-3" aria-hidden />
-                    </button>
-                  )}
-                  {!isSelf && (isGuest || isCreator) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm(`Remove ${m.displayName} from this group?`)) {
-                          removeMemberMutation.mutate({
-                            groupId,
-                            userId: m.userId,
-                          });
-                        }
-                      }}
-                      disabled={removeMemberMutation.isPending}
-                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-slate-400 transition hover:bg-slate-200 hover:text-rose-600 dark:hover:bg-slate-700"
-                      aria-label={`Remove ${m.displayName}`}
-                    >
-                      <UserMinus className="h-3 w-3" aria-hidden />
-                    </button>
+                  {isGuest && (
+                    <span className="rounded-full bg-amber-200/70 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
+                      guest
+                    </span>
                   )}
                 </li>
               );
             })}
           </ul>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const name = guestName.trim();
-              if (!name) return;
-              addGuestMutation.mutate({ groupId, name });
-            }}
-            className="mt-4 flex flex-wrap items-center gap-2"
-          >
-            <label className="sr-only" htmlFor="guest-name">
-              Guest name
-            </label>
-            <input
-              id="guest-name"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Add by name (no signup)"
-              maxLength={60}
-              className="flex-1 min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950"
-            />
-            <button
-              type="submit"
-              disabled={!guestName.trim() || addGuestMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
-            >
-              {addGuestMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-              ) : (
-                <UserPlus className="h-3.5 w-3.5" aria-hidden />
-              )}
-              Add guest
-            </button>
-          </form>
-
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-            Add friends by name even if they don&apos;t have an account — share a one-shot claim
-            link later to merge their history when they sign up. For people on EasySplits, tap{" "}
-            <strong>Invite</strong> above instead.
+          <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+            Add or remove members from{" "}
+            <strong className="font-semibold">Settings</strong> in the header.
           </p>
         </section>
-
-        <ActivityFeed groupId={groupId} memberById={memberById} />
       </div>
 
       {/* Floating Action Button — single-tap "Add expense" from any
