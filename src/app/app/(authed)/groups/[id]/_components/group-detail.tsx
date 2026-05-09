@@ -902,6 +902,25 @@ export function GroupDetail({ groupId }: { groupId: string }) {
 
         <ActivityFeed groupId={groupId} memberById={memberById} />
       </div>
+
+      {/* Floating Action Button — single-tap "Add expense" from any
+          scroll position. Hidden while a form is already open so it
+          doesn't sit on top of the inline AddExpense panel. */}
+      {!adding && !editingId && (
+        <button
+          type="button"
+          onClick={() => {
+            setEditingId(null);
+            setAdding(true);
+            focusForm();
+          }}
+          aria-label="Add expense"
+          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition-transform duration-150 hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
+        >
+          <Plus className="h-5 w-5" aria-hidden />
+          <span className="hidden sm:inline">Add expense</span>
+        </button>
+      )}
     </main>
   );
 }
