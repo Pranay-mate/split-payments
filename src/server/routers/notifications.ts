@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import webpush from "web-push";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
@@ -91,6 +92,84 @@ export const notificationsRouter = router({
         );
       return { ok: true };
     }),
+
+  /**
+   * Send an immediate "this is working" notification to all of the
+   * caller's subscribed devices. Bypasses the 7-day throttle and the
+   * qualifying-data check that the cron applies — useful for verifying
+   * the push pipeline post-setup or when debugging "why didn't I get a
+   * notification."
+   *
+   * Only sends to ctx.user.id's own subscriptions; can't be misused to
+   * spam other users.
+   */
+  sendTest: protectedProcedure.mutation(async ({ ctx }) => {
+    const publicKey = process.env.VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+    const subject = process.env.VAPID_SUBJECT ?? "mailto:hello@easysplits.in";
+    if (!publicKey || !privateKey) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message:
+          "Notifications aren't configured yet — VAPID keys missing on the server.",
+      });
+    }
+
+    const subs = await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, ctx.user.id));
+
+    if (subs.length === 0) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message:
+          "No subscribed devices yet — click Enable above first, then try again.",
+      });
+    }
+
+    webpush.setVapidDetails(subject, publicKey, privateKey);
+
+    const payload = JSON.stringify({
+      title: "🔔 EasySplits test",
+      body: "Your reminders are wired up. You'll get pinged for unsettled balances or unusual spending on the daily cron.",
+      url: "/app/groups",
+      tag: "easysplits-test",
+    });
+
+    let sent = 0;
+    let expired = 0;
+    let errors = 0;
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          payload,
+          { TTL: 60 },
+        );
+        sent++;
+      } catch (err: unknown) {
+        const status =
+          err && typeof err === "object" && "statusCode" in err
+            ? (err as { statusCode: number }).statusCode
+            : 0;
+        if (status === 404 || status === 410) {
+          // Subscription is dead on the push service side — prune so we
+          // don't keep retrying on every cron run.
+          expired++;
+          await db
+            .delete(pushSubscriptions)
+            .where(eq(pushSubscriptions.id, sub.id));
+        } else {
+          errors++;
+        }
+      }
+    }
+    return { sent, expired, errors, total: subs.length };
+  }),
 
   /** Update what kinds of pings this user wants. Applies to all of their devices. */
   updatePreferences: protectedProcedure

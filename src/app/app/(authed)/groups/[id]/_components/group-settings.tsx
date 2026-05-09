@@ -8,6 +8,7 @@ import {
   Loader2,
   LogOut,
   Save,
+  Send,
   Settings,
   Trash2,
   X,
@@ -195,22 +196,25 @@ export function GroupSettings({
                     </button>
                   )}
                   {push.status === "subscribed" && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await push.unsubscribe();
-                          toast.success("Reminders off");
-                        } catch (err) {
-                          toast.error(
-                            err instanceof Error ? err.message : "Failed",
-                          );
-                        }
-                      }}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                    >
-                      <BellOff className="h-3 w-3" aria-hidden /> Disable
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <SendTestButton />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await push.unsubscribe();
+                            toast.success("Reminders off");
+                          } catch (err) {
+                            toast.error(
+                              err instanceof Error ? err.message : "Failed",
+                            );
+                          }
+                        }}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                      >
+                        <BellOff className="h-3 w-3" aria-hidden /> Disable
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -253,5 +257,44 @@ export function GroupSettings({
         </>
       )}
     </>
+  );
+}
+
+function SendTestButton() {
+  const sendTest = trpc.notifications.sendTest.useMutation();
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          const r = await sendTest.mutateAsync();
+          if (r.sent > 0) {
+            toast.success(
+              r.expired > 0
+                ? `Test sent to ${r.sent} device(s). ${r.expired} expired one(s) cleaned up.`
+                : `Test sent to ${r.sent} device${r.sent === 1 ? "" : "s"}. Check your notifications.`,
+            );
+          } else if (r.expired > 0) {
+            toast.error(
+              "All your subscriptions had expired — re-enable reminders.",
+            );
+          } else {
+            toast.error("Couldn't reach any of your devices. Try re-enabling.");
+          }
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Test failed");
+        }
+      }}
+      disabled={sendTest.isPending}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
+      title="Send a test notification to all your subscribed devices, bypassing the daily-cron checks"
+    >
+      {sendTest.isPending ? (
+        <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+      ) : (
+        <Send className="h-3 w-3" aria-hidden />
+      )}
+      Test
+    </button>
   );
 }
