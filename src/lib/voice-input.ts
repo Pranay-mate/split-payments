@@ -109,8 +109,11 @@ export function parseVoiceTranscript(transcript: string): VoiceParseResult {
 
   // 1. Trailing digits with optional currency tokens.
   //    Matches: "pizza 600", "pizza ₹600", "pizza 600 rupees", "rent rs 15000"
+  //    The optional currency prefix must be followed by whitespace before
+  //    digits — otherwise "rent rs 15000" gets parsed with "rs" as part of
+  //    the description.
   const digitMatch = cleaned.match(
-    /^(.+?)\s+(?:₹|rs\.?|inr\s+|rupees?\s+)?(\d{1,3}(?:[,\s]\d{3})*|\d+)(?:\.(\d+))?\s*(?:rupees?|rs\.?|inr|₹)?$/i,
+    /^(.+?)\s+(?:(?:rs\.?|inr|rupees?)\s+|₹\s*)?(\d{1,3}(?:[,\s]\d{3})*|\d+)(?:\.(\d+))?\s*(?:rupees?|rs\.?|inr|₹)?$/i,
   );
   if (digitMatch) {
     const desc = digitMatch[1].trim();

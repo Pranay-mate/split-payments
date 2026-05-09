@@ -188,6 +188,8 @@
 |---|---|
 | Receipt photo upload (Supabase Storage) | Future scope. Storage bucket + thumbnail in expense row. Likely ~2h. |
 | Recurring expenses (rent, subs) | Future scope (deferred per user). Needs cron-triggered materialization OR on-open generation; template UI for editing rules; handles membership changes. ~3–4h. |
+| Bank statement CSV import | Future scope. Parse HDFC/SBI/ICICI/Axis CSV exports; preview detected transactions; bulk-import. Reuses existing auto-detect category. ~3h. |
+| 80C / 80D / 80CCD(1B) tax tracker | Future scope. Indian-specific, sticky annual feature — show progress bars on each section limit, surface missed savings. Belongs to Phase 2.5 PFT. ~2–3h. |
 
 ### Out of scope (decided no)
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/schema";
 import { getRate, isReasonableRate } from "@/lib/fx";
 import { CATEGORY_KEYS } from "@/lib/categories";
+import { splitsFromItems } from "@/lib/itemized-splits";
 import { logEvent } from "../events";
 
 const splitSchema = z.object({
@@ -27,41 +28,6 @@ const itemSchema = z.object({
   amount: z.number().positive(),
   sharerIds: z.array(z.string().uuid()).min(1),
 });
-
-/**
- * Given itemized lines (in original currency), produce per-user totals.
- * Each item is split equally between its sharers; per-user totals are
- * the sum of their share across items, rounded to 2dp at the end.
- */
-function splitsFromItems(
-  items: { amount: number; sharerIds: string[] }[],
-): { userId: string; amount: number }[] {
-  const perUser = new Map<string, number>();
-  for (const item of items) {
-    const per = item.amount / item.sharerIds.length;
-    for (const id of item.sharerIds) {
-      perUser.set(id, (perUser.get(id) ?? 0) + per);
-    }
-  }
-  const out = Array.from(perUser.entries()).map(([userId, amount]) => ({
-    userId,
-    amount: Math.round(amount * 100) / 100,
-  }));
-  // Penny-rounding adjustment: if 2dp totals don't quite match the items'
-  // sum, push the residual onto the highest-share user. Keeps per_user_sum
-  // === sum_of_items to within a paisa.
-  const itemTotal = items.reduce((s, i) => s + i.amount, 0);
-  const splitTotal = out.reduce((s, x) => s + x.amount, 0);
-  const delta = Math.round((itemTotal - splitTotal) * 100) / 100;
-  if (Math.abs(delta) >= 0.01 && out.length > 0) {
-    const biggest = out.reduce(
-      (best, cur) => (cur.amount > best.amount ? cur : best),
-      out[0],
-    );
-    biggest.amount = Math.round((biggest.amount + delta) * 100) / 100;
-  }
-  return out;
-}
 
 async function ensureMembership(groupId: string, userId: string) {
   const membership = await db

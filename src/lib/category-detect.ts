@@ -185,6 +185,7 @@ const RULES: Rule[] = [
       "grocery",
       "groceries",
       "vegetable",
+      "vegetables",
       "veggies",
       "fruit",
       "fruits",
@@ -250,7 +251,6 @@ const RULES: Rule[] = [
       "dhobi",
       "dry clean",
       "dry cleaning",
-      "subscription",
     ],
   },
 

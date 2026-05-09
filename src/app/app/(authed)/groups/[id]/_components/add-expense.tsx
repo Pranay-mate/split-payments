@@ -15,6 +15,7 @@ import {
   type CategoryKey,
 } from "@/lib/categories";
 import { detectCategory } from "@/lib/category-detect";
+import { splitsFromItems } from "@/lib/itemized-splits";
 import { parseVoiceTranscript } from "@/lib/voice-input";
 import { useVoiceInput } from "@/lib/use-voice-input";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
@@ -300,39 +301,6 @@ export function AddExpense({
     setSharerIds(members.map((m) => m.id));
     setMode("single");
     setItems([blankItem(members.map((m) => m.id))]);
-  };
-
-  /**
-   * Itemized splits: each item is split equally among its sharers; per-user
-   * totals are the sum across items. Mirrors the server-side splitsFromItems
-   * — same penny-rounding adjustment so client + server agree to the rupee.
-   */
-  const splitsFromItems = (
-    list: { amount: number; sharerIds: string[] }[],
-  ): { userId: string; amount: number }[] => {
-    const perUser = new Map<string, number>();
-    for (const item of list) {
-      if (item.sharerIds.length === 0) continue;
-      const per = item.amount / item.sharerIds.length;
-      for (const id of item.sharerIds) {
-        perUser.set(id, (perUser.get(id) ?? 0) + per);
-      }
-    }
-    const out = Array.from(perUser.entries()).map(([userId, amount]) => ({
-      userId,
-      amount: Math.round(amount * 100) / 100,
-    }));
-    const itemTotal = list.reduce((s, i) => s + i.amount, 0);
-    const splitTotal = out.reduce((s, x) => s + x.amount, 0);
-    const delta = Math.round((itemTotal - splitTotal) * 100) / 100;
-    if (Math.abs(delta) >= 0.01 && out.length > 0) {
-      const biggest = out.reduce(
-        (best, cur) => (cur.amount > best.amount ? cur : best),
-        out[0],
-      );
-      biggest.amount = Math.round((biggest.amount + delta) * 100) / 100;
-    }
-    return out;
   };
 
   const buildSplits = () => {
