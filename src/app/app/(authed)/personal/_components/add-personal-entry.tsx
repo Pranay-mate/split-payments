@@ -83,6 +83,13 @@ export function AddPersonalEntry({
         .toISOString()
         .slice(0, 10),
   );
+  // "Make this recurring" — when checked on a NEW entry, after save we
+  // also create a personal_recurrences row for the same fields. Disabled
+  // when editing (use the Recurrences card directly for those).
+  const [makeRecurring, setMakeRecurring] = useState(false);
+  const [recurrenceDay, setRecurrenceDay] = useState<number>(
+    new Date().getDate(),
+  );
 
   // Auto-detect category from description (same heuristics as group expenses).
   // Skips once the user has clicked a chip — explicit picks win.
@@ -131,6 +138,8 @@ export function AddPersonalEntry({
   const utils = trpc.useUtils();
   const createMutation = trpc.personal.create.useMutation();
   const updateMutation = trpc.personal.update.useMutation();
+  const recurrenceCreateMutation =
+    trpc.personal.recurrences.create.useMutation();
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const reset = () => {
@@ -141,6 +150,8 @@ export function AddPersonalEntry({
     setCategory(DEFAULT_CATEGORY);
     setCategoryTouched(false);
     setOccurredAt(new Date().toISOString().slice(0, 10));
+    setMakeRecurring(false);
+    setRecurrenceDay(new Date().getDate());
   };
 
   const handleSubmit = async () => {
@@ -168,7 +179,33 @@ export function AddPersonalEntry({
           description: description.trim(),
           occurredAt: occurred,
         });
-        toast.success("Entry added");
+        // If user opted in to recurring, also create a recurrence row.
+        // Failure here doesn't roll back the entry — the entry is real
+        // and useful even if the recurrence creation hiccups.
+        if (makeRecurring && recurrenceDay >= 1 && recurrenceDay <= 31) {
+          try {
+            await recurrenceCreateMutation.mutateAsync({
+              type,
+              amount: numericAmount,
+              description: description.trim(),
+              category,
+              currency,
+              scheduleDay: recurrenceDay,
+            });
+            utils.personal.recurrences.list.invalidate();
+            toast.success(
+              `Entry added · also recurring on day ${recurrenceDay}`,
+            );
+          } catch (err) {
+            toast.error(
+              err instanceof Error
+                ? `Recurrence failed: ${err.message}`
+                : "Recurrence creation failed",
+            );
+          }
+        } else {
+          toast.success("Entry added");
+        }
         reset();
       }
       utils.personal.list.invalidate();
@@ -346,6 +383,51 @@ export function AddPersonalEntry({
           className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900 sm:w-auto"
         />
       </label>
+
+      {/* Make-recurring checkbox — only on new entries (editing existing
+          ones routes to the dedicated Recurrences card to avoid coupling
+          edits to schedule changes). */}
+      {!isEditing && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50/40 p-3 dark:border-violet-900/40 dark:bg-violet-950/20">
+          <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={makeRecurring}
+              onChange={(e) => setMakeRecurring(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-violet-400 text-violet-600 focus:ring-violet-500 dark:border-violet-700 dark:bg-slate-900"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">Make this recurring</span>
+              <span className="ml-1 text-[11px] text-slate-500 dark:text-slate-400">
+                — auto-add the same amount every month
+              </span>
+            </span>
+          </label>
+          {makeRecurring && (
+            <label className="mt-2 flex items-center gap-2 text-xs">
+              <span className="text-slate-600 dark:text-slate-300">
+                Day of month
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="31"
+                value={recurrenceDay}
+                onChange={(e) =>
+                  setRecurrenceDay(
+                    Math.min(31, Math.max(1, Number(e.target.value) || 1)),
+                  )
+                }
+                className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-950"
+              />
+              <span className="text-[10.5px] text-slate-400">
+                (29-31 fall back to last day in shorter months)
+              </span>
+            </label>
+          )}
+        </div>
+      )}
 
       <button
         type="button"
