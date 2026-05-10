@@ -269,6 +269,216 @@ export const personalRouter = router({
         .slice(0, input?.limit ?? 5);
     }),
 
+  /**
+   * Monthly review — single-roundtrip aggregation for the modal that
+   * pops on the first /app/personal load in a new month. Computes
+   * top categories vs previous month, savings-rate delta, biggest
+   * pillar improvement, and a "watch out" category increase.
+   *
+   * Defaults to the *previous* month relative to the server clock,
+   * since that's what the modal celebrates.
+   */
+  monthlyReview: protectedProcedure
+    .input(
+      z
+        .object({
+          month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      // Default = previous calendar month.
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const defaultKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+      const monthKey = input?.month ?? defaultKey;
+
+      // Bounds for the target month and the one before it (for deltas).
+      const target = monthBounds(monthKey);
+      const [ty, tm] = monthKey.split("-").map(Number);
+      const beforeKey = `${tm === 1 ? ty - 1 : ty}-${String(tm === 1 ? 12 : tm - 1).padStart(2, "0")}`;
+      const before = monthBounds(beforeKey);
+
+      // Pull both months in one go; we'll bucket in memory.
+      const rows = await db
+        .select({
+          type: personalEntries.type,
+          category: personalEntries.category,
+          amount: personalEntries.amount,
+          occurredAt: personalEntries.occurredAt,
+        })
+        .from(personalEntries)
+        .where(
+          and(
+            eq(personalEntries.userId, ctx.user.id),
+            isNull(personalEntries.deletedAt),
+            gte(personalEntries.occurredAt, before.start),
+            lt(personalEntries.occurredAt, target.end),
+          ),
+        );
+
+      const targetTotals = { income: 0, expenses: 0, investments: 0, count: 0 };
+      const beforeTotals = { income: 0, expenses: 0, investments: 0, count: 0 };
+      const targetByCat = new Map<string, number>();
+      const beforeByCat = new Map<string, number>();
+
+      for (const r of rows) {
+        const amt = decryptAmount(r.amount);
+        const isTarget = r.occurredAt >= target.start;
+        const totals = isTarget ? targetTotals : beforeTotals;
+        totals.count += 1;
+        if (r.type === "income") totals.income += amt;
+        else if (r.type === "expense") totals.expenses += amt;
+        else if (r.type === "investment") totals.investments += amt;
+        if (r.type === "expense") {
+          const map = isTarget ? targetByCat : beforeByCat;
+          map.set(r.category, (map.get(r.category) ?? 0) + amt);
+        }
+      }
+
+      const savingsRate = (t: typeof targetTotals) =>
+        t.income > 0 ? (t.income - t.expenses - t.investments) / t.income : 0;
+      const targetSavingsRate = savingsRate(targetTotals);
+      const beforeSavingsRate = savingsRate(beforeTotals);
+      const savingsRateDelta =
+        beforeTotals.income > 0
+          ? targetSavingsRate - beforeSavingsRate
+          : null;
+
+      const topCategories = Array.from(targetByCat.entries())
+        .map(([category, total]) => {
+          const prev = beforeByCat.get(category) ?? 0;
+          const deltaPct = prev > 0 ? (total - prev) / prev : null;
+          return {
+            category,
+            total: Math.round(total * 100) / 100,
+            prevTotal: Math.round(prev * 100) / 100,
+            deltaPct,
+          };
+        })
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 3);
+
+      // "Biggest win" — first try a pillar improvement, then fall back to
+      // a savings-rate jump. Only meaningful if both months have data.
+      let biggestWin: {
+        type: "pillar" | "savings-rate";
+        label: string;
+        detail: string;
+      } | null = null;
+      const snapshots = await db
+        .select()
+        .from(scoreSnapshots)
+        .where(
+          and(
+            eq(scoreSnapshots.userId, ctx.user.id),
+            gte(scoreSnapshots.snapshottedAt, before.start),
+            lt(scoreSnapshots.snapshottedAt, target.end),
+          ),
+        )
+        .orderBy(asc(scoreSnapshots.snapshottedAt));
+      const targetSnap = snapshots
+        .filter((s) => s.snapshottedAt >= target.start)
+        .pop();
+      const beforeSnap = snapshots
+        .filter((s) => s.snapshottedAt < target.start)
+        .pop();
+      if (targetSnap && beforeSnap) {
+        try {
+          const targetP = JSON.parse(targetSnap.pillarScores) as Record<
+            string,
+            number
+          >;
+          const beforeP = JSON.parse(beforeSnap.pillarScores) as Record<
+            string,
+            number
+          >;
+          const labels: Record<string, string> = {
+            emergency: "Emergency fund",
+            insurance: "Insurance",
+            debt: "Debt",
+            savingsRate: "Savings rate",
+            investing: "Investing",
+          };
+          let bestKey: string | null = null;
+          let bestDelta = 0;
+          for (const k of Object.keys(targetP)) {
+            const d = (targetP[k] ?? 0) - (beforeP[k] ?? 0);
+            if (d > bestDelta) {
+              bestDelta = d;
+              bestKey = k;
+            }
+          }
+          if (bestKey && bestDelta > 0) {
+            biggestWin = {
+              type: "pillar",
+              label: `${labels[bestKey] ?? bestKey} pillar +${bestDelta} pts`,
+              detail: "Your scorecard moved in the right direction.",
+            };
+          }
+        } catch {
+          // bad JSON — silently skip the pillar win
+        }
+      }
+      if (
+        !biggestWin &&
+        savingsRateDelta !== null &&
+        savingsRateDelta > 0.02
+      ) {
+        biggestWin = {
+          type: "savings-rate",
+          label: `Savings rate up ${(savingsRateDelta * 100).toFixed(1)} pts`,
+          detail: "More of your income made it through the month.",
+        };
+      }
+
+      // "Watch out" — biggest category increase (vs prev month) where
+      // both months had spend so the delta is meaningful.
+      let watchOut: {
+        category: string;
+        total: number;
+        deltaPct: number;
+      } | null = null;
+      let worstDelta = 0;
+      for (const [category, total] of targetByCat.entries()) {
+        const prev = beforeByCat.get(category) ?? 0;
+        if (prev <= 0 || total < 500) continue; // skip tiny categories
+        const deltaPct = (total - prev) / prev;
+        if (deltaPct > 0.2 && deltaPct > worstDelta) {
+          worstDelta = deltaPct;
+          watchOut = {
+            category,
+            total: Math.round(total * 100) / 100,
+            deltaPct,
+          };
+        }
+      }
+
+      const hasEnoughData = targetTotals.count >= 5;
+
+      return {
+        monthKey,
+        monthLabel: target.label,
+        hasEnoughData,
+        income: Math.round(targetTotals.income * 100) / 100,
+        expenses: Math.round(targetTotals.expenses * 100) / 100,
+        investments: Math.round(targetTotals.investments * 100) / 100,
+        net:
+          Math.round(
+            (targetTotals.income -
+              targetTotals.expenses -
+              targetTotals.investments) *
+              100,
+          ) / 100,
+        savingsRate: targetSavingsRate,
+        savingsRateDelta,
+        entryCount: targetTotals.count,
+        topCategories,
+        biggestWin,
+        watchOut,
+      };
+    }),
+
   create: protectedProcedure
     .input(
       z.object({

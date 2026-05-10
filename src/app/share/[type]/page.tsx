@@ -22,7 +22,7 @@ import { ArrowRight, Sparkles, Trophy } from "lucide-react";
 import { SITE } from "@/lib/site";
 import { buildMetadata } from "@/lib/seo";
 
-const VALID_TYPES = ["score", "badge", "goal", "settled"] as const;
+const VALID_TYPES = ["score", "badge", "goal", "settled", "monthly-review"] as const;
 type ShareType = (typeof VALID_TYPES)[number];
 
 const BAND_BG: Record<string, string> = {
@@ -62,7 +62,7 @@ function buildOgUrl(
   search: Awaited<SearchParams>,
 ): string {
   const usp = new URLSearchParams({ type });
-  for (const key of ["score", "band", "initial", "emoji", "label", "group"]) {
+  for (const key of ["score", "band", "initial", "emoji", "label", "group", "month", "savings", "top"]) {
     const v = pickStr(search[key]);
     if (v) usp.set(key, v);
   }
@@ -118,6 +118,14 @@ function headlineFor(
     return {
       title: `"${group}" all settled · ${SITE.name}`,
       description: `${initial}'s group "${group}" is fully settled. Try ${SITE.name} for your next trip — split + settle without drama.`,
+    };
+  }
+  if (type === "monthly-review") {
+    const month = pickStr(s.month, "Last month");
+    const savings = pickStr(s.savings, "0");
+    return {
+      title: `${initial}'s ${month} wrap-up · ${SITE.name}`,
+      description: `${initial} hit a ${savings}% savings rate in ${month}. Get your own monthly review — free, India-first.`,
     };
   }
   const score = pickStr(s.score, "0");
@@ -295,6 +303,33 @@ function Hero({
       </section>
     );
   }
+  if (type === "monthly-review") {
+    const month = pickStr(search.month, "Last month");
+    const savings = pickStr(search.savings, "0");
+    const top = pickStr(search.top, "");
+    return (
+      <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 p-6 text-white shadow-sm sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wider text-white/90">
+          Monthly wrap-up
+        </p>
+        <p className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          {month}
+        </p>
+        <p className="mt-4 text-5xl font-bold tabular-nums tracking-tight sm:text-6xl">
+          {savings}
+          <span className="ml-1 text-2xl font-medium text-white/80">% saved</span>
+        </p>
+        {top && (
+          <p className="mt-3 text-2xl" aria-hidden>
+            {Array.from(top).join(" ")}
+          </p>
+        )}
+        <p className="mt-3 text-sm text-white/90">
+          shared by {initial}
+        </p>
+      </section>
+    );
+  }
   // settled
   const group = pickStr(search.group, "Group");
   return (
@@ -309,9 +344,6 @@ function Hero({
       <p className="mt-1 text-sm text-white/90">
         Zero open balances · shared by {initial}
       </p>
-      {/* OG image is referenced via meta tags — no in-DOM preload
-          needed. Removed the off-screen <img> to satisfy the no-img
-          lint rule; previews still work via openGraph.images meta. */}
     </section>
   );
 }
@@ -325,6 +357,9 @@ function ctaCopyFor(type: ShareType): string {
   }
   if (type === "goal") {
     return "Set financial goals (insurance cover, savings rate, score targets) and watch them update as your scorecard improves. Free, encrypted, no advice claims.";
+  }
+  if (type === "monthly-review") {
+    return "Get an automatic month-end wrap-up of your spending, savings rate, and biggest moves — like Spotify Wrapped, but for your money. Free, India-first, encrypted.";
   }
   return "Split bills with friends like adults. Multi-currency, simplify-payments without a paywall, voice input, comments per expense, offline-first PWA. Free.";
 }

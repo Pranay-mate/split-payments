@@ -26,6 +26,7 @@ import { AnomalyBanner } from "./anomaly-banner";
 import { GoalsCard } from "./goals-card";
 import { RecurrencesCard } from "./recurrences-card";
 import { Scorecard } from "./scorecard";
+import { MonthlyReviewModal } from "@/components/monthly-review-modal";
 
 const PersonalCharts = dynamic(
   () => import("./personal-charts").then((m) => m.PersonalCharts),
@@ -125,6 +126,7 @@ export function PersonalDashboard() {
 
   return (
     <main className="flex-1">
+      <MonthlyReviewModal />
       <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
         {/* Heading + month picker */}
         <div className="flex items-start justify-between gap-3">

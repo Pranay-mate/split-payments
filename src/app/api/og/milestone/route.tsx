@@ -75,6 +75,14 @@ export async function GET(req: NextRequest) {
         initial,
       });
     }
+    if (type === "monthly-review") {
+      return monthlyReviewCard({
+        month: url.searchParams.get("month") ?? "Last month",
+        savings: clampScore(url.searchParams.get("savings")),
+        topEmojis: (url.searchParams.get("top") ?? "").slice(0, 6),
+        initial,
+      });
+    }
     return scoreCard({
       score: clampScore(url.searchParams.get("score")),
       band: parseBand(url.searchParams.get("band")),
@@ -421,6 +429,121 @@ function settledCard({
           >
             Zero open balances
           </div>
+        </div>
+        <Footer />
+      </div>
+    ),
+    { width: 1200, height: 630, headers: CACHE_HEADERS },
+  );
+}
+
+function monthlyReviewCard({
+  month,
+  savings,
+  topEmojis,
+  initial,
+}: {
+  month: string;
+  savings: number;
+  topEmojis: string;
+  initial: string;
+}) {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          background:
+            "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
+          color: "white",
+          fontFamily:
+            "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          padding: 80,
+        }}
+      >
+        <Brand initial={initial} />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            flex: 1,
+            marginTop: 40,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              fontSize: 32,
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              opacity: 0.9,
+            }}
+          >
+            Monthly wrap-up
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 96,
+              fontWeight: 800,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.05,
+              marginTop: 16,
+            }}
+          >
+            {month}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              marginTop: 36,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                fontSize: 140,
+                fontWeight: 800,
+                letterSpacing: "-0.04em",
+                lineHeight: 1,
+              }}
+            >
+              {String(savings)}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: 56,
+                fontWeight: 600,
+                marginLeft: 12,
+                opacity: 0.85,
+              }}
+            >
+              % saved
+            </div>
+          </div>
+          {topEmojis && (
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                marginTop: 28,
+                fontSize: 56,
+              }}
+            >
+              {Array.from(topEmojis).map((e, i) => (
+                <div key={i} style={{ display: "flex" }}>
+                  {e}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <Footer />
       </div>
