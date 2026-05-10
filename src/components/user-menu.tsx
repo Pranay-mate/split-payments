@@ -1,16 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Trash2, User } from "lucide-react";
+import { LogOut, Pencil, Trash2, Users, Wallet } from "lucide-react";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { EditProfileModal } from "./edit-profile-modal";
 
 export function UserMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
+  const { setTheme } = useTheme();
+
+  // Sync the user's saved theme preference into next-themes on first
+  // load. Re-runs if the value changes (rare, but covers the case
+  // where the user updates it from another tab).
+  const savedTheme = (meQuery.data as { theme?: string } | undefined)?.theme;
+  useEffect(() => {
+    if (savedTheme && ["system", "light", "dark"].includes(savedTheme)) {
+      setTheme(savedTheme);
+    }
+  }, [savedTheme, setTheme]);
 
   // While the profile query is in flight, show an empty placeholder
   // (lets the gradient circle stand in) rather than flashing "?".
@@ -98,7 +112,27 @@ export function UserMenu() {
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50 dark:hover:bg-slate-800"
             >
-              <User className="h-4 w-4" aria-hidden /> Your groups
+              <Users className="h-4 w-4" aria-hidden /> Groups
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                router.push("/app/personal");
+              }}
+              className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+            >
+              <Wallet className="h-4 w-4" aria-hidden /> Personal
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setEditing(true);
+              }}
+              className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+            >
+              <Pencil className="h-4 w-4" aria-hidden /> Edit profile
             </button>
             <button
               type="button"
@@ -121,6 +155,8 @@ export function UserMenu() {
           </div>
         </>
       )}
+
+      <EditProfileModal open={editing} onClose={() => setEditing(false)} />
     </div>
   );
 }

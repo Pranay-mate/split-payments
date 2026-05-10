@@ -303,3 +303,15 @@ ALTER TABLE push_subscriptions
   ADD COLUMN IF NOT EXISTS anomaly_count_this_month integer NOT NULL DEFAULT 0;
 ALTER TABLE push_subscriptions
   ADD COLUMN IF NOT EXISTS anomaly_count_month text NOT NULL DEFAULT '';
+
+-- Profile editor (v1): user-level preferences. dob is text (YYYY-MM-DD)
+-- so it round-trips cleanly through JSON without timezone confusion.
+-- timezone defaults to Asia/Kolkata since this is an India-first app.
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS dob text;
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS theme text NOT NULL DEFAULT 'system';
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS timezone text NOT NULL DEFAULT 'Asia/Kolkata';
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS default_currency text NOT NULL DEFAULT 'INR';

@@ -10,6 +10,7 @@ import { InstallPrompt } from "@/components/install-prompt";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { TrpcProvider } from "@/lib/trpc/client";
 import { OfflineProvider } from "@/lib/offline/use-offline";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const sans = Geist({ variable: "--font-sans", subsets: ["latin"] });
@@ -68,23 +69,26 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${sans.variable} ${mono.variable} h-full scroll-smooth antialiased`}
     >
       <body className="min-h-full flex flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-        <TrpcProvider>
-          <OfflineProvider>
-            <SiteHeader />
-            {children}
-            <OfflineIndicator />
-            <InstallPrompt />
-            <Toaster
-              position="bottom-center"
-              richColors
-              closeButton
-              toastOptions={{ classNames: { toast: "rounded-xl" } }}
-            />
-          </OfflineProvider>
-        </TrpcProvider>
+        <ThemeProvider>
+          <TrpcProvider>
+            <OfflineProvider>
+              <SiteHeader />
+              {children}
+              <OfflineIndicator />
+              <InstallPrompt />
+              <Toaster
+                position="bottom-center"
+                richColors
+                closeButton
+                toastOptions={{ classNames: { toast: "rounded-xl" } }}
+              />
+            </OfflineProvider>
+          </TrpcProvider>
+        </ThemeProvider>
         <ServiceWorkerRegister />
         <Analytics />
         <SpeedInsights />

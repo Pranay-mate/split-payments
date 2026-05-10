@@ -74,20 +74,47 @@ export const profilesRouter = router({
     return created;
   }),
 
-  /** Update the current user's display name + avatar. */
+  /** Update the current user's profile. All fields optional — only the
+   *  ones the form actually changes are sent. */
   update: protectedProcedure
     .input(
       z.object({
         displayName: z.string().min(1).max(60).optional(),
         avatarUrl: z.string().url().or(z.literal("")).optional(),
+        /** YYYY-MM-DD or empty string to clear. */
+        dob: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "DOB must be YYYY-MM-DD")
+          .or(z.literal(""))
+          .optional(),
+        theme: z.enum(["system", "light", "dark"]).optional(),
+        /** IANA tz id like "Asia/Kolkata". We don't validate against
+         *  the full IANA list here — the UI only exposes a curated set. */
+        timezone: z.string().min(1).max(64).optional(),
+        /** 3-letter ISO 4217 currency code. */
+        defaultCurrency: z
+          .string()
+          .length(3)
+          .regex(/^[A-Z]{3}$/, "3-letter ISO 4217 currency")
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const [updated] = await db
         .update(profiles)
         .set({
-          ...(input.displayName !== undefined && { displayName: input.displayName }),
-          ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl || null }),
+          ...(input.displayName !== undefined && {
+            displayName: input.displayName,
+          }),
+          ...(input.avatarUrl !== undefined && {
+            avatarUrl: input.avatarUrl || null,
+          }),
+          ...(input.dob !== undefined && { dob: input.dob || null }),
+          ...(input.theme !== undefined && { theme: input.theme }),
+          ...(input.timezone !== undefined && { timezone: input.timezone }),
+          ...(input.defaultCurrency !== undefined && {
+            defaultCurrency: input.defaultCurrency,
+          }),
           updatedAt: new Date(),
         })
         .where(eq(profiles.id, ctx.user.id))

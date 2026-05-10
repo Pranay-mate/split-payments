@@ -49,6 +49,21 @@ export const profiles = pgTable("profiles", {
   isGuest: boolean("is_guest").notNull().default(false),
   /** Set when a real auth user has claimed this shadow profile. Null otherwise. */
   claimedBy: uuid("claimed_by"),
+  /** Date of birth — date only, no time component. Optional. Wizard
+   *  in financial-profile flow keeps its own age column for now;
+   *  future cleanup can derive age from this DOB. */
+  dob: text("dob"),
+  /** "system" | "light" | "dark" — UI theme override. Defaults to
+   *  system (follows OS preference). */
+  theme: text("theme").notNull().default("system"),
+  /** IANA tz id, e.g. "Asia/Kolkata". Defaults to India for new users.
+   *  Date formatters across the app currently use browser-local tz;
+   *  applying this everywhere is a follow-up refactor (issue #100-ish). */
+  timezone: text("timezone").notNull().default("Asia/Kolkata"),
+  /** Default currency for new groups (and the personal tracker). 3-letter
+   *  ISO 4217 code. The new-group form uses this as the prefilled value;
+   *  user can still pick a different currency per group. */
+  defaultCurrency: text("default_currency").notNull().default("INR"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
