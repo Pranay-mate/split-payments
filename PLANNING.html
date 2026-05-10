@@ -285,10 +285,50 @@
     <tr><td class="task"><strong>v4.2</strong> — Goals system · pillar/total score targets · 6 quick-pick templates + optional date · progress bar refreshed on profile re-submit</td><td class="status"><span class="status-cell"><span class="dot done"></span>done · needs db migration</span></td></tr>
     <tr><td class="task"><strong>v4.3</strong> — Indian peer benchmarks (NCAER · RBI · IRDAI · NSO · AMFI cited under each pillar + sources expander)</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
     <tr><td class="task"><strong>v4.4</strong> — "Send test notification" button (Reminders settings) — bypasses 7-day throttle + qualifying-data check, prunes 410-Gone subscriptions inline</td><td class="status"><span class="status-cell"><span class="dot done"></span>done · commit e70d717</span></td></tr>
+    <tr><td class="task"><strong>v5.0</strong> — personal_recurrences · monthly auto-fire of salary/rent/SIP/subscriptions · 13-test pure-function date math · cron passes the recurrence list, copies encrypted ciphertext into personal_entries, advances next_due_at · pause/resume/edit UI in dashboard</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
+    <tr><td class="task"><strong>v5.1</strong> — personal_holdings + /app/personal/wealth · 6 holding types (MF/FD/stock/gold/bond/other) · encrypted units/avg-cost/current-value · server-side gain/loss + net-worth aggregation · type-breakdown bars + per-holding edit · Net worth = liquid_savings + Σ holdings.current_value</td><td class="status"><span class="status-cell"><span class="dot done"></span>done</span></td></tr>
   </tbody></table>
 
   <h3>Active queue (next push)</h3>
-  <p class="meta"><em>Empty — v4.0 → v4.4 all shipped 2026-05-09. Next candidates: v4.5 mute-category for anomaly alerts, 2-alerts-per-month rate cap, <code>/insights</code> dedicated route. None blocking.</em></p>
+  <p class="meta"><em>Empty — v5.0 + v5.1 shipped 2026-05-10 (recurrences + holdings + /wealth). See "Ideas backlog" below for the next wave; user picks priorities from there.</em></p>
+
+  <h3>Ideas backlog (curated, not committed)</h3>
+  <p class="meta">Innovative app + website ideas, prioritized by impact ÷ effort. Pick from this list rather than starting from scratch. None of these are scheduled — they're seed material for the next planning cycle.</p>
+
+  <h4 style="margin-top:1.25rem">App-side ideas</h4>
+  <table><tbody>
+    <tr><td class="task"><strong>Receipt photo OCR</strong> — paste a bill photo, Tesseract.js extracts items + amounts, user reviews + saves as itemized split. Free path (browser-only).</td><td class="status">~6h · high impact for restaurants/groceries</td></tr>
+    <tr><td class="task"><strong>WhatsApp forward bot</strong> — forward a UPI/bank SMS or PDF receipt to a number, it auto-creates a personal expense entry. Needs WhatsApp Business API + OCR Edge Function.</td><td class="status">~2 days · viral if done well</td></tr>
+    <tr><td class="task"><strong>Calendar view of recurrences</strong> — see this month's auto-fired entries on a calendar grid, hover to skip a fire or edit amount. Pairs with v5.0.</td><td class="status">~2h · clarifies what auto-fires</td></tr>
+    <tr><td class="task"><strong>Budget envelopes</strong> — allocate a monthly cap per category (food ₹8k, travel ₹4k); progress bars on dashboard, push when 80% used. Behavioural-econ classic.</td><td class="status">~4h · highest-value preventive feature</td></tr>
+    <tr><td class="task"><strong>Goal celebrations</strong> — when user hits a goal, animated confetti + share-card OG image (anonymised). Drives organic referrals.</td><td class="status">~2h · cheap, joy-creating</td></tr>
+    <tr><td class="task"><strong>Apply user timezone everywhere</strong> — date formatters across the app currently use browser-local tz; user's chosen tz from profile should override. Half-shipped already.</td><td class="status">~1h · closes a stored-but-unused field</td></tr>
+    <tr><td class="task"><strong>Avatar file upload</strong> — Supabase Storage bucket + RLS + image-resize. Today only URL-paste works.</td><td class="status">~3h · table-stakes for new users</td></tr>
+    <tr><td class="task"><strong>Email OTP login</strong> — alternative to magic link; type 6-digit code in same tab. Fixes magic-link-on-mobile UX gap.</td><td class="status">~30m · zero ongoing cost</td></tr>
+    <tr><td class="task"><strong>Group expense AI summaries</strong> — "Goa trip total ₹52,400. Highest spender: Bob (₹15.2k). 3 outliers flagged." Generated on-demand via Claude Haiku.</td><td class="status">~3h + ~₹0.5/group/summary · feels magical</td></tr>
+    <tr><td class="task"><strong>Cooldown timers on big expenses</strong> — adding ₹5k+ shows "Wait an hour to confirm?" toggle; helps impulse-curb. Stays optional.</td><td class="status">~1h · self-imposed friction for those who want it</td></tr>
+    <tr><td class="task"><strong>Tax-deadline timeline</strong> — ticker counting down to 31 March (80C/80D), suggests action: "₹X to ₹1.5L 80C cap". Static, no advisor language.</td><td class="status">~3h · seasonal high-value</td></tr>
+    <tr><td class="task"><strong>Spending Twin</strong> — match user's spend pattern to a fictional Indian persona ("you spend like a Bengaluru SDE-2"). Privacy-friendly (vs aggregating real users).</td><td class="status">~4h · strong share-ability</td></tr>
+    <tr><td class="task"><strong>Recurrence skip-this-month</strong> — explicit button on a recurrence; advances next_due_at by one month without firing. Better than pause/resume gymnastics.</td><td class="status">~1h · v5.0 polish</td></tr>
+    <tr><td class="task"><strong>Net-worth trajectory chart</strong> — track total net-worth snapshots monthly, line chart in /wealth. Pairs with v5.1 holdings.</td><td class="status">~3h · v5.2 candidate</td></tr>
+    <tr><td class="task"><strong>NAV auto-pull for MFs</strong> — once daily, pull NAV from AMFI's free CSV by scheme code, auto-update current_value. Big credibility win for /wealth.</td><td class="status">~6h · removes the manual update friction</td></tr>
+    <tr><td class="task"><strong>Household mode</strong> — multi-user shared finance with role-based access (parent/spouse). Different from groups (which are transactional, not joint).</td><td class="status">~1.5 weeks · expansion play</td></tr>
+  </tbody></table>
+
+  <h4 style="margin-top:1.25rem">Website / SEO ideas</h4>
+  <table><tbody>
+    <tr><td class="task"><strong>Free standalone calculators</strong> — <code>/calculators/sip</code>, <code>/calculators/emergency-fund</code>, <code>/calculators/term-cover-india</code>, <code>/calculators/tax-saver</code>. Each ranks for high-intent keywords + funnels to the app.</td><td class="status">~2h each · highest SEO ROI</td></tr>
+    <tr><td class="task"><strong>India-specific blog</strong> — "How much term cover at 30 in 2026", "PPF vs ELSS", "EMI vs rent in Bangalore 2026". Long-tail SEO ammunition.</td><td class="status">~3h per post · compounding</td></tr>
+    <tr><td class="task"><strong>Comparison pages</strong> — <code>/compare/easysplits-vs-splitwise</code>, <code>/compare/easysplits-vs-fi-money</code>, <code>/compare/easysplits-vs-cred</code>. Captures "X vs Y" search intent.</td><td class="status">~2h each · steady traffic</td></tr>
+    <tr><td class="task"><strong>Embeddable scorecard widget</strong> — copy-paste embed for finance bloggers; iframe with affiliate-style attribution. Distribution multiplier.</td><td class="status">~1 day · viral if PFs adopt</td></tr>
+    <tr><td class="task"><strong>Live demo on landing</strong> — interactive scorecard with sample data, no login. Drops bounce-from-landing dramatically.</td><td class="status">~3h · classic conversion lift</td></tr>
+    <tr><td class="task"><strong>Methodology page</strong> — <code>/methodology</code> citing every NCAER/RBI study used in scoring. Trust + SEO + intellectual signal.</td><td class="status">~2h · builds credibility</td></tr>
+    <tr><td class="task"><strong>OG image generation</strong> — when user shares a milestone (badge unlock, score 80+), generate a privacy-safe share card with their initials + score. Built-in viral loop.</td><td class="status">~3h · powers referral growth</td></tr>
+    <tr><td class="task"><strong>State-of-Indian-Personal-Finance newsletter</strong> — monthly aggregate (anonymised, opt-in) showing distribution of scores, savings rates, etc. across users. Press-worthy.</td><td class="status">~1 day · long-game brand play</td></tr>
+    <tr><td class="task"><strong>Shareable static pages from /wealth</strong> — public anonymised "ABC's net worth: ₹X" share page (opt-in, blurs amounts). Like Strava activities.</td><td class="status">~4h · viral but privacy-touchy</td></tr>
+  </tbody></table>
+
+  <p class="meta">Pick from this list rather than reinventing — each entry has effort estimate + my honest read on impact. Reply with which ones you want to pull into the active queue.</p>
 
   <h3>Locked decisions</h3>
   <table><tbody>
@@ -304,8 +344,8 @@
     <tr><td class="task"><code>financial_profiles</code> (id, user_id UNIQUE, age, retirement_age, isFreelancer, hasDependents, hasCcCarryover, monthly_income/expenses/savings/term/health/emi/investment_balance/monthly_investment [all encrypted], completed_at)</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3 + v3.6)</span></td></tr>
     <tr><td class="task"><code>score_snapshots</code> (id, user_id, total, band, pillar_scores JSON, snapshotted_at) — append-only history</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v4.0)</span></td></tr>
     <tr><td class="task"><code>financial_goals</code> (id, user_id, goal_kind, pillar_key, label, target_score, target_date, current_value, completed_at, archived_at) — pillar 0..20 / total 0..100, no encryption</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v4.2)</span></td></tr>
-    <tr><td class="task"><code>personal_recurrences</code> (auto-fill salary/rent/SIP on schedule)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>deferred</span></td></tr>
-    <tr><td class="task"><code>personal_holdings</code> (MF/FD/stock positions, symbol/AMC, units, NAV-as-of)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>Phase 3 candidate</span></td></tr>
+    <tr><td class="task"><code>personal_recurrences</code> (id, user_id, type, amount [encrypted], description [encrypted], category, currency, schedule_day, next_due_at, last_fired_at, paused_at) — monthly recurring entries auto-created by daily cron</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v5.0)</span></td></tr>
+    <tr><td class="task"><code>personal_holdings</code> (id, user_id, name, type, units [encrypted], avg_cost [encrypted], current_value [encrypted], as_of, notes [encrypted], archived_at) — investment positions powering /wealth net-worth tracker</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v5.1)</span></td></tr>
   </tbody></table>
 
   <h3>Routes — shipped ✅</h3>
@@ -314,7 +354,7 @@
     <tr><td class="task"><code>/app/personal/onboard</code> — single-page financial health scorecard wizard</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v3.0, redesigned single-page in v3.6)</span></td></tr>
     <tr><td class="task"><code>/app/personal/transactions</code> — separate full-ledger view</td><td class="status"><span class="status-cell"><span class="dot todo"></span>deferred · current dashboard list paginates well at 5/page + Show all</span></td></tr>
     <tr><td class="task"><code>/app/personal/insights</code> — auto-narratives</td><td class="status"><span class="status-cell"><span class="dot todo"></span>deferred · current insights inline on dashboard</span></td></tr>
-    <tr><td class="task"><code>/app/personal/wealth</code> — net-worth tracker, investment positions, growth chart</td><td class="status"><span class="status-cell"><span class="dot todo"></span>Phase 3 candidate</span></td></tr>
+    <tr><td class="task"><code>/app/personal/wealth</code> — net-worth tracker · investment positions · type breakdown · gain/loss</td><td class="status"><span class="status-cell"><span class="dot done"></span>shipped (v5.1)</span></td></tr>
   </tbody></table>
 
   <h3>Insights surfaced — status</h3>

@@ -321,3 +321,44 @@ ALTER TABLE profiles
 -- default /app/groups list (collapsed under an expander).
 ALTER TABLE groups
   ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+
+-- v5.0: personal_recurrences — monthly recurring income/expenses/investments.
+-- Daily cron picks rows with next_due_at <= now() AND paused_at IS NULL,
+-- creates a matching personal_entries row, advances next_due_at by 1 month.
+CREATE TABLE IF NOT EXISTS personal_recurrences (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid        NOT NULL,
+  type            text        NOT NULL,                 -- income | expense | investment
+  amount          text        NOT NULL,                 -- AES-256-GCM encrypted
+  description     text        NOT NULL,                 -- AES-256-GCM encrypted
+  category        text        NOT NULL DEFAULT 'other',
+  currency        varchar(3)  NOT NULL DEFAULT 'INR',
+  schedule_day    integer     NOT NULL,                 -- 1..31; 29-31 fall back to last-day-of-month
+  next_due_at     timestamptz NOT NULL,
+  last_fired_at   timestamptz,
+  paused_at       timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS personal_recurrences_user_idx ON personal_recurrences(user_id);
+CREATE INDEX IF NOT EXISTS personal_recurrences_due_idx  ON personal_recurrences(next_due_at);
+
+-- v5.1: personal_holdings — investment positions powering /app/personal/wealth.
+-- Encrypted: units, avg_cost, current_value, notes. Returns computed server-side.
+-- archived_at = sold/closed; hidden from net worth.
+CREATE TABLE IF NOT EXISTS personal_holdings (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid        NOT NULL,
+  name            text        NOT NULL,
+  type            text        NOT NULL,                 -- mutual_fund | fd | stock | gold | bond | other
+  units           text        NOT NULL,                 -- encrypted
+  avg_cost        text        NOT NULL,                 -- encrypted (per unit, INR)
+  current_value  text        NOT NULL,                 -- encrypted (total, INR)
+  as_of           timestamptz NOT NULL,
+  notes           text,                                  -- encrypted; nullable
+  archived_at     timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS personal_holdings_user_idx        ON personal_holdings(user_id);
+CREATE INDEX IF NOT EXISTS personal_holdings_user_active_idx ON personal_holdings(user_id, archived_at);

@@ -8,8 +8,11 @@ import {
   financialGoals,
   financialProfiles,
   personalEntries,
+  personalHoldings,
+  personalRecurrences,
   scoreSnapshots,
 } from "@/lib/db/schema";
+import { computeNextDue } from "@/lib/recurrence";
 import { CATEGORY_KEYS } from "@/lib/categories";
 import {
   decryptAmount,
@@ -899,6 +902,408 @@ export const personalRouter = router({
               eq(anomalyMutes.category, input.category),
             ),
           );
+        return { ok: true };
+      }),
+  }),
+
+  /**
+   * Monthly recurrences (Phase 2.5 v5.0). Cron processes them via the
+   * /api/cron/reminders endpoint — see runRecurrencePass() there.
+   */
+  recurrences: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      const rows = await db
+        .select()
+        .from(personalRecurrences)
+        .where(eq(personalRecurrences.userId, ctx.user.id))
+        .orderBy(asc(personalRecurrences.scheduleDay));
+      return rows.map((r) => ({
+        id: r.id,
+        type: r.type as "income" | "expense" | "investment",
+        amount: decryptAmount(r.amount),
+        description: decryptValue(r.description),
+        category: r.category,
+        currency: r.currency,
+        scheduleDay: r.scheduleDay,
+        nextDueAt: r.nextDueAt,
+        lastFiredAt: r.lastFiredAt,
+        pausedAt: r.pausedAt,
+      }));
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          type: typeSchema,
+          amount: z.number().positive(),
+          description: z.string().max(200).default(""),
+          category: categorySchema.default("other"),
+          currency: currencySchema.default("INR"),
+          scheduleDay: z.number().int().min(1).max(31),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const now = new Date();
+        const nextDueAt = computeNextDue(input.scheduleDay, now, null);
+        const [created] = await db
+          .insert(personalRecurrences)
+          .values({
+            userId: ctx.user.id,
+            type: input.type,
+            amount: encryptAmount(input.amount),
+            description: encryptValue(input.description.trim()),
+            category: input.category,
+            currency: input.currency,
+            scheduleDay: input.scheduleDay,
+            nextDueAt,
+          })
+          .returning();
+        return created;
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          type: typeSchema.optional(),
+          amount: z.number().positive().optional(),
+          description: z.string().max(200).optional(),
+          category: categorySchema.optional(),
+          currency: currencySchema.optional(),
+          scheduleDay: z.number().int().min(1).max(31).optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select()
+          .from(personalRecurrences)
+          .where(eq(personalRecurrences.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+
+        // If scheduleDay changes, recompute next_due_at from now (so
+        // the user sees the new schedule take effect on next month).
+        const nextDueAt =
+          input.scheduleDay !== undefined &&
+          input.scheduleDay !== existing.scheduleDay
+            ? computeNextDue(
+                input.scheduleDay,
+                new Date(),
+                existing.lastFiredAt,
+              )
+            : undefined;
+
+        const [updated] = await db
+          .update(personalRecurrences)
+          .set({
+            ...(input.type !== undefined && { type: input.type }),
+            ...(input.amount !== undefined && {
+              amount: encryptAmount(input.amount),
+            }),
+            ...(input.description !== undefined && {
+              description: encryptValue(input.description.trim()),
+            }),
+            ...(input.category !== undefined && { category: input.category }),
+            ...(input.currency !== undefined && { currency: input.currency }),
+            ...(input.scheduleDay !== undefined && {
+              scheduleDay: input.scheduleDay,
+            }),
+            ...(nextDueAt && { nextDueAt }),
+            updatedAt: new Date(),
+          })
+          .where(eq(personalRecurrences.id, input.id))
+          .returning();
+        return updated;
+      }),
+
+    pause: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalRecurrences.userId })
+          .from(personalRecurrences)
+          .where(eq(personalRecurrences.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db
+          .update(personalRecurrences)
+          .set({ pausedAt: new Date(), updatedAt: new Date() })
+          .where(eq(personalRecurrences.id, input.id));
+        return { ok: true };
+      }),
+
+    resume: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select()
+          .from(personalRecurrences)
+          .where(eq(personalRecurrences.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        // On resume, recompute next_due_at — the pause may have been long.
+        const nextDueAt = computeNextDue(
+          existing.scheduleDay,
+          new Date(),
+          existing.lastFiredAt,
+        );
+        await db
+          .update(personalRecurrences)
+          .set({
+            pausedAt: null,
+            nextDueAt,
+            updatedAt: new Date(),
+          })
+          .where(eq(personalRecurrences.id, input.id));
+        return { ok: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalRecurrences.userId })
+          .from(personalRecurrences)
+          .where(eq(personalRecurrences.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db
+          .delete(personalRecurrences)
+          .where(eq(personalRecurrences.id, input.id));
+        return { ok: true };
+      }),
+  }),
+
+  /**
+   * Investment holdings (Phase 2.5 v5.1). Powers /app/personal/wealth.
+   * All amounts encrypted; net-worth aggregation happens server-side
+   * after decryption.
+   */
+  holdings: router({
+    list: protectedProcedure
+      .input(
+        z
+          .object({ includeArchived: z.boolean().default(false) })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const filters = [eq(personalHoldings.userId, ctx.user.id)];
+        if (!input?.includeArchived) {
+          filters.push(isNull(personalHoldings.archivedAt));
+        }
+        const rows = await db
+          .select()
+          .from(personalHoldings)
+          .where(and(...filters))
+          .orderBy(asc(personalHoldings.createdAt));
+        return rows.map((r) => {
+          const units = decryptAmount(r.units);
+          const avgCost = decryptAmount(r.avgCost);
+          const currentValue = decryptAmount(r.currentValue);
+          const invested = Math.round(units * avgCost * 100) / 100;
+          const gain = Math.round((currentValue - invested) * 100) / 100;
+          const gainPct = invested > 0 ? gain / invested : 0;
+          return {
+            id: r.id,
+            name: r.name,
+            type: r.type as
+              | "mutual_fund"
+              | "fd"
+              | "stock"
+              | "gold"
+              | "bond"
+              | "other",
+            units,
+            avgCost,
+            currentValue,
+            invested,
+            gain,
+            gainPct,
+            asOf: r.asOf,
+            notes: r.notes ? decryptValue(r.notes) : "",
+            archivedAt: r.archivedAt,
+          };
+        });
+      }),
+
+    /** Aggregate net worth: sum of active holdings + liquid savings
+     *  (from financial_profiles). Cached entirely in this query so the
+     *  /wealth page can render without a second roundtrip. */
+    netWorth: protectedProcedure.query(async ({ ctx }) => {
+      const [profile] = await db
+        .select()
+        .from(financialProfiles)
+        .where(eq(financialProfiles.userId, ctx.user.id))
+        .limit(1);
+      const liquidSavings =
+        profile?.liquidSavings !== null && profile?.liquidSavings !== undefined
+          ? decryptAmount(profile.liquidSavings)
+          : 0;
+      const holdingsRows = await db
+        .select()
+        .from(personalHoldings)
+        .where(
+          and(
+            eq(personalHoldings.userId, ctx.user.id),
+            isNull(personalHoldings.archivedAt),
+          ),
+        );
+      const byType = new Map<string, number>();
+      let totalInvested = 0;
+      let totalCurrent = 0;
+      for (const h of holdingsRows) {
+        const cv = decryptAmount(h.currentValue);
+        const units = decryptAmount(h.units);
+        const cost = decryptAmount(h.avgCost);
+        totalCurrent += cv;
+        totalInvested += units * cost;
+        byType.set(h.type, (byType.get(h.type) ?? 0) + cv);
+      }
+      const netWorth = liquidSavings + totalCurrent;
+      const totalGain =
+        Math.round((totalCurrent - totalInvested) * 100) / 100;
+      const totalGainPct = totalInvested > 0 ? totalGain / totalInvested : 0;
+      return {
+        netWorth: Math.round(netWorth * 100) / 100,
+        liquidSavings: Math.round(liquidSavings * 100) / 100,
+        holdingsValue: Math.round(totalCurrent * 100) / 100,
+        totalInvested: Math.round(totalInvested * 100) / 100,
+        totalGain,
+        totalGainPct,
+        byType: Array.from(byType.entries()).map(([type, value]) => ({
+          type,
+          value: Math.round(value * 100) / 100,
+        })),
+        holdingsCount: holdingsRows.length,
+      };
+    }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(80),
+          type: z.enum([
+            "mutual_fund",
+            "fd",
+            "stock",
+            "gold",
+            "bond",
+            "other",
+          ]),
+          units: z.number().positive(),
+          avgCost: z.number().nonnegative(),
+          currentValue: z.number().nonnegative(),
+          asOf: z.date().optional(),
+          notes: z.string().max(200).default(""),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const [created] = await db
+          .insert(personalHoldings)
+          .values({
+            userId: ctx.user.id,
+            name: input.name.trim(),
+            type: input.type,
+            units: encryptAmount(input.units),
+            avgCost: encryptAmount(input.avgCost),
+            currentValue: encryptAmount(input.currentValue),
+            asOf: input.asOf ?? new Date(),
+            notes: input.notes ? encryptValue(input.notes.trim()) : null,
+          })
+          .returning();
+        return created;
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          name: z.string().min(1).max(80).optional(),
+          type: z
+            .enum(["mutual_fund", "fd", "stock", "gold", "bond", "other"])
+            .optional(),
+          units: z.number().positive().optional(),
+          avgCost: z.number().nonnegative().optional(),
+          currentValue: z.number().nonnegative().optional(),
+          asOf: z.date().optional(),
+          notes: z.string().max(200).optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalHoldings.userId })
+          .from(personalHoldings)
+          .where(eq(personalHoldings.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        const [updated] = await db
+          .update(personalHoldings)
+          .set({
+            ...(input.name !== undefined && { name: input.name.trim() }),
+            ...(input.type !== undefined && { type: input.type }),
+            ...(input.units !== undefined && {
+              units: encryptAmount(input.units),
+            }),
+            ...(input.avgCost !== undefined && {
+              avgCost: encryptAmount(input.avgCost),
+            }),
+            ...(input.currentValue !== undefined && {
+              currentValue: encryptAmount(input.currentValue),
+              asOf: input.asOf ?? new Date(),
+            }),
+            ...(input.asOf && { asOf: input.asOf }),
+            ...(input.notes !== undefined && {
+              notes: input.notes ? encryptValue(input.notes.trim()) : null,
+            }),
+            updatedAt: new Date(),
+          })
+          .where(eq(personalHoldings.id, input.id))
+          .returning();
+        return updated;
+      }),
+
+    archive: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalHoldings.userId })
+          .from(personalHoldings)
+          .where(eq(personalHoldings.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db
+          .update(personalHoldings)
+          .set({ archivedAt: new Date(), updatedAt: new Date() })
+          .where(eq(personalHoldings.id, input.id));
+        return { ok: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalHoldings.userId })
+          .from(personalHoldings)
+          .where(eq(personalHoldings.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db
+          .delete(personalHoldings)
+          .where(eq(personalHoldings.id, input.id));
         return { ok: true };
       }),
   }),

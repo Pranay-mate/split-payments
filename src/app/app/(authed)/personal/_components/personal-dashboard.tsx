@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import {
   ArrowDown,
   ArrowUp,
@@ -21,6 +22,7 @@ import { formatINR } from "@/lib/format";
 import { AddPersonalEntry, type EntryType } from "./add-personal-entry";
 import { AnomalyBanner } from "./anomaly-banner";
 import { GoalsCard } from "./goals-card";
+import { RecurrencesCard } from "./recurrences-card";
 import { Scorecard } from "./scorecard";
 
 const PersonalCharts = dynamic(
@@ -135,21 +137,29 @@ export function PersonalDashboard() {
               storing — our database only ever sees scrambled text.
             </p>
           </div>
-          <select
-            value={month}
-            onChange={(e) => {
-              setMonth(e.target.value);
-              setVisibleCount(PAGE_SIZE);
-            }}
-            className="mt-1 shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900"
-            aria-label="Select month"
-          >
-            {months.map((m) => (
-              <option key={m} value={m}>
-                {formatMonthLabel(m)}
-              </option>
-            ))}
-          </select>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <select
+              value={month}
+              onChange={(e) => {
+                setMonth(e.target.value);
+                setVisibleCount(PAGE_SIZE);
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900"
+              aria-label="Select month"
+            >
+              {months.map((m) => (
+                <option key={m} value={m}>
+                  {formatMonthLabel(m)}
+                </option>
+              ))}
+            </select>
+            <Link
+              href="/app/personal/wealth"
+              className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-[11px] font-medium text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+            >
+              💼 Net worth
+            </Link>
+          </div>
         </div>
 
         {/* Hero KPI card */}
@@ -252,6 +262,9 @@ export function PersonalDashboard() {
             </ul>
           </section>
         )}
+
+        {/* Recurring entries (v5.0) — auto-fill salary/rent/SIP each month */}
+        <RecurrencesCard />
 
         {/* Transactions list — primary daily content surfaces above
             charts/forms (charts are derived; FAB scrolls to add form). */}

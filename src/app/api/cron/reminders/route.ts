@@ -23,12 +23,14 @@ import {
   groupMembers,
   groups,
   personalEntries,
+  personalRecurrences,
   pushSubscriptions,
   settlements,
 } from "@/lib/db/schema";
 import { decryptAmount } from "@/lib/encryption";
 import { detectAnomalies } from "@/lib/anomaly-detect";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
+import { computeNextDue } from "@/lib/recurrence";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -106,6 +108,54 @@ export async function GET(request: Request) {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const now = new Date();
+
+  // ── Recurrences pass (v5.0) — runs first since it's user-data-side
+  //    and shouldn't depend on push subscriptions. Pulls every active
+  //    recurrence whose next_due_at <= now, copies it into a new
+  //    personal_entries row, advances the schedule by one calendar
+  //    month. Ciphertext is copied as-is (still valid AES-256-GCM
+  //    output for the same key — no need to decrypt+re-encrypt).
+  const dueRecurrences = await db
+    .select()
+    .from(personalRecurrences)
+    .where(
+      and(
+        lte(personalRecurrences.nextDueAt, now),
+        isNull(personalRecurrences.pausedAt),
+      ),
+    );
+  let recurrencesFired = 0;
+  for (const rec of dueRecurrences) {
+    try {
+      await db.insert(personalEntries).values({
+        userId: rec.userId,
+        type: rec.type,
+        amount: rec.amount, // already encrypted
+        currency: rec.currency,
+        category: rec.category,
+        description: rec.description, // already encrypted
+        occurredAt: rec.nextDueAt,
+      });
+      const newNextDue = computeNextDue(
+        rec.scheduleDay,
+        now,
+        rec.nextDueAt,
+      );
+      await db
+        .update(personalRecurrences)
+        .set({
+          lastFiredAt: now,
+          nextDueAt: newNextDue,
+          updatedAt: now,
+        })
+        .where(eq(personalRecurrences.id, rec.id));
+      recurrencesFired++;
+    } catch (err) {
+      // Don't let one bad recurrence kill the whole pass.
+      console.error("Recurrence fire failed", rec.id, err);
+      errors++;
+    }
+  }
   const personalRangeStart = new Date(
     now.getFullYear(),
     now.getMonth() - 6,
@@ -320,5 +370,12 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ sent, expired, errors, skipped, total: subs.length });
+  return NextResponse.json({
+    sent,
+    expired,
+    errors,
+    skipped,
+    total: subs.length,
+    recurrencesFired,
+  });
 }

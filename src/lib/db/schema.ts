@@ -424,6 +424,106 @@ export const personalEntries = pgTable(
 export type PersonalEntry = typeof personalEntries.$inferSelect;
 
 /**
+ * Recurring personal entries (Phase 2.5 v5.0). Salary on the 1st, rent
+ * on the 5th, SIP on the 10th — anything that repeats monthly. The
+ * daily cron processes recurrences whose `next_due_at` has passed and
+ * not paused, creates a matching personal_entries row, advances
+ * next_due_at by one month.
+ *
+ * MVP scope: monthly only. Schedule is just a day-of-month (1-31).
+ * For day-31 in shorter months, we fall back to last-day-of-month.
+ *
+ * Amount + description are encrypted via the same AES-256-GCM helpers
+ * as personal_entries.
+ */
+export const personalRecurrences = pgTable(
+  "personal_recurrences",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** "income" | "expense" | "investment" — same triplet as
+     *  personal_entries.type. */
+    type: text("type").notNull(),
+    /** Encrypted base64 (AES-256-GCM). */
+    amount: text("amount").notNull(),
+    /** Encrypted base64. Empty string is also encrypted. */
+    description: text("description").notNull(),
+    category: text("category").notNull().default("other"),
+    currency: varchar("currency", { length: 3 }).notNull().default("INR"),
+    /** 1..31. 29-31 fall back to last day in shorter months. */
+    scheduleDay: integer("schedule_day").notNull(),
+    /** Next time this recurrence will fire. Cron picks rows with
+     *  next_due_at <= now() AND paused_at IS NULL. */
+    nextDueAt: timestamp("next_due_at", { withTimezone: true }).notNull(),
+    /** Last successful fire — also serves as a guard against double-fire. */
+    lastFiredAt: timestamp("last_fired_at", { withTimezone: true }),
+    /** Set when user pauses; clear when they resume. */
+    pausedAt: timestamp("paused_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("personal_recurrences_user_idx").on(t.userId),
+    index("personal_recurrences_due_idx").on(t.nextDueAt),
+  ],
+);
+
+export type PersonalRecurrence = typeof personalRecurrences.$inferSelect;
+
+/**
+ * Investment holdings (Phase 2.5 v5.1). Each row is a position the
+ * user owns: a mutual fund, an FD, a stock, gold, a bond, etc.
+ * Used by the /app/personal/wealth route to compute net worth.
+ *
+ * Numeric fields are encrypted (units, avg cost, current value) so
+ * the database never sees the actual amounts. Returns are computed
+ * server-side after decryption.
+ *
+ * `as_of` is the date the user entered or last refreshed `current_value`
+ * — gives them a sense of how stale the figure is. We don't auto-poll
+ * NAV/price feeds; user updates manually for now.
+ */
+export const personalHoldings = pgTable(
+  "personal_holdings",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** Display name: "Parag Parikh Flexi Cap", "SBI FD #1", "INFY", etc. */
+    name: text("name").notNull(),
+    /** "mutual_fund" | "fd" | "stock" | "gold" | "bond" | "other" */
+    type: text("type").notNull(),
+    /** Encrypted units/quantity (e.g. 100.5 MF units, 1 for an FD). */
+    units: text("units").notNull(),
+    /** Encrypted avg cost per unit (in INR). */
+    avgCost: text("avg_cost").notNull(),
+    /** Encrypted current value (total value, not per-unit). */
+    currentValue: text("current_value").notNull(),
+    /** When current_value was last set; UI shows "as of X days ago". */
+    asOf: timestamp("as_of", { withTimezone: true }).notNull(),
+    /** Optional encrypted notes (e.g. "ELSS lock-in until 2027"). */
+    notes: text("notes"),
+    /** User-driven archive — sold/closed positions. Hidden from net worth. */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("personal_holdings_user_idx").on(t.userId),
+    index("personal_holdings_user_active_idx").on(t.userId, t.archivedAt),
+  ],
+);
+
+export type PersonalHolding = typeof personalHoldings.$inferSelect;
+
+/**
  * Financial profile — backs the 5-pillar Financial Health Scorecard
  * (Phase 2.5 v3). One row per user (UNIQUE(user_id)).
  *
