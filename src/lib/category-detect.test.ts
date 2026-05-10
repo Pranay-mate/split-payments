@@ -54,6 +54,57 @@ describe("detectCategory", () => {
     });
   });
 
+  describe("health", () => {
+    it.each([
+      ["gym membership", "health"],
+      ["cult.fit subscription", "health"],
+      ["whey protein", "health"],
+      ["yoga class", "health"],
+      ["doctor consultation", "health"],
+      ["1mg medicines", "health"],
+      ["dentist appointment", "health"],
+      ["multivitamin", "health"],
+      ["health insurance premium", "health"],
+      ["mediclaim renewal", "health"],
+      ["physiotherapy session", "health"],
+    ])("detects '%s' → %s", (text, expected) => {
+      expect(detectCategory(text)).toBe(expected);
+    });
+  });
+
+  describe("shopping", () => {
+    it.each([
+      ["Amazon order", "shopping"],
+      ["Flipkart sale", "shopping"],
+      ["Myntra clothes", "shopping"],
+      ["Decathlon shoes", "shopping"],
+      ["new sneakers", "shopping"],
+      ["birthday gift", "shopping"],
+      ["headphones", "shopping"],
+      ["new laptop", "shopping"],
+      ["Croma TV", "shopping"],
+      ["salon haircut", "shopping"],
+    ])("detects '%s' → %s", (text, expected) => {
+      expect(detectCategory(text)).toBe(expected);
+    });
+  });
+
+  describe("alcohol", () => {
+    it.each([
+      ["beer at bar", "alcohol"],
+      ["wine bottle", "alcohol"],
+      ["whisky", "alcohol"],
+      ["cocktails at the pub", "alcohol"],
+      ["Kingfisher beer", "alcohol"],
+      ["Bira lager", "alcohol"],
+      ["Old Monk", "alcohol"],
+      ["liquor store", "alcohol"],
+      ["happy hour drinks", "alcohol"],
+    ])("detects '%s' → %s", (text, expected) => {
+      expect(detectCategory(text)).toBe(expected);
+    });
+  });
+
   describe("groceries", () => {
     it.each([
       ["Blinkit", "groceries"],
@@ -85,7 +136,6 @@ describe("detectCategory", () => {
       ["Netflix subscription", "entertainment"],
       ["movie at PVR", "entertainment"],
       ["birthday party", "entertainment"],
-      ["beer at the pub", "entertainment"],
     ])("detects '%s' → %s", (text, expected) => {
       expect(detectCategory(text)).toBe(expected);
     });

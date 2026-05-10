@@ -110,6 +110,14 @@ export function AddPersonalEntry({
       if (typeof parsed.amount === "number" && parsed.amount > 0) {
         setAmount(parsed.amount);
       }
+      // Auto-detect category from the voice description — only if
+      // the user hasn't manually overridden the picker yet. Doesn't
+      // mark category as "touched" so the type-default reset still
+      // applies if they later change income/expense/investment.
+      if (parsed.description && !categoryTouched) {
+        const guess = detectCategory(parsed.description);
+        if (guess) setCategory(guess);
+      }
     },
     onError: (err) => {
       if (err === "no-speech" || err === "aborted") return;

@@ -11,6 +11,9 @@ export const CATEGORY_KEYS = [
   "travel",
   "stay",
   "groceries",
+  "health",
+  "shopping",
+  "alcohol",
   "bills",
   "entertainment",
   "income",
@@ -59,6 +62,27 @@ export const CATEGORIES: Record<CategoryKey, CategoryMeta> = {
     chipClass:
       "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
     hex: "#10b981",
+  },
+  health: {
+    label: "Health",
+    emoji: "💪",
+    chipClass:
+      "bg-pink-100 text-pink-800 dark:bg-pink-950/60 dark:text-pink-300",
+    hex: "#ec4899",
+  },
+  shopping: {
+    label: "Shopping",
+    emoji: "🛍️",
+    chipClass:
+      "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-950/60 dark:text-fuchsia-300",
+    hex: "#d946ef",
+  },
+  alcohol: {
+    label: "Alcohol",
+    emoji: "🍻",
+    chipClass:
+      "bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300",
+    hex: "#f97316",
   },
   bills: {
     label: "Bills",

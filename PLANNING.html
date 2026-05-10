@@ -434,6 +434,7 @@
     <tr><td class="task">AI categorization (Claude Haiku)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · already covered by local keyword detection</span></td></tr>
     <tr><td class="task">WhatsApp bot (Meta Cloud API, DM only)</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · 1k free convos/month but business-verification overhead</span></td></tr>
     <tr><td class="task">SMS UPI debit parsing</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · auto-read needs native app; free fallback = paste-to-parse</span></td></tr>
+    <tr><td class="task"><strong>Holdings auto-fetch (Cred / Indmoney style)</strong> — pull MF/FD/stock positions automatically instead of manual entry. <strong>4 paths in increasing cost:</strong> (a) AMFI NAV daily CSV — free, ~6h, MF NAVs only; (b) CAS PDF parsing via forwarded email — Postmark/Resend ~₹500/mo + ~₹0.5/parse, ~2 days, ~95% MF coverage; (c) per-broker APIs (Zerodha Kite first) — free per-API but ~3 days each + token maintenance; (d) Account Aggregator framework — ~₹50L+ regulatory setup, FIU licence required, full coverage. Recommended order: a → b → c. (d) deferred indefinitely until funded.</td><td class="status"><span class="status-cell"><span class="dot todo"></span>future scope · staged from cheap (NAV pull) to regulatory (AA)</span></td></tr>
   </tbody></table>
 
   <h2>Phase 4 — Optional Pro tier</h2>
