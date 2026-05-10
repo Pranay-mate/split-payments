@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, Users, Wallet } from "lucide-react";
 import { SITE, SPLIT_FEATURES, PERSONAL_FEATURES } from "@/lib/site";
 import { organizationLd, softwareApplicationLd } from "@/lib/jsonld";
+import { LiveScorecardDemo } from "@/components/live-scorecard-demo";
 
 export default function HomePage() {
   return (
@@ -43,6 +44,9 @@ export default function HomePage() {
           </p>
         </div>
       </section>
+
+      {/* Live demo — visitors play with the actual scorecard */}
+      <LiveScorecardDemo />
 
       {/* Two-product split — the same app does both */}
       <section
