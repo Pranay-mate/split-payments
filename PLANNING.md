@@ -3,7 +3,7 @@
 > Phased roadmap with **per-task status**. Updated as we ship. PLANNING.html mirrors this — keep them in sync.
 
 **Last updated:** 2026-05-09 (full PFT v1→v4 + Phase 2.6 shipped)
-**Live:** https://split-payments-sigma.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
+**Live:** https://easy-split-payments.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 **Status legend:** ✅ done · 🟡 in progress · ⬜ not started · ⏸ blocked (waiting on something)
 

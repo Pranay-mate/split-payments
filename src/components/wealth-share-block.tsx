@@ -62,7 +62,7 @@ export function WealthShareBlock() {
   const origin =
     typeof window !== "undefined"
       ? window.location.origin
-      : "https://split-payments-sigma.vercel.app";
+      : "https://easy-split-payments.vercel.app";
   const url = token ? `${origin}/wealth/${token}` : "";
 
   const onCopy = async () => {

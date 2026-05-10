@@ -580,7 +580,7 @@ function fallbackCard() {
             opacity: 0.7,
           }}
         >
-          split-payments-sigma.vercel.app
+          easy-split-payments.vercel.app
         </div>
       </div>
     ),
@@ -637,7 +637,7 @@ function Footer() {
       }}
     >
       <div style={{ display: "flex" }}>India-first split + personal finance</div>
-      <div style={{ display: "flex" }}>split-payments-sigma.vercel.app</div>
+      <div style={{ display: "flex" }}>easy-split-payments.vercel.app</div>
     </div>
   );
 }

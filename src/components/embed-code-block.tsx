@@ -39,7 +39,7 @@ export function EmbedCodeBlock() {
   const origin =
     typeof window !== "undefined"
       ? window.location.origin
-      : "https://split-payments-sigma.vercel.app";
+      : "https://easy-split-payments.vercel.app";
   const url = `${origin}/embed/scorecard?score=${score}&band=${band}&label=${encodeURIComponent(label)}`;
   const code = `<iframe
   src="${url}"

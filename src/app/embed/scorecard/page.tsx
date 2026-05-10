@@ -4,7 +4,7 @@
  * no JS state, single fetch of Tailwind CSS, ~30 KB transferred.
  *
  * Usage:
- *   <iframe src="https://split-payments-sigma.vercel.app/embed/scorecard?score=85&band=green&label=Pranay"
+ *   <iframe src="https://easy-split-payments.vercel.app/embed/scorecard?score=85&band=green&label=Pranay"
  *           width="320" height="200"
  *           style="border:0; border-radius:16px"
  *           loading="lazy"
@@ -155,7 +155,7 @@ export default async function EmbedScorecardPage({
       <a
         // Attribution. Clickable; opens parent _blank so embedder's site
         // doesn't get hijacked.
-        href="https://split-payments-sigma.vercel.app/use-cases/financial-health-india"
+        href="https://easy-split-payments.vercel.app/use-cases/financial-health-india"
         target="_blank"
         rel="noopener noreferrer"
         style={{
