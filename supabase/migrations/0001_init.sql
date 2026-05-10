@@ -1,15 +1,15 @@
 -- =====================================================================
--- EasySplits — full database schema
+-- 0001_init — EasySplits initial schema
 -- =====================================================================
--- Run in Supabase SQL Editor → "Run without RLS" (matches the rest of
--- our auth model: server-side queries via Drizzle bypass RLS).
+-- Applied automatically by the Supabase GitHub integration on push to
+-- main, or manually via `supabase db push` when running the CLI locally.
 --
--- Idempotent: safe to re-run. Uses IF NOT EXISTS / DO blocks so existing
--- objects aren't recreated.
+-- Idempotent: every CREATE / ALTER guards with IF NOT EXISTS / DO block
+-- so re-runs against an existing project are safe.
 --
--- Mirrors src/lib/db/schema.ts. Source of truth: that file. This SQL is
--- here because drizzle-kit's introspection step is broken on Supabase
--- (https://github.com/drizzle-team/drizzle-orm/issues — see SETUP.md).
+-- Mirrors src/lib/db/schema.ts (TypeScript / Drizzle). When you change
+-- the schema, prefer adding a new migration file (e.g. 0002_*.sql) over
+-- editing this one — keeps history replayable.
 -- =====================================================================
 
 -- 1. ENUMS ------------------------------------------------------------
