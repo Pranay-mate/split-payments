@@ -22,6 +22,9 @@ export function SiteHeader() {
   // Hide site header inside the authenticated app shell — those pages
   // get their own focused chrome (added later).
   if (pathname.startsWith("/app/")) return null;
+  // Hide on /embed/* iframe routes — embedders want a clean rectangle
+  // of content with no parent-app chrome.
+  if (pathname.startsWith("/embed/")) return null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:border-slate-800/80 dark:bg-slate-950/80 dark:supports-[backdrop-filter]:bg-slate-950/70">

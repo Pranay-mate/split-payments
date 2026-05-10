@@ -15,6 +15,7 @@ import {
   ActiveMutesList,
   NotificationSettings,
 } from "@/components/notification-settings";
+import { EmbedCodeBlock } from "@/components/embed-code-block";
 
 type Theme = "system" | "light" | "dark";
 
@@ -283,6 +284,11 @@ export function EditProfileModal({
         <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
           <NotificationSettings />
           <ActiveMutesList />
+        </section>
+
+        {/* Embed code — only renders when profile has a complete score */}
+        <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+          <EmbedCodeBlock />
         </section>
 
         {/* Danger zone — deliberately last and visually quiet by default;
