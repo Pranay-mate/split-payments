@@ -20,6 +20,7 @@ import { trpc } from "@/lib/trpc/client";
 import { formatINR } from "@/lib/format";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
+import { NetWorthTrajectory } from "./net-worth-trajectory";
 
 type HoldingType = "mutual_fund" | "fd" | "stock" | "gold" | "bond" | "other";
 
@@ -63,6 +64,7 @@ export function WealthView() {
     onSuccess: () => {
       utils.personal.holdings.list.invalidate();
       utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
       toast.success("Holding archived");
     },
     onError: (err) => toast.error(err.message),
@@ -71,6 +73,7 @@ export function WealthView() {
     onSuccess: () => {
       utils.personal.holdings.list.invalidate();
       utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
       toast.success("Holding deleted");
     },
     onError: (err) => toast.error(err.message),
@@ -152,6 +155,9 @@ export function WealthView() {
             your scorecard profile; holdings live below.
           </p>
         </section>
+
+        {/* Trajectory chart */}
+        <NetWorthTrajectory />
 
         {/* Type breakdown */}
         {summary && summary.holdingsCount > 0 && totalForBars > 0 && (
@@ -367,6 +373,7 @@ function HoldingForm({
     onSuccess: () => {
       utils.personal.holdings.list.invalidate();
       utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
       toast.success("Holding added");
       onDone();
     },
@@ -376,6 +383,7 @@ function HoldingForm({
     onSuccess: () => {
       utils.personal.holdings.list.invalidate();
       utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
       toast.success("Holding updated");
       onDone();
     },

@@ -29,6 +29,7 @@ import {
   pgEnum,
   index,
   unique,
+  uniqueIndex,
   boolean,
   integer,
 } from "drizzle-orm/pg-core";
@@ -532,6 +533,45 @@ export const personalHoldings = pgTable(
 );
 
 export type PersonalHolding = typeof personalHoldings.$inferSelect;
+
+/**
+ * Net-worth snapshots — one row per user per calendar day. Powers the
+ * trajectory chart on /app/personal/wealth so users can see the curve
+ * over time without us having to recompute from holdings history (which
+ * we don't keep — current_value overwrites in place).
+ *
+ * `snapshot_date` is a calendar date (no time). UNIQUE (user_id, date)
+ * so each day's edits collapse into one row — last write wins.
+ */
+export const personalNetWorthSnapshots = pgTable(
+  "personal_net_worth_snapshots",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** ISO date 'YYYY-MM-DD'. Stored as text since pg `date` round-trips
+     *  awkwardly through tz-aware Date objects. */
+    snapshotDate: text("snapshot_date").notNull(),
+    totalValue: text("total_value").notNull(),
+    liquidSavings: text("liquid_savings").notNull(),
+    holdingsValue: text("holdings_value").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("personal_net_worth_user_idx").on(t.userId, t.snapshotDate),
+    uniqueIndex("personal_net_worth_user_date_uniq").on(
+      t.userId,
+      t.snapshotDate,
+    ),
+  ],
+);
+
+export type PersonalNetWorthSnapshot =
+  typeof personalNetWorthSnapshots.$inferSelect;
 
 /**
  * Financial profile — backs the 5-pillar Financial Health Scorecard

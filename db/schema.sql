@@ -374,3 +374,23 @@ ALTER TABLE profiles
 CREATE UNIQUE INDEX IF NOT EXISTS profiles_wealth_share_token_uniq
   ON profiles(wealth_share_token)
   WHERE wealth_share_token IS NOT NULL;
+
+-- Net-worth snapshots (Phase 2.5 v5.2). One row per user per calendar
+-- day; UNIQUE (user_id, snapshot_date) so editing holdings multiple
+-- times in a day collapses to a single point. snapshot_date is text
+-- 'YYYY-MM-DD' to avoid pg `date` round-trip pain through tz-aware
+-- Date objects in the app code. All amount columns are encrypted.
+CREATE TABLE IF NOT EXISTS personal_net_worth_snapshots (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid NOT NULL,
+  snapshot_date   text NOT NULL,
+  total_value     text NOT NULL,                          -- encrypted
+  liquid_savings  text NOT NULL,                          -- encrypted
+  holdings_value  text NOT NULL,                          -- encrypted
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS personal_net_worth_user_idx
+  ON personal_net_worth_snapshots(user_id, snapshot_date);
+CREATE UNIQUE INDEX IF NOT EXISTS personal_net_worth_user_date_uniq
+  ON personal_net_worth_snapshots(user_id, snapshot_date);

@@ -9,6 +9,7 @@ import {
   financialProfiles,
   personalEntries,
   personalHoldings,
+  personalNetWorthSnapshots,
   personalRecurrences,
   scoreSnapshots,
 } from "@/lib/db/schema";
@@ -30,6 +31,73 @@ const currencySchema = z
   .string()
   .length(3)
   .regex(/^[A-Z]{3}$/, "3-letter ISO 4217 currency");
+
+/** Today's calendar date in 'YYYY-MM-DD' (UTC). Snapshots use UTC so two
+ *  edits on the same calendar day collapse no matter where the user is. */
+function todayISODate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Recompute net worth from current state and upsert today's snapshot.
+ * Called from any mutation that changes the underlying inputs (holdings
+ * CRUD or financial-profile liquid_savings update). Fire-and-forget at
+ * the call sites — failures shouldn't block the user mutation.
+ */
+async function recordNetWorthSnapshot(userId: string): Promise<void> {
+  try {
+    const [profile] = await db
+      .select()
+      .from(financialProfiles)
+      .where(eq(financialProfiles.userId, userId))
+      .limit(1);
+    const liquidSavings =
+      profile?.liquidSavings !== null && profile?.liquidSavings !== undefined
+        ? decryptAmount(profile.liquidSavings)
+        : 0;
+    const holdingsRows = await db
+      .select()
+      .from(personalHoldings)
+      .where(
+        and(
+          eq(personalHoldings.userId, userId),
+          isNull(personalHoldings.archivedAt),
+        ),
+      );
+    let holdingsValue = 0;
+    for (const h of holdingsRows) {
+      holdingsValue += decryptAmount(h.currentValue);
+    }
+    const totalValue = liquidSavings + holdingsValue;
+    const snapshotDate = todayISODate();
+
+    // Upsert: same (user, date) collapses to one row — last write wins.
+    await db
+      .insert(personalNetWorthSnapshots)
+      .values({
+        userId,
+        snapshotDate,
+        totalValue: encryptAmount(totalValue),
+        liquidSavings: encryptAmount(liquidSavings),
+        holdingsValue: encryptAmount(holdingsValue),
+      })
+      .onConflictDoUpdate({
+        target: [
+          personalNetWorthSnapshots.userId,
+          personalNetWorthSnapshots.snapshotDate,
+        ],
+        set: {
+          totalValue: encryptAmount(totalValue),
+          liquidSavings: encryptAmount(liquidSavings),
+          holdingsValue: encryptAmount(holdingsValue),
+          updatedAt: new Date(),
+        },
+      });
+  } catch (err) {
+    // Snapshot failures shouldn't break user mutations — log + swallow.
+    console.error("[netWorthSnapshot] failed", err);
+  }
+}
 
 /** Parse "2026-05" into the [start, nextMonthStart) bounds for a SQL range. */
 function monthBounds(monthKey: string | undefined): {
@@ -561,6 +629,9 @@ export const personalRouter = router({
         if (updated.length === 0) {
           await db.insert(financialProfiles).values(values);
         }
+
+        // liquid_savings is part of net worth — re-snapshot.
+        void recordNetWorthSnapshot(ctx.user.id);
 
         // Snapshot the score on every "Compute" submit so the
         // trajectory chart + streak badge have a data point. Only on
@@ -1219,6 +1290,7 @@ export const personalRouter = router({
             notes: input.notes ? encryptValue(input.notes.trim()) : null,
           })
           .returning();
+        void recordNetWorthSnapshot(ctx.user.id);
         return created;
       }),
 
@@ -1269,6 +1341,7 @@ export const personalRouter = router({
           })
           .where(eq(personalHoldings.id, input.id))
           .returning();
+        void recordNetWorthSnapshot(ctx.user.id);
         return updated;
       }),
 
@@ -1287,6 +1360,7 @@ export const personalRouter = router({
           .update(personalHoldings)
           .set({ archivedAt: new Date(), updatedAt: new Date() })
           .where(eq(personalHoldings.id, input.id));
+        void recordNetWorthSnapshot(ctx.user.id);
         return { ok: true };
       }),
 
@@ -1304,7 +1378,58 @@ export const personalRouter = router({
         await db
           .delete(personalHoldings)
           .where(eq(personalHoldings.id, input.id));
+        void recordNetWorthSnapshot(ctx.user.id);
         return { ok: true };
+      }),
+
+    /**
+     * Net-worth history — last N snapshots, ascending by date. Used by
+     * the trajectory chart on /wealth. We also write a snapshot on read
+     * if today's row doesn't exist yet, so the curve always ends "today"
+     * even if the user hasn't edited holdings recently.
+     */
+    netWorthHistory: protectedProcedure
+      .input(
+        z
+          .object({ days: z.number().int().min(7).max(365).default(90) })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const days = input?.days ?? 90;
+        // Backfill today's row if missing — keeps the chart current.
+        const today = todayISODate();
+        const [existingToday] = await db
+          .select({ id: personalNetWorthSnapshots.id })
+          .from(personalNetWorthSnapshots)
+          .where(
+            and(
+              eq(personalNetWorthSnapshots.userId, ctx.user.id),
+              eq(personalNetWorthSnapshots.snapshotDate, today),
+            ),
+          )
+          .limit(1);
+        if (!existingToday) {
+          await recordNetWorthSnapshot(ctx.user.id);
+        }
+        const cutoff = new Date();
+        cutoff.setUTCDate(cutoff.getUTCDate() - days);
+        const cutoffISO = cutoff.toISOString().slice(0, 10);
+        const rows = await db
+          .select()
+          .from(personalNetWorthSnapshots)
+          .where(
+            and(
+              eq(personalNetWorthSnapshots.userId, ctx.user.id),
+              gte(personalNetWorthSnapshots.snapshotDate, cutoffISO),
+            ),
+          )
+          .orderBy(asc(personalNetWorthSnapshots.snapshotDate));
+        return rows.map((r) => ({
+          snapshotDate: r.snapshotDate,
+          totalValue: decryptAmount(r.totalValue),
+          liquidSavings: decryptAmount(r.liquidSavings),
+          holdingsValue: decryptAmount(r.holdingsValue),
+        }));
       }),
   }),
 });
