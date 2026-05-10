@@ -225,12 +225,12 @@ function GroupCard({ group: g }: { group: GroupRow }) {
             <p className={`mt-0.5 truncate text-xs font-medium ${tone.text}`}>
               {tone.label}
               {g.expenseCount > 0 && (
-                <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">
+                <span className="ml-1.5 font-normal text-slate-500 dark:text-slate-400">
                   · {relativeTime(g.lastActivityAt)} · {g.primaryCurrency}
                 </span>
               )}
               {g.expenseCount === 0 && (
-                <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">
+                <span className="ml-1.5 font-normal text-slate-500 dark:text-slate-400">
                   · No expenses yet · {g.primaryCurrency}
                 </span>
               )}

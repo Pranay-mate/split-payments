@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import confetti from "canvas-confetti";
 import { Sparkles, X } from "lucide-react";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
 
@@ -46,13 +45,14 @@ function persistSeen(set: Set<string>): void {
   }
 }
 
-function fireConfetti(): void {
+async function fireConfetti(): Promise<void> {
+  // Lazy-load canvas-confetti only when a goal actually completes, so
+  // the ~10 KB lib stays out of the initial /app bundle.
+  const { default: confetti } = await import("canvas-confetti");
   const duration = 2_000;
   const end = Date.now() + duration;
   const palette = ["#10b981", "#f59e0b", "#6366f1", "#f43f5e", "#a855f7"];
 
-  // Two side-bursts every animation frame for a wider spread than a
-  // single shot. Stops after `duration`.
   (function frame() {
     confetti({
       particleCount: 3,
@@ -111,7 +111,7 @@ export function GoalCelebration({ goals }: { goals: GoalLike[] }) {
     seen.add(target.id);
     persistSeen(seen);
     setPending(target);
-    fireConfetti();
+    void fireConfetti();
   }, [goals]);
 
   if (!pending) return null;
