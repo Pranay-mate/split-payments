@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, Plus, Trophy, X } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
 
 type PillarKey =
@@ -97,13 +99,12 @@ function pctOf(current: number, target: number): number {
   return Math.max(0, Math.min(1, current / target));
 }
 
-function shortDate(d: Date | string | null): string | null {
+function shortDate(
+  d: Date | string | null,
+  tz: string,
+): string | null {
   if (!d) return null;
-  return new Date(d).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(d, tz, "medium");
 }
 
 /** Days until target date (null if no date). Negative = past due. */
@@ -244,6 +245,7 @@ function GoalRow({
   compact?: boolean;
   onArchive: (id: string) => void;
 }) {
+  const userTz = useUserTimezone();
   const pct = pctOf(goal.currentValue, goal.targetScore);
   const max = goal.goalKind === "total" ? 100 : 20;
   const days = daysUntil(goal.targetDate);
@@ -293,7 +295,7 @@ function GoalRow({
               </span>
               {goal.targetDate && (
                 <span className={onTrack === false ? "text-rose-500" : ""}>
-                  · by {shortDate(goal.targetDate)}
+                  · by {shortDate(goal.targetDate, userTz)}
                   {days !== null && !isDone && (
                     <>
                       {" · "}

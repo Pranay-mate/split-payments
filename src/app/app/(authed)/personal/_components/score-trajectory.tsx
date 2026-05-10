@@ -11,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { trpc } from "@/lib/trpc/client";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 type Snapshot = {
   id: string;
@@ -34,32 +36,23 @@ function monthKey(d: Date | string): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function shortDateLabel(d: Date | string): string {
-  return new Date(d).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function timeLabel(d: Date | string): string {
-  return new Date(d).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
 /**
  * If multiple snapshots share the same calendar day, dedupe the x-axis
  * by appending HH:mm — otherwise recharts shows "9 May" 7 times in a
  * row, which conveys nothing. When dates already differ across the
  * series, leave the simple "DD MMM" labels.
  */
-function buildLabels(history: Array<{ snapshottedAt: Date | string }>): string[] {
-  const dates = history.map((s) => shortDateLabel(s.snapshottedAt));
+function buildLabels(
+  history: Array<{ snapshottedAt: Date | string }>,
+  tz: string,
+): string[] {
+  const dates = history.map((s) => formatDate(s.snapshottedAt, tz, "short"));
   const unique = new Set(dates);
   if (unique.size === dates.length) return dates;
-  return history.map((s) => `${shortDateLabel(s.snapshottedAt)} ${timeLabel(s.snapshottedAt)}`);
+  return history.map(
+    (s) =>
+      `${formatDate(s.snapshottedAt, tz, "short")} ${formatDate(s.snapshottedAt, tz, "time")}`,
+  );
 }
 
 export type ScoreSummary = {
@@ -104,11 +97,12 @@ export function summariseSnapshots(history: Snapshot[]): ScoreSummary {
 export function ScoreTrajectory() {
   const q = trpc.personal.profile.history.useQuery({ limit: 24 });
   const history = useMemo(() => q.data ?? [], [q.data]);
+  const userTz = useUserTimezone();
 
   const chartData = useMemo(() => {
-    const labels = buildLabels(history);
+    const labels = buildLabels(history, userTz);
     return history.map((s, i) => ({ label: labels[i], total: s.total }));
-  }, [history]);
+  }, [history, userTz]);
 
   if (q.isLoading) return null;
   if (history.length < 2) {

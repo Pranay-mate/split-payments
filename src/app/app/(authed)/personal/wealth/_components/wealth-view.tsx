@@ -18,6 +18,8 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { formatINR } from "@/lib/format";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 type HoldingType = "mutual_fund" | "fd" | "stock" | "gold" | "bond" | "other";
 
@@ -51,6 +53,7 @@ const TYPE_EMOJI: Record<HoldingType, string> = {
 export function WealthView() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const userTz = useUserTimezone();
 
   const netQuery = trpc.personal.holdings.netWorth.useQuery();
   const listQuery = trpc.personal.holdings.list.useQuery();
@@ -270,11 +273,7 @@ export function WealthView() {
                         {h.units < 1000
                           ? `${h.units.toFixed(2)} units`
                           : `${formatINR(h.units, 0)} units`}{" "}
-                        · as of{" "}
-                        {new Date(h.asOf).toLocaleDateString(undefined, {
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        · as of {formatDate(h.asOf, userTz, "short")}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">

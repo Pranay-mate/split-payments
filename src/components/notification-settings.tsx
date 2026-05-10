@@ -4,6 +4,8 @@ import { Bell, BellOff, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { usePushSubscription } from "@/lib/use-push-subscription";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 /**
  * Notification preferences block — push opt-in/out + send-test button +
@@ -131,6 +133,7 @@ function SendTestButton() {
  */
 export function ActiveMutesList() {
   const utils = trpc.useUtils();
+  const userTz = useUserTimezone();
   const mutesQuery = trpc.personal.mutes.list.useQuery();
   const unmuteMutation = trpc.personal.mutes.delete.useMutation({
     onSuccess: () => {
@@ -158,11 +161,7 @@ export function ActiveMutesList() {
             <span className="truncate">
               {m.category} ·{" "}
               <span className="text-slate-400">
-                until{" "}
-                {new Date(m.mutedUntil).toLocaleDateString(undefined, {
-                  day: "numeric",
-                  month: "short",
-                })}
+                until {formatDate(m.mutedUntil, userTz, "short")}
               </span>
             </span>
             <button

@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 const RECENT_ACTIVITY_COUNT = 5;
 
@@ -87,7 +89,7 @@ const EVENT_STYLES: Record<string, EventStyle> = {
   },
 };
 
-function relativeTime(date: Date): string {
+function relativeTime(date: Date, tz: string): string {
   const diff = Date.now() - new Date(date).getTime();
   const min = Math.floor(diff / 60_000);
   if (min < 1) return "just now";
@@ -96,10 +98,7 @@ function relativeTime(date: Date): string {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d ago`;
-  return new Date(date).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-  });
+  return formatDate(date, tz, "short");
 }
 
 export function ActivityFeed({
@@ -110,6 +109,7 @@ export function ActivityFeed({
   memberById: Map<string, { id: string; name: string }>;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const userTz = useUserTimezone();
   const eventsQuery = trpc.events.listByGroup.useQuery({ groupId, limit: 30 });
   const items = eventsQuery.data ?? [];
   const visible = showAll ? items : items.slice(0, RECENT_ACTIVITY_COUNT);
@@ -167,7 +167,7 @@ export function ActivityFeed({
                     )}
                   </p>
                   <p className="mt-0.5 text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
-                    {relativeTime(e.occurredAt)}
+                    {relativeTime(e.occurredAt, userTz)}
                   </p>
                 </div>
               </li>

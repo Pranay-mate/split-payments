@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 type ExpenseRow = {
   payerId: string;
@@ -39,19 +41,12 @@ function dayKey(d: Date | string): string {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-function dayLabel(key: string): string {
-  return new Date(`${key}T00:00:00`).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
+function dayLabel(key: string, tz: string): string {
+  return formatDate(`${key}T00:00:00`, tz, "short");
 }
 
-function fullDayLabel(key: string): string {
-  return new Date(`${key}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+function fullDayLabel(key: string, tz: string): string {
+  return formatDate(`${key}T00:00:00`, tz, "weekday-short");
 }
 
 export function GroupCharts({
@@ -61,6 +56,7 @@ export function GroupCharts({
   expenses: ExpenseRow[];
   members: Member[];
 }) {
+  const userTz = useUserTimezone();
   const memberById = useMemo(() => {
     const m = new Map<string, string>();
     for (const member of members) m.set(member.id, member.name);
@@ -113,8 +109,8 @@ export function GroupCharts({
     const series = Array.from(buckets.entries())
       .map(([key, total]) => ({
         key,
-        label: dayLabel(key),
-        full: fullDayLabel(key),
+        label: dayLabel(key, userTz),
+        full: fullDayLabel(key, userTz),
         total: Math.round(total * 100) / 100,
       }))
       .sort((a, b) => (a.key < b.key ? -1 : 1))
@@ -124,7 +120,7 @@ export function GroupCharts({
       null,
     );
     return { series, peak };
-  }, [expenses]);
+  }, [expenses, userTz]);
 
   const byPayer = useMemo(() => {
     const buckets = new Map<string, number>();

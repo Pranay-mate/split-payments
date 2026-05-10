@@ -4,18 +4,15 @@ import { useMemo, useState } from "react";
 import { ChevronDown, Lock } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { ALL_BADGES, deriveBadges } from "@/lib/financial-badges";
-
-const friendlyDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 export function BadgesStrip() {
   const q = trpc.personal.profile.history.useQuery({ limit: 24 });
   const history = useMemo(() => q.data ?? [], [q.data]);
   const earned = useMemo(() => deriveBadges(history), [history]);
   const [showLocked, setShowLocked] = useState(false);
+  const userTz = useUserTimezone();
 
   if (q.isLoading) return null;
   if (history.length === 0) return null;
@@ -49,7 +46,7 @@ export function BadgesStrip() {
           {earned.map((b) => (
             <li
               key={b.key}
-              title={`${b.description} · ${friendlyDate(b.earnedOn)}`}
+              title={`${b.description} · ${formatDate(`${b.earnedOn}T00:00:00`, userTz, "short")}`}
               className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/60 bg-gradient-to-br from-amber-50 to-orange-50 px-2.5 py-1 text-xs dark:border-amber-900/40 dark:from-amber-950/30 dark:to-orange-950/30"
             >
               <span aria-hidden className="text-sm leading-none">

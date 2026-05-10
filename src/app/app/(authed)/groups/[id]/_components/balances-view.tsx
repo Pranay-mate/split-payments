@@ -10,6 +10,8 @@ import {
   type TripSummary,
 } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
 
@@ -152,6 +154,7 @@ export function BalancesView({
   tripExpenses: TripExpense[];
 }) {
   const utils = trpc.useUtils();
+  const userTz = useUserTimezone();
   const recordMutation = trpc.settlements.create.useMutation({
     onSuccess: () => {
       utils.settlements.listByGroup.invalidate({ groupId });
@@ -304,10 +307,7 @@ export function BalancesView({
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     {formatINR(r.amount, 0)}
                     {r.note ? ` · ${r.note}` : ""} ·{" "}
-                    {new Date(r.occurredAt).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                    })}
+                    {formatDate(r.occurredAt, userTz, "short")}
                   </p>
                 </div>
                 <button

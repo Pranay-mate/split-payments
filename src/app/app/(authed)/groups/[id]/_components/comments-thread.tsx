@@ -13,6 +13,8 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 const HISTORY_LABELS: Record<string, string> = {
   "expense.added": "added this expense",
@@ -21,7 +23,7 @@ const HISTORY_LABELS: Record<string, string> = {
   "comment.added": "commented",
 };
 
-function relativeTime(date: Date | string): string {
+function relativeTime(date: Date | string, tz: string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const diff = Date.now() - d.getTime();
   const min = Math.floor(diff / 60_000);
@@ -31,7 +33,7 @@ function relativeTime(date: Date | string): string {
   if (h < 24) return `${h}h ago`;
   const dd = Math.floor(h / 24);
   if (dd < 7) return `${dd}d ago`;
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  return formatDate(d, tz, "short");
 }
 
 export function CommentsThread({
@@ -49,6 +51,7 @@ export function CommentsThread({
 }) {
   const [draft, setDraft] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const userTz = useUserTimezone();
 
   const listQuery = trpc.comments.listByExpense.useQuery({ expenseId });
   const historyQuery = trpc.events.listByExpense.useQuery(
@@ -162,7 +165,7 @@ export function CommentsThread({
                     <span className="min-w-0 flex-1">
                       <span className="font-medium">{actor}</span>{" "}
                       <span className="text-slate-500 dark:text-slate-400">{label}</span>{" "}
-                      <span className="text-slate-400">· {relativeTime(e.occurredAt)}</span>
+                      <span className="text-slate-400">· {relativeTime(e.occurredAt, userTz)}</span>
                     </span>
                   </li>
                 );

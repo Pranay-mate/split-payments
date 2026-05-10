@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 import { AddPersonalEntry, type EntryType } from "./add-personal-entry";
 import { AnomalyBanner } from "./anomaly-banner";
 import { GoalsCard } from "./goals-card";
@@ -75,6 +77,7 @@ export function PersonalDashboard() {
   const [month, setMonth] = useState<string>(monthKeyForDate(new Date()));
   const [showCharts, setShowCharts] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
+  const userTz = useUserTimezone();
 
   const focusForm = () => {
     setTimeout(() => {
@@ -314,10 +317,7 @@ export function PersonalDashboard() {
                         <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
                           {meta.label}
                           {" · "}
-                          {new Date(e.occurredAt).toLocaleDateString(
-                            undefined,
-                            { day: "numeric", month: "short" },
-                          )}
+                          {formatDate(e.occurredAt, userTz, "short")}
                         </p>
                       </div>
 

@@ -26,6 +26,8 @@ import {
   type Person,
 } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
@@ -71,6 +73,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     }, 60);
   };
 
+  const userTz = useUserTimezone();
   const meQuery = trpc.profiles.me.useQuery();
   const groupQuery = trpc.groups.byId.useQuery({ id: groupId });
   const membersQuery = trpc.groups.members.useQuery({ groupId });
@@ -201,11 +204,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         totals.set(key, {
           total: 0,
           count: 0,
-          label: d.toLocaleDateString(undefined, {
-            weekday: "short",
-            day: "numeric",
-            month: "short",
-          }),
+          label: formatDate(d, userTz, "weekday-short"),
         });
       }
       const entry = totals.get(key)!;

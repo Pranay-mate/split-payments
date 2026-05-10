@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { CATEGORIES, CATEGORY_KEYS, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
+import { formatDate } from "@/lib/format-date";
+import { useUserTimezone } from "@/lib/use-user-timezone";
 
 type EntryType = "income" | "expense" | "investment";
 
@@ -36,6 +38,7 @@ export function RecurrencesCard() {
   const listQuery = trpc.personal.recurrences.list.useQuery();
   const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
+  const userTz = useUserTimezone();
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const items = listQuery.data ?? [];
@@ -144,10 +147,7 @@ export function RecurrencesCard() {
                             Day {r.scheduleDay} · {meta.label} ·{" "}
                             {isPaused
                               ? "Paused"
-                              : `Next ${due.toLocaleDateString(undefined, {
-                                  day: "numeric",
-                                  month: "short",
-                                })}`}
+                              : `Next ${formatDate(due, userTz, "short")}`}
                           </p>
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">
