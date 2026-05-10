@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Plus, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
+import { BrandMark } from "@/components/brand-mark";
 
 const GROUP_PATH_RE = /^\/app\/groups\/([0-9a-f-]{36})/;
 
@@ -34,12 +35,7 @@ export function GroupSwitcher() {
         className="flex items-center gap-2"
         aria-label="EasySplits home"
       >
-        <span
-          className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 text-xs font-bold text-white shadow-sm"
-          aria-hidden
-        >
-          ES
-        </span>
+        <BrandMark className="h-8 w-8 shadow-sm" fontSizeClass="text-[10px]" />
         <span className="text-base font-semibold tracking-tight">
           EasySplits
         </span>

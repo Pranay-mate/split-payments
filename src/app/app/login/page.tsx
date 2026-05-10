@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildMetadata } from "@/lib/seo";
+import { BrandMark } from "@/components/brand-mark";
 import { LoginForm } from "./_components/login-form";
 
 export const metadata: Metadata = buildMetadata({
@@ -40,12 +41,11 @@ export default async function LoginPage({
     <main className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="text-center">
-          <span
-            className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 text-base font-bold text-white shadow-md"
-            aria-hidden
-          >
-            ES
-          </span>
+          <BrandMark
+            className="mx-auto h-12 w-12 shadow-md"
+            rounded="rounded-2xl"
+            fontSizeClass="text-sm"
+          />
           <h1 className="mt-5 text-2xl font-semibold tracking-tight">
             Sign in to EasySplits
           </h1>

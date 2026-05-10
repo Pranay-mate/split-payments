@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, X, Share } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 
 const DISMISS_KEY = "easysplits-install-dismissed";
 const DISMISS_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -116,12 +117,11 @@ export function InstallPrompt() {
       aria-label="Install EasySplits"
     >
       <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-        <span
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 text-xs font-bold text-white"
-          aria-hidden
-        >
-          ES
-        </span>
+        <BrandMark
+          className="h-10 w-10 shrink-0"
+          rounded="rounded-xl"
+          fontSizeClass="text-xs"
+        />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold tracking-tight">
             Install EasySplits

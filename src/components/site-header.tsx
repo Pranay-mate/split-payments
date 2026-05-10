@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
+import { BrandMark } from "@/components/brand-mark";
 
 const NAV = [
   { href: "/calculators/trip", label: "Trip" },
@@ -34,12 +35,10 @@ export function SiteHeader() {
           className="group flex items-center gap-2 transition"
           aria-label="EasySplits home"
         >
-          <span
-            className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 text-xs font-bold text-white shadow-sm transition group-hover:shadow-md"
-            aria-hidden
-          >
-            ES
-          </span>
+          <BrandMark
+            className="h-8 w-8 shadow-sm transition group-hover:shadow-md"
+            fontSizeClass="text-[10px]"
+          />
           <span className="hidden text-base font-semibold tracking-tight sm:block">
             EasySplits
           </span>
