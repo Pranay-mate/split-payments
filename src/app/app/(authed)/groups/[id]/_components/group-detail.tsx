@@ -277,6 +277,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     id: group.id,
                     name: group.name,
                     primaryCurrency: group.primaryCurrency,
+                    archivedAt: group.archivedAt ?? null,
                   }}
                   expenseCount={expenses.length}
                   isCreator={isCreator}

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Archive,
+  ArchiveRestore,
   Link2,
   Loader2,
   LogOut,
@@ -22,6 +24,7 @@ type GroupForSettings = {
   id: string;
   name: string;
   primaryCurrency: string;
+  archivedAt?: Date | null;
 };
 
 type MemberForSettings = {
@@ -103,6 +106,24 @@ export function GroupSettings({
       toast.success("Group deleted");
       router.push("/app/groups");
       router.refresh();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const archiveMutation = trpc.groups.archive.useMutation({
+    onSuccess: () => {
+      utils.groups.list.invalidate();
+      utils.groups.byId.invalidate({ id: group.id });
+      toast.success("Group archived");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const unarchiveMutation = trpc.groups.unarchive.useMutation({
+    onSuccess: () => {
+      utils.groups.list.invalidate();
+      utils.groups.byId.invalidate({ id: group.id });
+      toast.success("Group unarchived");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -324,6 +345,59 @@ export function GroupSettings({
                   Tip: this is a user-level setting — also editable in
                   your profile menu (top-right avatar).
                 </p>
+              </div>
+
+              {/* Archive/unarchive — separate from Danger zone since it's
+                  reversible. Hides the group from the default /app/groups
+                  list; everyone can still reach it via direct link. */}
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      {group.archivedAt ? (
+                        <ArchiveRestore
+                          className="h-3.5 w-3.5"
+                          aria-hidden
+                        />
+                      ) : (
+                        <Archive className="h-3.5 w-3.5" aria-hidden />
+                      )}
+                      {group.archivedAt ? "Archived" : "Archive"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      {group.archivedAt
+                        ? "Hidden from your active groups list. Unarchive to bring it back."
+                        : "Hides this group from your active list (collapsed under 'Archived'). Reversible — not the same as deleting."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (group.archivedAt) {
+                        unarchiveMutation.mutate({ id: group.id });
+                      } else {
+                        archiveMutation.mutate({ id: group.id });
+                      }
+                    }}
+                    disabled={
+                      archiveMutation.isPending || unarchiveMutation.isPending
+                    }
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    {archiveMutation.isPending ||
+                    unarchiveMutation.isPending ? (
+                      <Loader2
+                        className="h-3.5 w-3.5 animate-spin"
+                        aria-hidden
+                      />
+                    ) : group.archivedAt ? (
+                      <ArchiveRestore className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <Archive className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    {group.archivedAt ? "Unarchive" : "Archive"}
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-900 dark:bg-rose-950/40">

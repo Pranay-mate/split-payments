@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Switch Tailwind v4 from default media-query dark mode to class-based.
+ * next-themes adds class="dark" on <html>; this directive tells every
+ * `dark:` Tailwind variant to apply when an ancestor has .dark.
+ * Without this, the user's "Light"/"Dark" override has no effect. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -12,11 +18,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Honour the next-themes class on <html> (.dark / .light), with a
+ * media-query fallback for users who haven't set a preference (the
+ * "system" theme that next-themes resolves to via the `class` attribute
+ * still works because next-themes adds .dark when the OS is dark). */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {

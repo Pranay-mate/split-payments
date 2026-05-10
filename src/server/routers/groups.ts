@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { randomBytes, randomUUID } from "node:crypto";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import {
   claimTokens,
+  expenseSplits,
   expenses,
   groupMembers,
   groups,
@@ -64,7 +65,11 @@ async function requireCreator(groupId: string, userId: string) {
 }
 
 export const groupsRouter = router({
-  /** Lists all groups the current user is a member of. */
+  /** Lists all groups the current user is a member of, with a derived
+   *  view: user's net balance (positive = they're owed money in this
+   *  group), last activity timestamp (max of expense or settlement
+   *  occurredAt), and archived state. The list view uses these to
+   *  render smart cards and split into Active/Archived buckets. */
   list: protectedProcedure.query(async ({ ctx }) => {
     const rows = await db
       .select({
@@ -73,6 +78,7 @@ export const groupsRouter = router({
         primaryCurrency: groups.primaryCurrency,
         inviteToken: groups.inviteToken,
         createdAt: groups.createdAt,
+        archivedAt: groups.archivedAt,
       })
       .from(groups)
       .innerJoin(groupMembers, eq(groupMembers.groupId, groups.id))
@@ -81,8 +87,119 @@ export const groupsRouter = router({
       )
       .orderBy(groups.createdAt);
 
-    return rows;
+    if (rows.length === 0) return [];
+    const groupIds = rows.map((r) => r.id);
+
+    // Pull all expenses + splits + settlements for this user's groups in
+    // one shot. We compute balance + last-activity per group in JS — the
+    // alternative is a complex CTE that's harder to maintain.
+    const [expenseRows, splitRows, settlementRows] = await Promise.all([
+      db
+        .select({
+          id: expenses.id,
+          groupId: expenses.groupId,
+          payerId: expenses.payerId,
+          convertedAmount: expenses.convertedAmount,
+          occurredAt: expenses.occurredAt,
+        })
+        .from(expenses)
+        .where(inArray(expenses.groupId, groupIds)),
+      db
+        .select({
+          expenseId: expenseSplits.expenseId,
+          userId: expenseSplits.userId,
+          amount: expenseSplits.amount,
+        })
+        .from(expenseSplits)
+        .where(eq(expenseSplits.userId, ctx.user.id)),
+      db
+        .select({
+          groupId: settlements.groupId,
+          fromUserId: settlements.fromUserId,
+          toUserId: settlements.toUserId,
+          amount: settlements.amount,
+          occurredAt: settlements.occurredAt,
+        })
+        .from(settlements)
+        .where(inArray(settlements.groupId, groupIds)),
+    ]);
+
+    // Index splits by expenseId for quick lookup.
+    const myShareByExpense = new Map<string, number>();
+    for (const s of splitRows) {
+      myShareByExpense.set(s.expenseId, Number(s.amount));
+    }
+
+    // Build per-group totals.
+    const balanceByGroup = new Map<string, number>();
+    const lastActivityByGroup = new Map<string, Date>();
+    const expenseCountByGroup = new Map<string, number>();
+
+    for (const e of expenseRows) {
+      const paid = e.payerId === ctx.user.id ? Number(e.convertedAmount) : 0;
+      const share = myShareByExpense.get(e.id) ?? 0;
+      const net = paid - share;
+      balanceByGroup.set(e.groupId, (balanceByGroup.get(e.groupId) ?? 0) + net);
+      const ts = new Date(e.occurredAt);
+      const prev = lastActivityByGroup.get(e.groupId);
+      if (!prev || ts > prev) lastActivityByGroup.set(e.groupId, ts);
+      expenseCountByGroup.set(
+        e.groupId,
+        (expenseCountByGroup.get(e.groupId) ?? 0) + 1,
+      );
+    }
+    for (const s of settlementRows) {
+      // Settlement adjusts balance: if I paid out, my net balance rises;
+      // if I received, my net balance falls (debt cleared).
+      if (s.fromUserId === ctx.user.id) {
+        balanceByGroup.set(
+          s.groupId,
+          (balanceByGroup.get(s.groupId) ?? 0) + Number(s.amount),
+        );
+      } else if (s.toUserId === ctx.user.id) {
+        balanceByGroup.set(
+          s.groupId,
+          (balanceByGroup.get(s.groupId) ?? 0) - Number(s.amount),
+        );
+      }
+      const ts = new Date(s.occurredAt);
+      const prev = lastActivityByGroup.get(s.groupId);
+      if (!prev || ts > prev) lastActivityByGroup.set(s.groupId, ts);
+    }
+
+    return rows.map((g) => ({
+      ...g,
+      /** Positive = current user is owed; negative = they owe. */
+      myNetBalance: Math.round((balanceByGroup.get(g.id) ?? 0) * 100) / 100,
+      /** Most recent expense or settlement timestamp; falls back to createdAt. */
+      lastActivityAt: lastActivityByGroup.get(g.id) ?? g.createdAt,
+      expenseCount: expenseCountByGroup.get(g.id) ?? 0,
+    }));
   }),
+
+  /** Toggle archive state on a group. Members can archive (it's a
+   *  user-driven hide, not a destructive op). */
+  archive: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.id, ctx.user.id);
+      await db
+        .update(groups)
+        .set({ archivedAt: new Date(), updatedAt: new Date() })
+        .where(eq(groups.id, input.id));
+      return { ok: true };
+    }),
+
+  unarchive: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ensureMembership(input.id, ctx.user.id);
+      await db
+        .update(groups)
+        .set({ archivedAt: null, updatedAt: new Date() })
+        .where(eq(groups.id, input.id));
+      return { ok: true };
+    }),
 
   /** Get a single group by id (must be a member). */
   byId: protectedProcedure

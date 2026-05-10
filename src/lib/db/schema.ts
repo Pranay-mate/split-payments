@@ -123,6 +123,10 @@ export const groups = pgTable(
       .notNull()
       .defaultNow(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    /** User-driven archive (vs deletedAt = creator removed the group).
+     *  Archived groups still load fully on click; they're just hidden
+     *  from the default groups list view behind a collapsible. */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (t) => [
     index("groups_created_by_idx").on(t.createdBy),

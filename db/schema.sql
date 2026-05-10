@@ -315,3 +315,9 @@ ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS timezone text NOT NULL DEFAULT 'Asia/Kolkata';
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS default_currency text NOT NULL DEFAULT 'INR';
+
+-- Groups: user-driven archive state (separate from deletedAt = removed).
+-- Archived groups still load on direct click; just hidden from the
+-- default /app/groups list (collapsed under an expander).
+ALTER TABLE groups
+  ADD COLUMN IF NOT EXISTS archived_at timestamptz;
