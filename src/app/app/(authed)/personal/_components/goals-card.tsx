@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
+import { GoalCelebration } from "@/components/goal-celebration";
 
 type PillarKey =
   | "emergency"
@@ -134,6 +135,8 @@ export function GoalsCard() {
 
   if (goalsQuery.isLoading) return null;
 
+  const allGoals = (goalsQuery.data ?? []).filter((g) => !g.archivedAt);
+
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800 sm:px-5">
@@ -221,6 +224,7 @@ export function GoalsCard() {
           </>
         )}
       </div>
+      <GoalCelebration goals={allGoals} />
     </section>
   );
 }
