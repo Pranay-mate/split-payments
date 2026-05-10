@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Save, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, Save, Trash2, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -34,6 +35,7 @@ export function EditProfileModal({
   onClose: () => void;
 }) {
   const utils = trpc.useUtils();
+  const router = useRouter();
   const meQuery = trpc.profiles.me.useQuery();
   const me = meQuery.data;
   const { setTheme } = useTheme();
@@ -75,6 +77,39 @@ export function EditProfileModal({
     },
     onError: (err) => toast.error(err.message),
   });
+
+  const deleteMutation = trpc.auth.deleteAccount.useMutation({
+    onSuccess: () => {
+      toast.success("Account deleted");
+      onClose();
+      router.push("/");
+      router.refresh();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  /**
+   * Two-step confirmation for account deletion. First click sets state
+   * to a "really?" red button; second click calls the mutation. Plus a
+   * native confirm() before that for the typed-confirmation cohort.
+   * Combined: hard to trigger by mistake, easy if you mean it.
+   */
+  const [armDelete, setArmDelete] = useState(false);
+  const onDelete = () => {
+    if (!armDelete) {
+      setArmDelete(true);
+      return;
+    }
+    if (
+      !confirm(
+        "Delete your account? You'll lose access to all your groups. Your historical expenses remain visible to other group members but anonymised. This cannot be undone.",
+      )
+    ) {
+      setArmDelete(false);
+      return;
+    }
+    deleteMutation.mutate();
+  };
 
   if (!open) return null;
   if (meQuery.isLoading || !me) {
@@ -238,6 +273,36 @@ export function EditProfileModal({
         <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
           <NotificationSettings />
           <ActiveMutesList />
+        </section>
+
+        {/* Danger zone — deliberately last and visually quiet by default;
+            two-click arm pattern prevents accidental deletion. */}
+        <section className="rounded-lg border border-rose-200 bg-rose-50/40 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+            Danger zone
+          </p>
+          <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+            Deleting your account removes you from all groups. Historical
+            expenses stay visible to remaining members but with your name
+            anonymised. This cannot be undone.
+          </p>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleteMutation.isPending}
+            className={`mt-3 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${
+              armDelete
+                ? "border-rose-600 bg-rose-600 text-white hover:bg-rose-500"
+                : "border-rose-300 bg-white text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/50"
+            }`}
+          >
+            {deleteMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {armDelete ? "Click again to confirm" : "Delete account"}
+          </button>
         </section>
       </div>
 
