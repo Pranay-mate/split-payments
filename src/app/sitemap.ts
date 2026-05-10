@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/use-cases/trip-expenses", changeFrequency: "monthly", priority: 0.75 },
     { path: "/use-cases/roommate-utilities", changeFrequency: "monthly", priority: 0.75 },
     { path: "/use-cases/group-dinner", changeFrequency: "monthly", priority: 0.75 },
+    { path: "/use-cases/financial-health-india", changeFrequency: "monthly", priority: 0.85 },
     { path: "/privacy", changeFrequency: "yearly", priority: 0.4 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.4 },
   ];

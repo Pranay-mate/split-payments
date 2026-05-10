@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MessageSquare, ShieldCheck, Heart, Eye } from "lucide-react";
+import { MessageSquare, ShieldCheck, Heart, Eye, Lock } from "lucide-react";
 import { buildMetadata } from "@/lib/seo";
 import { breadcrumbLd, organizationLd } from "@/lib/jsonld";
 import { SITE } from "@/lib/site";
@@ -9,7 +9,7 @@ const SLUG = "/about";
 
 export const metadata: Metadata = buildMetadata({
   title: `About ${SITE.name}`,
-  description: `Why ${SITE.name} exists, who's building it, and how to get in touch. Free, India-first, offline-capable group expense tracker.`,
+  description: `Why ${SITE.name} exists, who's building it, and how to get in touch. Free, India-first group expense splitter + personal finance tracker with a 5-pillar Financial Health Scorecard.`,
   path: SLUG,
 });
 
@@ -17,7 +17,12 @@ const PRINCIPLES = [
   {
     Icon: ShieldCheck,
     title: "Math you can verify",
-    body: "Every algorithm — equal split, share split, simplify-payments — has a documented spec and a property-based test. The split logic is open source so you can read exactly how your trip is settled.",
+    body: "Every algorithm — equal split, share split, simplify-payments, the 5-pillar scorecard — has a documented spec and a property-based test. The split logic and scoring rules are open source so you can read exactly how each number is derived.",
+  },
+  {
+    Icon: Lock,
+    title: "Encryption at the field level",
+    body: "Personal-finance amounts and descriptions are encrypted with AES-256-GCM before they hit the database. Our hosting provider only ever sees ciphertext, not your salary. Group expenses are not encrypted (a group needs to see them).",
   },
   {
     Icon: Eye,
@@ -27,7 +32,7 @@ const PRINCIPLES = [
   {
     Icon: Heart,
     title: "Free, with light ads on the dashboard later",
-    body: "The standalone calculators are free forever and ad-free. The full app will run banner ads on the dashboard to fund hosting, but never on add-expense, settle-up, or sign-in screens.",
+    body: "The standalone calculators are free forever and ad-free. The full app is free with no paywall on splitting a chai bill or seeing your scorecard. Future banner ads will live on the dashboard, never on add-expense or settle-up screens.",
   },
 ];
 
@@ -69,20 +74,23 @@ export default function AboutPage() {
         </h2>
         <div className="mt-4 space-y-4 text-base leading-relaxed text-slate-700 dark:text-slate-300">
           <p>
-            Splitting money with friends in India should be a 5-second job. In practice, it&apos;s usually a mess: one person opens the calculator, eyeballs the bill, types into a group chat, someone protests, the group settles via 6 different UPI transfers — and someone always forgets the chai bill from the morning.
+            Two problems Indian users have, neither solved well: splitting bills with friends, and answering &ldquo;am I doing okay with money?&rdquo;
           </p>
           <p>
-            Splitwise solved most of this a decade ago, but its mobile web is sluggish, it doesn&apos;t default to INR, and the &ldquo;Simplify Payments&rdquo; that everyone actually wants is paywalled. Tricount is great for trips but doesn&apos;t handle ongoing groups well. Most other apps either ad-stuff the experience or wrap a paywall around basic features.
+            <strong>Splitting bills</strong> should be a 5-second job. In practice it&apos;s a mess: one person eyeballs the bill, types into a group chat, someone protests, the group settles via 6 different UPI transfers — and someone always forgets the chai bill from the morning. Splitwise solved most of this a decade ago, but its mobile web is sluggish, it doesn&apos;t default to INR, and the &ldquo;Simplify Payments&rdquo; everyone wants is paywalled. Tricount handles trips but not ongoing groups. So we built a Splitwise-style group splitter with INR-first defaults, simplify-payments-without-a-paywall, itemized bills, multi-currency, voice input, and a PWA that works on a Mumbai local with one bar of signal.
           </p>
           <p>
-            {SITE.name} is an attempt to do this right for Indian users — UPI-friendly rounding, INR-first defaults, multi-currency for travel, simplify-payments without a paywall, and a PWA that actually works on a Mumbai local with one bar of signal.
+            <strong>&ldquo;How am I doing with money?&rdquo;</strong> is harder. India has zero good free tools for it — Goalwise/Cube are paid, scripsense is broker-tied, banks push their own products. So {SITE.name} ships a 60-second Financial Health Scorecard: 5 pillars (Emergency fund, Insurance, Debt, Savings rate, Investing) scored against Indian rules of thumb (RBI, NCAER, IRDAI baselines). Plus a private encrypted tracker for income/expenses/investments, goals with progress bars, anomaly alerts when a category spikes, and achievement badges as you improve. None of it is &ldquo;financial advice&rdquo;; it&apos;s the rules of thumb your CA-uncle would tell you, made glanceable.
+          </p>
+          <p>
+            Both products live in the same install. You sign in once. The group side and the personal side share infrastructure (offline queue, push notifications, voice input, India-formatting) but never share data — your friends can&apos;t see your salary even if you share groups with them.
           </p>
         </div>
       </section>
 
       <section className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
         <h2 className="text-2xl font-semibold tracking-tight">Principles</h2>
-        <ul className="mt-6 grid gap-4 sm:grid-cols-3">
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2">
           {PRINCIPLES.map(({ Icon, title, body }) => (
             <li
               key={title}
