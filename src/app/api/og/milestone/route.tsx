@@ -397,7 +397,9 @@ function settledCard({
   );
 }
 
-/** Top-left brand block. Initial is in a gradient avatar pill. */
+/** Top-left brand block. Initial is in a gradient avatar pill.
+ *  No backdrop-filter — Satori (the OG image engine) doesn't support
+ *  it; using opaque rgba background instead. */
 function Brand({ initial }: { initial: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -409,8 +411,7 @@ function Brand({ initial }: { initial: string }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "rgba(255,255,255,0.18)",
-          backdropFilter: "blur(12px)",
+          background: "rgba(255,255,255,0.22)",
           fontSize: 24,
           fontWeight: 800,
           letterSpacing: "-0.02em",
