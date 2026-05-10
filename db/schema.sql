@@ -362,3 +362,15 @@ CREATE TABLE IF NOT EXISTS personal_holdings (
 );
 CREATE INDEX IF NOT EXISTS personal_holdings_user_idx        ON personal_holdings(user_id);
 CREATE INDEX IF NOT EXISTS personal_holdings_user_active_idx ON personal_holdings(user_id, archived_at);
+
+-- Shareable wealth pages (opt-in). Regenerating the token invalidates
+-- any old shared URLs. show_amounts defaults FALSE — public viewer only
+-- sees ratios + type breakdown; rupee values are hidden until the user
+-- explicitly opts in to revealing them.
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS wealth_share_token text;
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS wealth_share_show_amounts boolean NOT NULL DEFAULT false;
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_wealth_share_token_uniq
+  ON profiles(wealth_share_token)
+  WHERE wealth_share_token IS NOT NULL;

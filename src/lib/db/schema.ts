@@ -64,6 +64,16 @@ export const profiles = pgTable("profiles", {
    *  ISO 4217 code. The new-group form uses this as the prefilled value;
    *  user can still pick a different currency per group. */
   defaultCurrency: text("default_currency").notNull().default("INR"),
+  /** Random hex token enabling /wealth/[token] public share page.
+   *  Null = sharing disabled (default). Regenerating the token revokes
+   *  any old shared links. */
+  wealthShareToken: text("wealth_share_token").unique(),
+  /** When true, the public share page reveals actual rupee amounts.
+   *  When false (default), only ratios + percentages render — names
+   *  and totals stay private. Opt-in within opt-in. */
+  wealthShareShowAmounts: boolean("wealth_share_show_amounts")
+    .notNull()
+    .default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

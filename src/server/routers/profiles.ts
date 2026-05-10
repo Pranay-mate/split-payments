@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
@@ -121,4 +122,50 @@ export const profilesRouter = router({
         .returning();
       return updated;
     }),
+
+  /**
+   * Wealth-share helpers (Phase 2.5 v5.2). Token = 32 bytes hex (64 chars,
+   * effectively unguessable). Generating issues a new token; revoking
+   * sets it to NULL. show_amounts is a separate sub-toggle: even when
+   * sharing is on, amounts stay hidden by default.
+   */
+  enableWealthShare: protectedProcedure.mutation(async ({ ctx }) => {
+    const token = randomBytes(32).toString("hex");
+    await db
+      .update(profiles)
+      .set({ wealthShareToken: token, updatedAt: new Date() })
+      .where(eq(profiles.id, ctx.user.id));
+    return { token };
+  }),
+
+  disableWealthShare: protectedProcedure.mutation(async ({ ctx }) => {
+    await db
+      .update(profiles)
+      .set({ wealthShareToken: null, updatedAt: new Date() })
+      .where(eq(profiles.id, ctx.user.id));
+    return { ok: true };
+  }),
+
+  setWealthShareShowAmounts: protectedProcedure
+    .input(z.object({ show: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await db
+        .update(profiles)
+        .set({
+          wealthShareShowAmounts: input.show,
+          updatedAt: new Date(),
+        })
+        .where(eq(profiles.id, ctx.user.id));
+      return { ok: true };
+    }),
+
+  /** Re-issue a fresh token; old links break instantly. */
+  rotateWealthShareToken: protectedProcedure.mutation(async ({ ctx }) => {
+    const token = randomBytes(32).toString("hex");
+    await db
+      .update(profiles)
+      .set({ wealthShareToken: token, updatedAt: new Date() })
+      .where(eq(profiles.id, ctx.user.id));
+    return { token };
+  }),
 });

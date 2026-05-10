@@ -16,6 +16,7 @@ import {
   NotificationSettings,
 } from "@/components/notification-settings";
 import { EmbedCodeBlock } from "@/components/embed-code-block";
+import { WealthShareBlock } from "@/components/wealth-share-block";
 
 type Theme = "system" | "light" | "dark";
 
@@ -289,6 +290,11 @@ export function EditProfileModal({
         {/* Embed code — only renders when profile has a complete score */}
         <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
           <EmbedCodeBlock />
+        </section>
+
+        {/* Public wealth-share opt-in (off by default) */}
+        <section className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+          <WealthShareBlock />
         </section>
 
         {/* Danger zone — deliberately last and visually quiet by default;
