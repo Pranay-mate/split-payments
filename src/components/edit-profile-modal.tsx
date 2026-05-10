@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save, Trash2, X } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -47,21 +47,31 @@ export function EditProfileModal({
   const [timezone, setTimezone] = useState("Asia/Kolkata");
   const [tzManuallySet, setTzManuallySet] = useState(false);
 
-  // Sync form state with server data when modal opens or me changes.
-  // queueMicrotask defers the set-state cascade past the current render
-  // pass — avoids the React-19 cascading-renders warning.
+  // Sync form state with server data when the modal *opens* (not on
+  // every me refetch). Resyncing on background refetches was clobbering
+  // the user's in-flight selections — e.g. clicking a theme button got
+  // reverted the moment React Query revalidated profiles.me.
+  // queueMicrotask defers set-state past the current render commit
+  // (avoids React-19 cascading-renders warning).
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (!me || !open) return;
-    queueMicrotask(() => {
-      setName(me.displayName ?? "");
-      setDob((me as { dob?: string | null }).dob ?? "");
-      setThemeLocal(((me as { theme?: string }).theme as Theme) ?? "system");
-      setCurrency(
-        (me as { defaultCurrency?: string }).defaultCurrency ?? "INR",
-      );
-      setTimezone((me as { timezone?: string }).timezone ?? "Asia/Kolkata");
-      setTzManuallySet(false);
-    });
+    if (!me) return;
+    // Sync on transition from closed → open only.
+    if (open && !wasOpenRef.current) {
+      wasOpenRef.current = true;
+      queueMicrotask(() => {
+        setName(me.displayName ?? "");
+        setDob((me as { dob?: string | null }).dob ?? "");
+        setThemeLocal(((me as { theme?: string }).theme as Theme) ?? "system");
+        setCurrency(
+          (me as { defaultCurrency?: string }).defaultCurrency ?? "INR",
+        );
+        setTimezone((me as { timezone?: string }).timezone ?? "Asia/Kolkata");
+        setTzManuallySet(false);
+      });
+    } else if (!open) {
+      wasOpenRef.current = false;
+    }
   }, [me, open]);
 
   const updateMutation = trpc.profiles.update.useMutation({

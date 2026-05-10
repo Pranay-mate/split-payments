@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Pencil, Users, Wallet } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -16,13 +16,18 @@ export function UserMenu() {
   const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
   const { setTheme } = useTheme();
 
-  // Sync the user's saved theme preference into next-themes on first
-  // load. Re-runs if the value changes (rare, but covers the case
-  // where the user updates it from another tab).
+  // Sync the user's saved theme preference into next-themes ONCE per
+  // session, on first profile load. We deliberately do NOT re-sync on
+  // every meQuery refetch — that was overriding live theme previews
+  // selected in the EditProfileModal, because every refetch made this
+  // effect re-fire with the (stale) server value.
+  const themeSyncedRef = useRef(false);
   const savedTheme = (meQuery.data as { theme?: string } | undefined)?.theme;
   useEffect(() => {
+    if (themeSyncedRef.current) return;
     if (savedTheme && ["system", "light", "dark"].includes(savedTheme)) {
       setTheme(savedTheme);
+      themeSyncedRef.current = true;
     }
   }, [savedTheme, setTheme]);
 
