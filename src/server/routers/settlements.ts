@@ -1,10 +1,17 @@
 import { z } from "zod";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
-import { groupMembers, settlements } from "@/lib/db/schema";
+import {
+  groupMembers,
+  groups,
+  profiles,
+  settlements,
+} from "@/lib/db/schema";
 import { logEvent } from "../events";
+import { pushToUser } from "@/lib/push";
+import { formatINR } from "@/lib/format";
 
 async function ensureMembership(groupId: string, userId: string) {
   const m = await db
@@ -104,6 +111,69 @@ export const settlementsRouter = router({
           amount: input.amount,
         },
       });
+
+      // Real-time push to the OTHER party / parties. If the recorder
+      // is one of the participants, only the other gets pinged.
+      // If a third-party member recorded it (creator on someone else's
+      // behalf), both participants get pinged. Native push `tag` makes
+      // the OS dedupe multiple-in-a-row notifications for the same
+      // group automatically — no DB throttle needed.
+      const recipientIds = new Set<string>([
+        input.fromUserId,
+        input.toUserId,
+      ]);
+      recipientIds.delete(ctx.user.id);
+
+      if (recipientIds.size > 0) {
+        // Fire-and-forget: don't block the mutation response on push
+        // delivery. Errors swallowed inside pushToUser.
+        void (async () => {
+          try {
+            const ids = [...recipientIds, input.fromUserId, input.toUserId];
+            const namesMap = new Map<string, string>();
+            const profileRows = await db
+              .select({
+                id: profiles.id,
+                displayName: profiles.displayName,
+              })
+              .from(profiles)
+              .where(inArray(profiles.id, ids));
+            for (const p of profileRows) namesMap.set(p.id, p.displayName);
+
+            const [grp] = await db
+              .select({ name: groups.name })
+              .from(groups)
+              .where(eq(groups.id, input.groupId))
+              .limit(1);
+            const groupName = grp?.name ?? "your group";
+            const fromName = namesMap.get(input.fromUserId) ?? "Someone";
+            const toName = namesMap.get(input.toUserId) ?? "someone";
+            const amountText = formatINR(input.amount, 0);
+
+            for (const recipientId of recipientIds) {
+              const isReceiver = recipientId === input.toUserId;
+              const title = isReceiver
+                ? `✓ ${fromName} settled ${amountText}`
+                : `✓ Your ${amountText} payment was recorded`;
+              const body = isReceiver
+                ? `${fromName} paid you ${amountText} in "${groupName}".`
+                : `${toName} marked your ${amountText} payment received in "${groupName}".`;
+              await pushToUser(recipientId, {
+                title,
+                body,
+                url: `/app/groups/${input.groupId}`,
+                // Per-group tag — newer pushes replace older ones at the
+                // OS level, so multiple settlements in a row collapse
+                // into one visible notification.
+                tag: `easysplits-settlement-${input.groupId}`,
+              });
+            }
+          } catch (err) {
+            // Best-effort: settlement is real even if push hiccups.
+            console.error("Settlement push failed", err);
+          }
+        })();
+      }
 
       return { ...created, amount: Number(created.amount) };
     }),

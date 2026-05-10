@@ -31,6 +31,8 @@ import { decryptAmount } from "@/lib/encryption";
 import { detectAnomalies } from "@/lib/anomaly-detect";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { computeNextDue } from "@/lib/recurrence";
+import { pushToUser } from "@/lib/push";
+import { formatINR } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -125,6 +127,17 @@ export async function GET(request: Request) {
       ),
     );
   let recurrencesFired = 0;
+  // Bucket fires per user so we can send ONE batched push at the end
+  // (a user with 5 monthly recurrences hitting the same day shouldn't
+  // get 5 separate notifications).
+  type FiredRow = {
+    userId: string;
+    type: string;
+    amount: number;
+    description: string;
+    currency: string;
+  };
+  const firedByUser = new Map<string, FiredRow[]>();
   for (const rec of dueRecurrences) {
     try {
       await db.insert(personalEntries).values({
@@ -150,11 +163,60 @@ export async function GET(request: Request) {
         })
         .where(eq(personalRecurrences.id, rec.id));
       recurrencesFired++;
+
+      // Track for batched push. Decrypt now so the notification body
+      // can show "₹50,000" instead of opaque ciphertext.
+      try {
+        const decryptedAmount = decryptAmount(rec.amount);
+        const decryptedDescription = (() => {
+          try {
+            return rec.description;
+          } catch {
+            return "";
+          }
+        })();
+        const list = firedByUser.get(rec.userId) ?? [];
+        list.push({
+          userId: rec.userId,
+          type: rec.type,
+          amount: decryptedAmount,
+          description: decryptedDescription,
+          currency: rec.currency,
+        });
+        firedByUser.set(rec.userId, list);
+      } catch {
+        // Decrypt failed (key rotation etc) — don't push but the entry
+        // already landed; user can see it on /app/personal.
+      }
     } catch (err) {
       // Don't let one bad recurrence kill the whole pass.
       console.error("Recurrence fire failed", rec.id, err);
       errors++;
     }
+  }
+
+  // Per-user batched push for today's recurrences.
+  let recurrencePushesSent = 0;
+  for (const [userId, fires] of firedByUser) {
+    if (fires.length === 0) continue;
+    const titleEmoji = fires.length === 1 ? "🔁" : "🔁";
+    const title =
+      fires.length === 1
+        ? `${titleEmoji} Auto-logged: ${fires[0].description || fires[0].type}`
+        : `${titleEmoji} ${fires.length} entries auto-logged today`;
+    const body =
+      fires.length === 1
+        ? `${formatINR(fires[0].amount, 0)} added to your personal tracker.`
+        : fires
+            .map((f) => `${f.description || f.type} ${formatINR(f.amount, 0)}`)
+            .join(" · ");
+    const delivered = await pushToUser(userId, {
+      title,
+      body,
+      url: "/app/personal",
+      tag: "easysplits-recurrence",
+    });
+    if (delivered > 0) recurrencePushesSent++;
   }
   const personalRangeStart = new Date(
     now.getFullYear(),
@@ -377,5 +439,6 @@ export async function GET(request: Request) {
     skipped,
     total: subs.length,
     recurrencesFired,
+    recurrencePushesSent,
   });
 }
