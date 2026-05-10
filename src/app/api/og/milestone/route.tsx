@@ -2,25 +2,24 @@
  * OG share-card generator. 1200×630 PNG suitable for Twitter/X cards,
  * WhatsApp link previews, LinkedIn shares, etc.
  *
- * Privacy-safe by design:
- *   - No PII other than user-supplied initials (first letter of name).
- *   - All inputs come via URL params; the server doesn't read the
- *     viewing user's auth cookie. Anyone with the URL sees the card.
- *   - Amounts in INR are accepted but the caller is expected to round
- *     or omit them when sharing — we don't enforce.
+ * Privacy-safe by design — no PII beyond user-supplied initials.
  *
- * Supported milestone types:
- *   ?type=score   — shows the 5-pillar score (0..100) + band label
- *   ?type=badge   — shows a single achievement (emoji + label)
- *   ?type=goal    — shows a goal hit (label + 100% progress)
- *   ?type=settled — shows a group fully settled (group name)
+ * Defensive choices after a "blank page" report:
+ *   - Node runtime (not edge). Edge fonts can choke on certain glyph
+ *     ranges and silently fail. Node uses the system font set.
+ *   - Every div with multiple children has explicit `display: flex` —
+ *     Satori 0.10+ requires this and fails the whole render otherwise.
+ *   - No `backdrop-filter`, no `box-shadow`, no animations — Satori
+ *     either skips or errors on these.
+ *   - try/catch wraps the response so a malformed input never produces
+ *     a blank page; instead we render a tiny fallback card.
  */
 
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const runtime = "edge"; // ImageResponse runs on edge
+export const runtime = "nodejs";
 
 const BAND_GRADIENTS = {
   red: "linear-gradient(135deg, #f43f5e, #b91c1c)",
@@ -38,7 +37,6 @@ const BAND_LABEL = {
 
 type Band = keyof typeof BAND_GRADIENTS;
 
-/** Defensive parse: returns the param if it's a known band, else "emerald". */
 function parseBand(s: string | null): Band {
   if (s === "red" || s === "amber" || s === "emerald" || s === "green") {
     return s;
@@ -46,37 +44,54 @@ function parseBand(s: string | null): Band {
   return "emerald";
 }
 
-export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  const type = url.searchParams.get("type") ?? "score";
-  const initial = (url.searchParams.get("initial") ?? "ES").slice(0, 2);
-
-  if (type === "badge") {
-    return badgeCard({
-      emoji: url.searchParams.get("emoji") ?? "🏆",
-      label: url.searchParams.get("label") ?? "Badge unlocked",
-      initial,
-    });
-  }
-  if (type === "goal") {
-    return goalCard({
-      label: url.searchParams.get("label") ?? "Goal hit",
-      initial,
-    });
-  }
-  if (type === "settled") {
-    return settledCard({
-      groupName: url.searchParams.get("group") ?? "Group settled",
-      initial,
-    });
-  }
-  // default: score
-  return scoreCard({
-    score: Number(url.searchParams.get("score") ?? 0),
-    band: parseBand(url.searchParams.get("band")),
-    initial,
-  });
+function clampScore(s: string | null): number {
+  const n = Number(s ?? 0);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    const url = new URL(req.url);
+    const type = url.searchParams.get("type") ?? "score";
+    const initial = (url.searchParams.get("initial") ?? "ES").slice(0, 2);
+
+    if (type === "badge") {
+      return badgeCard({
+        emoji: url.searchParams.get("emoji") ?? "🏆",
+        label: url.searchParams.get("label") ?? "Badge unlocked",
+        initial,
+      });
+    }
+    if (type === "goal") {
+      return goalCard({
+        label: url.searchParams.get("label") ?? "Goal hit",
+        initial,
+      });
+    }
+    if (type === "settled") {
+      return settledCard({
+        groupName: url.searchParams.get("group") ?? "Group settled",
+        initial,
+      });
+    }
+    return scoreCard({
+      score: clampScore(url.searchParams.get("score")),
+      band: parseBand(url.searchParams.get("band")),
+      initial,
+    });
+  } catch (err) {
+    // Last-resort fallback so the user never sees a blank page.
+    console.error("OG milestone render failed", err);
+    return fallbackCard();
+  }
+}
+
+const CACHE_HEADERS = {
+  // Browsers + CDNs can cache the same params for an hour. Avoids
+  // regenerating identical share-cards on every social-network scrape.
+  "Cache-Control": "public, max-age=3600, s-maxage=3600, immutable",
+};
 
 function scoreCard({
   score,
@@ -114,6 +129,7 @@ function scoreCard({
         >
           <div
             style={{
+              display: "flex",
               fontSize: 32,
               fontWeight: 600,
               letterSpacing: "0.05em",
@@ -132,16 +148,18 @@ function scoreCard({
           >
             <div
               style={{
+                display: "flex",
                 fontSize: 240,
                 fontWeight: 800,
                 letterSpacing: "-0.04em",
                 lineHeight: 1,
               }}
             >
-              {score}
+              {String(score)}
             </div>
             <div
               style={{
+                display: "flex",
                 fontSize: 80,
                 fontWeight: 600,
                 marginLeft: 16,
@@ -153,6 +171,7 @@ function scoreCard({
           </div>
           <div
             style={{
+              display: "flex",
               fontSize: 44,
               fontWeight: 600,
               marginTop: 12,
@@ -165,7 +184,7 @@ function scoreCard({
         <Footer />
       </div>
     ),
-    { width: 1200, height: 630 },
+    { width: 1200, height: 630, headers: CACHE_HEADERS },
   );
 }
 
@@ -205,9 +224,12 @@ function badgeCard({
             marginTop: 20,
           }}
         >
-          <div style={{ fontSize: 240, lineHeight: 1 }}>{emoji}</div>
+          <div style={{ display: "flex", fontSize: 240, lineHeight: 1 }}>
+            {emoji}
+          </div>
           <div
             style={{
+              display: "flex",
               fontSize: 28,
               fontWeight: 600,
               letterSpacing: "0.1em",
@@ -220,6 +242,7 @@ function badgeCard({
           </div>
           <div
             style={{
+              display: "flex",
               fontSize: 72,
               fontWeight: 800,
               letterSpacing: "-0.02em",
@@ -233,7 +256,7 @@ function badgeCard({
         <Footer />
       </div>
     ),
-    { width: 1200, height: 630 },
+    { width: 1200, height: 630, headers: CACHE_HEADERS },
   );
 }
 
@@ -266,6 +289,7 @@ function goalCard({ label, initial }: { label: string; initial: string }) {
         >
           <div
             style={{
+              display: "flex",
               fontSize: 28,
               fontWeight: 600,
               letterSpacing: "0.1em",
@@ -273,10 +297,11 @@ function goalCard({ label, initial }: { label: string; initial: string }) {
               opacity: 0.9,
             }}
           >
-            🎯 Goal hit
+            Goal hit
           </div>
           <div
             style={{
+              display: "flex",
               fontSize: 80,
               fontWeight: 800,
               letterSpacing: "-0.02em",
@@ -288,17 +313,18 @@ function goalCard({ label, initial }: { label: string; initial: string }) {
           </div>
           <div
             style={{
+              display: "flex",
               marginTop: 40,
               height: 24,
               borderRadius: 12,
               background: "rgba(255,255,255,0.18)",
-              display: "flex",
               alignItems: "center",
               padding: 4,
             }}
           >
             <div
               style={{
+                display: "flex",
                 width: "100%",
                 height: "100%",
                 borderRadius: 8,
@@ -308,6 +334,7 @@ function goalCard({ label, initial }: { label: string; initial: string }) {
           </div>
           <div
             style={{
+              display: "flex",
               marginTop: 12,
               fontSize: 24,
               fontWeight: 600,
@@ -320,7 +347,7 @@ function goalCard({ label, initial }: { label: string; initial: string }) {
         <Footer />
       </div>
     ),
-    { width: 1200, height: 630 },
+    { width: 1200, height: 630, headers: CACHE_HEADERS },
   );
 }
 
@@ -357,9 +384,12 @@ function settledCard({
             marginTop: 40,
           }}
         >
-          <div style={{ fontSize: 200, lineHeight: 1 }}>✓</div>
+          <div style={{ display: "flex", fontSize: 200, lineHeight: 1 }}>
+            ✓
+          </div>
           <div
             style={{
+              display: "flex",
               fontSize: 28,
               fontWeight: 600,
               letterSpacing: "0.1em",
@@ -372,6 +402,7 @@ function settledCard({
           </div>
           <div
             style={{
+              display: "flex",
               fontSize: 72,
               fontWeight: 800,
               letterSpacing: "-0.02em",
@@ -382,6 +413,7 @@ function settledCard({
           </div>
           <div
             style={{
+              display: "flex",
               fontSize: 32,
               marginTop: 16,
               opacity: 0.9,
@@ -393,13 +425,47 @@ function settledCard({
         <Footer />
       </div>
     ),
-    { width: 1200, height: 630 },
+    { width: 1200, height: 630, headers: CACHE_HEADERS },
   );
 }
 
-/** Top-left brand block. Initial is in a gradient avatar pill.
- *  No backdrop-filter — Satori (the OG image engine) doesn't support
- *  it; using opaque rgba background instead. */
+/** Last-resort fallback when something throws. Plain card, no gradient. */
+function fallbackCard() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#0f172a",
+          color: "white",
+          fontFamily: "system-ui, sans-serif",
+        }}
+      >
+        <div style={{ display: "flex", fontSize: 48, fontWeight: 800 }}>
+          EasySplits
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 22,
+            marginTop: 12,
+            opacity: 0.7,
+          }}
+        >
+          split-payments-sigma.vercel.app
+        </div>
+      </div>
+    ),
+    { width: 1200, height: 630, headers: CACHE_HEADERS },
+  );
+}
+
+/** Top-left brand block. Initial in a translucent pill. */
 function Brand({ initial }: { initial: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -421,6 +487,7 @@ function Brand({ initial }: { initial: string }) {
       </div>
       <div
         style={{
+          display: "flex",
           fontSize: 28,
           fontWeight: 700,
           letterSpacing: "-0.02em",
@@ -433,7 +500,7 @@ function Brand({ initial }: { initial: string }) {
   );
 }
 
-/** Bottom-right URL footer. Subtle, non-cluttering. */
+/** Bottom-right URL footer. Subtle. */
 function Footer() {
   return (
     <div
@@ -446,8 +513,8 @@ function Footer() {
         fontWeight: 500,
       }}
     >
-      <div>India-first split + personal finance</div>
-      <div>split-payments-sigma.vercel.app</div>
+      <div style={{ display: "flex" }}>India-first split + personal finance</div>
+      <div style={{ display: "flex" }}>split-payments-sigma.vercel.app</div>
     </div>
   );
 }
