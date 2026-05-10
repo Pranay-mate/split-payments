@@ -11,6 +11,7 @@ import {
 } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
+import { ShareMilestoneButton } from "@/components/share-milestone-button";
 
 type SettleMode = "simplified" | "pairwise";
 
@@ -42,9 +43,11 @@ type RecordedSettlement = {
 function BalancesHeader({
   summary,
   recorded,
+  groupName,
 }: {
   summary: TripSummary;
   recorded: RecordedSettlement[];
+  groupName: string;
 }) {
   const settled = recorded.reduce((s, r) => s + r.amount, 0);
   const remaining = summary.balances.reduce(
@@ -103,16 +106,27 @@ function BalancesHeader({
           {pct}%
         </span>
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Balances
         </h2>
-        <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
-          {pct >= 100
-            ? "All settled — nice."
-            : settled === 0
-              ? `${formatINR(remaining, 0)} to settle across the group`
-              : `${formatINR(settled, 0)} settled · ${formatINR(remaining, 0)} to go`}
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+          {pct >= 100 ? (
+            <>
+              <span>All settled — nice.</span>
+              <ShareMilestoneButton
+                shareUrl={`/api/og/milestone?type=settled&group=${encodeURIComponent(groupName)}`}
+                title={`${groupName} settled on EasySplits`}
+                text={`Just settled all balances in "${groupName}" 🎉 — split bills with friends without drama: `}
+                label="Share"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
+              />
+            </>
+          ) : settled === 0 ? (
+            `${formatINR(remaining, 0)} to settle across the group`
+          ) : (
+            `${formatINR(settled, 0)} settled · ${formatINR(remaining, 0)} to go`
+          )}
         </p>
       </div>
     </div>
@@ -121,12 +135,15 @@ function BalancesHeader({
 
 export function BalancesView({
   groupId,
+  groupName,
   summary,
   memberById,
   recorded,
   tripExpenses,
 }: {
   groupId: string;
+  /** Used in the "settled" share milestone OG card. */
+  groupName: string;
   summary: TripSummary;
   memberById: Map<string, { id: string; name: string }>;
   recorded: RecordedSettlement[];
@@ -193,7 +210,11 @@ export function BalancesView({
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-        <BalancesHeader summary={summary} recorded={recorded} />
+        <BalancesHeader
+          summary={summary}
+          recorded={recorded}
+          groupName={groupName}
+        />
         <ul className="mt-4 space-y-3">
           {(() => {
             const maxAbs = Math.max(

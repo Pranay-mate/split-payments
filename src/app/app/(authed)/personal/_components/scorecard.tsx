@@ -5,6 +5,7 @@ import { ArrowRight, Flame, Sparkles, TrendingDown, TrendingUp } from "lucide-re
 import { PEER_CITATIONS, type ScoreResult } from "@/lib/financial-score";
 import { pillarSeries } from "@/lib/financial-badges";
 import { trpc } from "@/lib/trpc/client";
+import { ShareMilestoneButton } from "@/components/share-milestone-button";
 import { BadgesStrip } from "./badges-strip";
 import { PillarSparkline } from "./pillar-sparkline";
 import {
@@ -207,12 +208,25 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
               </p>
             )}
           </div>
-          <Link
-            href="/app/personal/onboard"
-            className="shrink-0 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-white/25"
-          >
-            Update
-          </Link>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <Link
+              href="/app/personal/onboard"
+              className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-white/25"
+            >
+              Update
+            </Link>
+            {/* Share milestone — only show on emerald/green so users
+                aren't prompted to share an unflattering score. */}
+            {(score.band === "emerald" || score.band === "green") && (
+              <ShareMilestoneButton
+                shareUrl={`/api/og/milestone?type=score&score=${score.total}&band=${score.band}`}
+                title={`I scored ${score.total}/100 on EasySplits`}
+                text={`My Financial Health Score is ${score.total}/100 — ${score.band === "green" ? "in the green band 🌟" : "solid foundations 🏛️"}. Check yours: `}
+                label="Share"
+                className="inline-flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur transition hover:bg-white/25"
+              />
+            )}
+          </div>
         </div>
       </div>
 

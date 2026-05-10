@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, Plus, Trophy, X } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
+import { ShareMilestoneButton } from "@/components/share-milestone-button";
 
 type PillarKey =
   | "emergency"
@@ -266,9 +267,18 @@ function GoalRow({
           >
             <span className="truncate">{goal.label}</span>
             {isDone && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-                ✓ Done
-              </span>
+              <>
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  ✓ Done
+                </span>
+                <ShareMilestoneButton
+                  shareUrl={`/api/og/milestone?type=goal&label=${encodeURIComponent(goal.label)}`}
+                  title="Goal hit on EasySplits"
+                  text={`Just hit my financial goal: ${goal.label} 🎯 — try the free scorecard: `}
+                  label="Share"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
+                />
+              </>
             )}
           </p>
           {!compact && (

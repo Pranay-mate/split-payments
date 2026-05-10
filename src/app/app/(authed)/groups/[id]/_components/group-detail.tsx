@@ -317,6 +317,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         {summary && summary.balances.length > 0 && (
           <BalancesView
             groupId={groupId}
+            groupName={group.name}
             summary={summary}
             memberById={memberById}
             recorded={settlementsQuery.data ?? []}
