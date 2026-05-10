@@ -115,7 +115,7 @@ function BalancesHeader({
             <>
               <span>All settled — nice.</span>
               <ShareMilestoneButton
-                shareUrl={`/api/og/milestone?type=settled&group=${encodeURIComponent(groupName)}`}
+                shareUrl={`/share/settled?group=${encodeURIComponent(groupName)}`}
                 title={`${groupName} settled on EasySplits`}
                 text={`Just settled all balances in "${groupName}" 🎉 — split bills with friends without drama: `}
                 label="Share"

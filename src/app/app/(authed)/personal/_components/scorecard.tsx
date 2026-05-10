@@ -219,7 +219,7 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
                 aren't prompted to share an unflattering score. */}
             {(score.band === "emerald" || score.band === "green") && (
               <ShareMilestoneButton
-                shareUrl={`/api/og/milestone?type=score&score=${score.total}&band=${score.band}`}
+                shareUrl={`/share/score?score=${score.total}&band=${score.band}`}
                 title={`I scored ${score.total}/100 on EasySplits`}
                 text={`My Financial Health Score is ${score.total}/100 — ${score.band === "green" ? "in the green band 🌟" : "solid foundations 🏛️"}. Check yours: `}
                 label="Share"

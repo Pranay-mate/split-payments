@@ -272,7 +272,7 @@ function GoalRow({
                   ✓ Done
                 </span>
                 <ShareMilestoneButton
-                  shareUrl={`/api/og/milestone?type=goal&label=${encodeURIComponent(goal.label)}`}
+                  shareUrl={`/share/goal?label=${encodeURIComponent(goal.label)}`}
                   title="Goal hit on EasySplits"
                   text={`Just hit my financial goal: ${goal.label} 🎯 — try the free scorecard: `}
                   label="Share"
