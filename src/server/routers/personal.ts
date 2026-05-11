@@ -830,15 +830,33 @@ export const personalRouter = router({
           ...(input.markCompleted && { completedAt: new Date() }),
         };
 
-        // Upsert: try update first; insert if no row exists.
-        const updated = await db
-          .update(financialProfiles)
-          .set(values)
-          .where(eq(financialProfiles.userId, ctx.user.id))
-          .returning();
-        if (updated.length === 0) {
-          await db.insert(financialProfiles).values(values);
-        }
+        // Atomic upsert — single round-trip via Postgres ON CONFLICT.
+        // Replaces an earlier two-query pattern (update → check rowcount
+        // → insert) that wasn't surviving the Supabase transaction-mode
+        // pooler's prepared-statement quirks cleanly.
+        await db
+          .insert(financialProfiles)
+          .values(values)
+          .onConflictDoUpdate({
+            target: financialProfiles.userId,
+            set: {
+              age: values.age,
+              retirementAge: values.retirementAge,
+              isFreelancer: values.isFreelancer,
+              hasDependents: values.hasDependents,
+              hasCcCarryover: values.hasCcCarryover,
+              monthlyIncome: values.monthlyIncome,
+              monthlyExpenses: values.monthlyExpenses,
+              liquidSavings: values.liquidSavings,
+              termCoverAmount: values.termCoverAmount,
+              healthCoverAmount: values.healthCoverAmount,
+              totalEmi: values.totalEmi,
+              investmentBalance: values.investmentBalance,
+              monthlyInvestment: values.monthlyInvestment,
+              updatedAt: values.updatedAt,
+              ...(input.markCompleted && { completedAt: new Date() }),
+            },
+          });
 
         // liquid_savings is part of net worth — re-snapshot.
         void recordNetWorthSnapshot(ctx.user.id);
