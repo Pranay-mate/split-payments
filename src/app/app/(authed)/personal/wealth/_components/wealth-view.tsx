@@ -232,15 +232,43 @@ export function WealthView() {
             </div>
           ) : items.length === 0 ? (
             !adding && (
-              <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-6 text-center dark:border-slate-700 dark:bg-slate-900/40">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  No holdings yet. Add your mutual funds, FDs, stocks, gold —
-                  whatever you own — to see your full net worth.
+              <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-indigo-50/40 p-6 text-center dark:border-slate-700 dark:from-slate-900/40 dark:to-indigo-950/20">
+                <span
+                  aria-hidden
+                  className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-emerald-500 text-xl text-white shadow-sm"
+                >
+                  📈
+                </span>
+                <p className="mt-3 text-base font-semibold tracking-tight">
+                  Add your first holding
                 </p>
-                <p className="mt-2 text-[11px] text-slate-400">
-                  Tip: just track total value per holding. You don&apos;t need
-                  to enter every transaction.
+                <p className="mx-auto mt-1 max-w-xs text-xs text-slate-500 dark:text-slate-400">
+                  Mutual funds, FDs, stocks, gold — track total value per
+                  holding (no need to log every transaction).
                 </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+                  {[
+                    { emoji: "🪙", label: "Gold" },
+                    { emoji: "📈", label: "MF / SIP" },
+                    { emoji: "🏦", label: "FD" },
+                    { emoji: "💼", label: "Stocks" },
+                  ].map((s) => (
+                    <span
+                      key={s.label}
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                    >
+                      <span aria-hidden>{s.emoji}</span>
+                      {s.label}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAdding(true)}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                >
+                  <Plus className="h-4 w-4" aria-hidden /> Add a holding
+                </button>
               </div>
             )
           ) : (

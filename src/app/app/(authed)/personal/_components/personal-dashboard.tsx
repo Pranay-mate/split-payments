@@ -282,9 +282,27 @@ export function PersonalDashboard() {
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…
             </div>
           ) : entries.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-              No entries this month yet — add the first one above.
-            </p>
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-emerald-50/40 p-6 text-center dark:border-slate-700 dark:from-slate-900/40 dark:to-emerald-950/20">
+              <span
+                aria-hidden
+                className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-xl text-white shadow-sm"
+              >
+                💸
+              </span>
+              <p className="mt-3 text-base font-semibold tracking-tight">
+                Log your first entry
+              </p>
+              <p className="mx-auto mt-1 max-w-xs text-xs text-slate-500 dark:text-slate-400">
+                Track income, expenses, and investments. Encrypted before storage — your numbers stay yours.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+              >
+                <Plus className="h-4 w-4" aria-hidden /> Add an entry
+              </button>
+            </div>
           ) : (
             <>
               <ul className="mt-4 space-y-2">

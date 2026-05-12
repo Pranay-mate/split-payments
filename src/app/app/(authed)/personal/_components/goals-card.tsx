@@ -238,6 +238,13 @@ type GoalListItem = {
   targetDate: Date | string | null;
   currentValue: number;
   completedAt: Date | string | null;
+  /** Server-computed: when, at the user's current pace, the goal will
+   *  be hit. null if no useful projection (already done, <2 snapshots,
+   *  flat/regressing, or >10y out). */
+  projectedHitDate?: Date | string | null;
+  /** Number of score snapshots used in the projection. Drives the
+   *  "Take another snapshot to see projections" fallback copy. */
+  snapshotCount?: number;
 };
 
 function GoalRow({
@@ -338,12 +345,65 @@ function GoalRow({
               style={{ width: `${pct * 100}%` }}
             />
           </div>
+          {!isDone && (
+            <ProjectionLine
+              goal={goal}
+              userTz={userTz}
+              targetDate={goal.targetDate}
+            />
+          )}
           <p className="mt-1 text-right text-[10px] tabular-nums text-slate-500 dark:text-slate-400">
             {Math.round(pct * 100)}%
           </p>
         </>
       )}
     </li>
+  );
+}
+
+/**
+ * Inline projection line under each in-progress goal. Three states:
+ *   - ≥2 snapshots + positive slope → "On pace to hit · <month year>"
+ *     plus a flag for ahead-of / behind-target where a target date exists
+ *   - <2 snapshots → "Take another snapshot to see projections"
+ *   - Flat / regressing trend → no line (avoids "you'll never hit this"
+ *     downer; better to stay quiet)
+ */
+function ProjectionLine({
+  goal,
+  userTz,
+  targetDate,
+}: {
+  goal: GoalListItem;
+  userTz: string;
+  targetDate: Date | string | null;
+}) {
+  const snapCount = goal.snapshotCount ?? 0;
+  if (snapCount < 2) {
+    return (
+      <p className="mt-1 text-[10.5px] text-slate-400 dark:text-slate-500">
+        Take another snapshot to see projections.
+      </p>
+    );
+  }
+  if (!goal.projectedHitDate) return null;
+  const eta = new Date(goal.projectedHitDate);
+  let tone = "text-slate-500 dark:text-slate-400";
+  let prefix = "On pace to hit";
+  if (targetDate) {
+    const target = new Date(targetDate).getTime();
+    if (eta.getTime() <= target) {
+      tone = "text-emerald-600 dark:text-emerald-400";
+      prefix = "Ahead of target — pace hits";
+    } else {
+      tone = "text-amber-600 dark:text-amber-400";
+      prefix = "Behind target — pace hits";
+    }
+  }
+  return (
+    <p className={`mt-1 text-[10.5px] ${tone}`}>
+      {prefix} {formatDate(eta, userTz, "medium")}
+    </p>
   );
 }
 

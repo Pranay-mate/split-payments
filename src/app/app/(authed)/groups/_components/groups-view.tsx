@@ -33,8 +33,25 @@ type GroupRow = ServerGroup & {
 
 const EPSILON = 0.5; // round-to-rupee precision; treat sub-50p balances as settled
 
+const TEMPLATES = [
+  { key: "trip", emoji: "✈️", label: "Trip", suggestedName: "Goa trip" },
+  {
+    key: "roommates",
+    emoji: "🏠",
+    label: "Roommates",
+    suggestedName: "Roommates",
+  },
+  {
+    key: "solo",
+    emoji: "🧍",
+    label: "Solo / Just me",
+    suggestedName: "My expenses",
+  },
+] as const;
+
 export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) {
   const [creating, setCreating] = useState(false);
+  const [initialName, setInitialName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const groupsQuery = trpc.groups.list.useQuery(undefined, {
     initialData: initialGroups as GroupRow[],
@@ -83,11 +100,16 @@ export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) 
 
       {creating && (
         <CreateGroupForm
+          initialName={initialName}
           onSuccess={() => {
             setCreating(false);
+            setInitialName("");
             groupsQuery.refetch();
           }}
-          onCancel={() => setCreating(false)}
+          onCancel={() => {
+            setCreating(false);
+            setInitialName("");
+          }}
         />
       )}
 
@@ -141,18 +163,43 @@ export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) 
         </>
       ) : (
         !creating && (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-10 text-center dark:border-slate-700 dark:bg-slate-900/40">
-            <Users className="mx-auto h-8 w-8 text-slate-400" aria-hidden />
-            <p className="mt-3 text-sm font-medium">No groups yet</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Create one for your next trip, your roommates, or a recurring expense circle.
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-indigo-50/40 p-6 text-center dark:border-slate-700 dark:from-slate-900/40 dark:to-indigo-950/20 sm:p-8">
+            <span
+              aria-hidden
+              className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 text-white shadow-sm"
+            >
+              <Users className="h-5 w-5" aria-hidden />
+            </span>
+            <p className="mt-4 text-base font-semibold tracking-tight">
+              Create your first group
             </p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Start with a template, or build from scratch.
+            </p>
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => {
+                    setInitialName(t.suggestedName);
+                    setCreating(true);
+                  }}
+                  className="flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-3 text-xs font-medium text-slate-700 transition hover:border-indigo-400 hover:bg-indigo-50/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-600 dark:hover:bg-indigo-950/30"
+                >
+                  <span aria-hidden className="text-lg">
+                    {t.emoji}
+                  </span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             >
-              <Plus className="h-4 w-4" aria-hidden /> Create your first group
+              <Plus className="h-3.5 w-3.5" aria-hidden /> Start from scratch
             </button>
           </div>
         )
@@ -281,16 +328,18 @@ function relativeTime(d: Date | string): string {
 }
 
 function CreateGroupForm({
+  initialName = "",
   onSuccess,
   onCancel,
 }: {
+  initialName?: string;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
   const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
   const defaultCurrency =
     (meQuery.data as { defaultCurrency?: string })?.defaultCurrency ?? "INR";
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [currency, setCurrency] = useState<string>(defaultCurrency);
 
   const utils = trpc.useUtils();

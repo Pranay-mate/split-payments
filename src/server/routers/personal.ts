@@ -975,23 +975,85 @@ export const personalRouter = router({
         if (!input?.includeArchived) {
           filters.push(isNull(financialGoals.archivedAt));
         }
-        const rows = await db
-          .select()
-          .from(financialGoals)
-          .where(and(...filters))
-          .orderBy(asc(financialGoals.createdAt));
-        return rows.map((r) => ({
-          id: r.id,
-          goalKind: r.goalKind as "pillar" | "total",
-          pillarKey: r.pillarKey,
-          label: r.label,
-          targetScore: r.targetScore,
-          targetDate: r.targetDate,
-          currentValue: r.currentValue,
-          completedAt: r.completedAt,
-          archivedAt: r.archivedAt,
-          createdAt: r.createdAt,
-        }));
+        const [rows, snapshots] = await Promise.all([
+          db
+            .select()
+            .from(financialGoals)
+            .where(and(...filters))
+            .orderBy(asc(financialGoals.createdAt)),
+          db
+            .select()
+            .from(scoreSnapshots)
+            .where(eq(scoreSnapshots.userId, ctx.user.id))
+            .orderBy(asc(scoreSnapshots.snapshottedAt)),
+        ]);
+
+        // Pre-parse pillar-score JSON once per snapshot. Bad rows just
+        // get skipped — we don't want one corrupt row to nuke projections.
+        const parsedSnapshots = snapshots
+          .map((s) => {
+            let pillars: Record<string, number> = {};
+            try {
+              pillars = JSON.parse(s.pillarScores) as Record<string, number>;
+            } catch {
+              // ignore — pillar projections for this snapshot will be 0.
+            }
+            return { total: s.total, pillars, at: s.snapshottedAt.getTime() };
+          })
+          .filter(Boolean);
+
+        const projectHitDate = (
+          goalKind: "pillar" | "total",
+          pillarKey: string | null,
+          target: number,
+          current: number,
+        ): Date | null => {
+          if (current >= target) return null; // already done
+          if (parsedSnapshots.length < 2) return null;
+          const valueAt = (i: number): number =>
+            goalKind === "total"
+              ? parsedSnapshots[i].total
+              : (parsedSnapshots[i].pillars[pillarKey ?? ""] ?? 0);
+          const first = parsedSnapshots[0];
+          const last = parsedSnapshots[parsedSnapshots.length - 1];
+          const v0 = valueAt(0);
+          const v1 = valueAt(parsedSnapshots.length - 1);
+          const dtDays = (last.at - first.at) / (1000 * 60 * 60 * 24);
+          if (dtDays < 1) return null; // need a real time delta
+          const slopePerDay = (v1 - v0) / dtDays;
+          if (slopePerDay <= 0) return null; // flat or regressing — no useful ETA
+          const remaining = target - current;
+          const daysToHit = remaining / slopePerDay;
+          // Cap at 10 years out — past that, projection is meaningless.
+          if (daysToHit > 365 * 10) return null;
+          const eta = new Date(Date.now() + daysToHit * 24 * 60 * 60 * 1000);
+          return eta;
+        };
+
+        return rows.map((r) => {
+          const goalKind = r.goalKind as "pillar" | "total";
+          const projectedHitDate = r.completedAt
+            ? null
+            : projectHitDate(goalKind, r.pillarKey, r.targetScore, r.currentValue);
+          return {
+            id: r.id,
+            goalKind,
+            pillarKey: r.pillarKey,
+            label: r.label,
+            targetScore: r.targetScore,
+            targetDate: r.targetDate,
+            currentValue: r.currentValue,
+            completedAt: r.completedAt,
+            archivedAt: r.archivedAt,
+            createdAt: r.createdAt,
+            /** null when: already complete, fewer than 2 snapshots,
+             *  flat/regressing trend, or projection > 10 years out. */
+            projectedHitDate,
+            /** Number of snapshots used — UI shows this for transparency
+             *  ("based on N snapshots") and to trigger the fallback copy. */
+            snapshotCount: parsedSnapshots.length,
+          };
+        });
       }),
 
     create: protectedProcedure
