@@ -26,6 +26,7 @@ import { AnomalyBanner } from "./anomaly-banner";
 import { GoalsCard } from "./goals-card";
 import { RecurrencesCard } from "./recurrences-card";
 import { Scorecard } from "./scorecard";
+import { YearlyTrendCard } from "./yearly-trend-card";
 import { MonthlyReviewModal } from "@/components/monthly-review-modal";
 
 const PersonalCharts = dynamic(
@@ -270,6 +271,11 @@ export function PersonalDashboard() {
 
         {/* Recurring entries (v5.0) — auto-fill salary/rent/SIP each month */}
         <RecurrencesCard />
+
+        {/* Multi-month / year-over-year trend — only renders once the
+            user has at least one month of entries, so brand-new users
+            don't see an empty chart. */}
+        <YearlyTrendCard />
 
         {/* Transactions list — primary daily content surfaces above
             charts/forms (charts are derived; FAB scrolls to add form). */}

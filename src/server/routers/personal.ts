@@ -479,6 +479,125 @@ export const personalRouter = router({
       };
     }),
 
+  /**
+   * Multi-month trend for the year-over-year card. Pulls the last
+   * `months` calendar months (default 13 so the chart shows current
+   * month + 12 prior — drives YoY same-month deltas) and aggregates
+   * each into income / expenses / investments / savings-rate.
+   *
+   * Returns oldest → newest so the chart paints left-to-right
+   * naturally. Empty months are filled with zeros so the bar chart
+   * doesn't collapse gaps and the "spent ₹0 in May" row is honest
+   * about reality.
+   */
+  yearlyTrend: protectedProcedure
+    .input(
+      z
+        .object({ months: z.number().int().min(2).max(36).default(13) })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const months = input?.months ?? 13;
+      const now = new Date();
+      // Floor to the first day of the current month so partial-month
+      // counts in the latest bucket don't get dropped.
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const start = new Date(
+        end.getFullYear(),
+        end.getMonth() - months,
+        1,
+      );
+
+      const rows = await db
+        .select({
+          type: personalEntries.type,
+          amount: personalEntries.amount,
+          occurredAt: personalEntries.occurredAt,
+        })
+        .from(personalEntries)
+        .where(
+          and(
+            eq(personalEntries.userId, ctx.user.id),
+            isNull(personalEntries.deletedAt),
+            gte(personalEntries.occurredAt, start),
+            lt(personalEntries.occurredAt, end),
+          ),
+        );
+
+      // Seed every bucket so empty months render as zeros (chart needs
+      // a continuous x-axis to communicate "we ran the math, you had
+      // no entries" vs "the bucket is missing").
+      const buckets = new Map<
+        string,
+        {
+          monthKey: string;
+          monthLabel: string;
+          income: number;
+          expenses: number;
+          investments: number;
+          entryCount: number;
+        }
+      >();
+      for (let i = 0; i < months; i++) {
+        const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        buckets.set(key, {
+          monthKey: key,
+          monthLabel: d.toLocaleDateString("en-US", {
+            month: "short",
+            year: "2-digit",
+          }),
+          income: 0,
+          expenses: 0,
+          investments: 0,
+          entryCount: 0,
+        });
+      }
+
+      for (const r of rows) {
+        const d = r.occurredAt;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const b = buckets.get(key);
+        if (!b) continue;
+        const amt = decryptAmount(r.amount);
+        b.entryCount += 1;
+        if (r.type === "income") b.income += amt;
+        else if (r.type === "expense") b.expenses += amt;
+        else if (r.type === "investment") b.investments += amt;
+      }
+
+      const series = Array.from(buckets.values()).map((b) => ({
+        monthKey: b.monthKey,
+        monthLabel: b.monthLabel,
+        income: Math.round(b.income * 100) / 100,
+        expenses: Math.round(b.expenses * 100) / 100,
+        investments: Math.round(b.investments * 100) / 100,
+        net: Math.round((b.income - b.expenses - b.investments) * 100) / 100,
+        savingsRate:
+          b.income > 0 ? (b.income - b.expenses - b.investments) / b.income : 0,
+        entryCount: b.entryCount,
+      }));
+
+      // YoY same-month comparison — only fires when the series spans
+      // ≥13 months so the bookend pair exists.
+      const latest = series[series.length - 1];
+      const yoyMatch = series[series.length - 13];
+      const yoy =
+        yoyMatch && latest
+          ? {
+              latestMonth: latest,
+              priorYearMonth: yoyMatch,
+              expensesDeltaPct:
+                yoyMatch.expenses > 0
+                  ? (latest.expenses - yoyMatch.expenses) / yoyMatch.expenses
+                  : null,
+              savingsRateDelta: latest.savingsRate - yoyMatch.savingsRate,
+            }
+          : null;
+
+      return { series, yoy };
+    }),
+
   create: protectedProcedure
     .input(
       z.object({
