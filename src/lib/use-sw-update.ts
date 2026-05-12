@@ -3,22 +3,38 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Service-worker update detection. Watches for a new SW reaching the
- * 'waiting' state — that means a fresh build is downloaded and ready
- * but not yet active. Surfaces this through `updateAvailable` so the
- * <SwUpdateBanner /> can prompt the user to reload.
+ * Service-worker update detection with idle auto-apply.
  *
- * Polls for updates every 30 min while the tab is open so long-lived
- * sessions (a desktop user with the PWA pinned all day) eventually
- * notice a deploy without needing a hard reload.
+ * Watches for a new SW reaching the 'waiting' state — that means a
+ * fresh build is downloaded and ready but not yet active. Two paths
+ * from there:
+ *
+ *   1. Silent auto-update: if the user has been idle for ≥5 minutes,
+ *      we silently call applyUpdate() ourselves. A localStorage flag
+ *      gets set right before reload so the next page-load can show a
+ *      one-time "Updated" toast — keeps the user informed without
+ *      interrupting them.
+ *   2. Active user: surface `updateAvailable` so <SwUpdateBanner />
+ *      can prompt them. They click Reload when they're ready, no
+ *      surprises mid-edit.
+ *
+ * Polls for updates every 30 min so long-lived PWA tabs don't sit on
+ * a stale SW forever.
  */
 
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const IDLE_CHECK_INTERVAL_MS = 60 * 1000; // re-check idle every 60s
+
+/** Flag set immediately before an auto-update reload. The new tab
+ *  reads + clears it, then shows a one-time "✨ Updated" toast. */
+export const JUST_AUTO_UPDATED_KEY = "easysplits.just-auto-updated";
 
 export type SwUpdateState = {
-  /** True when a new SW is in the 'waiting' state. */
+  /** True when a new SW is in 'waiting' AND we haven't auto-applied
+   *  yet. Drives the in-app banner. */
   updateAvailable: boolean;
-  /** Trigger SKIP_WAITING + page reload. No-op if there's nothing to apply. */
+  /** Trigger SKIP_WAITING + page reload. No-op if nothing to apply. */
   applyUpdate: () => void;
 };
 
@@ -26,14 +42,17 @@ export function useSwUpdate(): SwUpdateState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const waitingRef = useRef<ServiceWorker | null>(null);
   const reloadingRef = useRef(false);
+  const lastInteractionRef = useRef<number>(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
+    lastInteractionRef.current = Date.now();
 
     let cancelled = false;
     let pollHandle: number | null = null;
+    let idleCheckHandle: number | null = null;
 
     const markWaiting = (sw: ServiceWorker | null) => {
       if (!sw || cancelled) return;
@@ -47,37 +66,57 @@ export function useSwUpdate(): SwUpdateState {
     ) => {
       sw.addEventListener("statechange", () => {
         if (sw.state === "installed" && navigator.serviceWorker.controller) {
-          // A new SW reached 'installed' but our page is still controlled by
-          // the previous one — that's the "update ready" moment.
           markWaiting(sw);
         }
       });
       void registration;
     };
 
+    // Cheap activity tracking: passive listeners on document update
+    // a ref so we don't re-render on every keystroke / pointer move.
+    const touch = () => {
+      lastInteractionRef.current = Date.now();
+    };
+    document.addEventListener("pointerdown", touch, { passive: true });
+    document.addEventListener("keydown", touch, { passive: true });
+    document.addEventListener("touchstart", touch, { passive: true });
+
+    // Silent-apply path: every minute, check if an update is waiting
+    // AND the user is idle. If both true, swap in the new SW without
+    // bothering them. Flag in localStorage so we can toast post-reload.
+    idleCheckHandle = window.setInterval(() => {
+      if (!waitingRef.current) return;
+      if (reloadingRef.current) return;
+      const idleFor = Date.now() - lastInteractionRef.current;
+      if (idleFor < IDLE_THRESHOLD_MS) return;
+      try {
+        window.localStorage.setItem(JUST_AUTO_UPDATED_KEY, "1");
+      } catch {
+        // Storage disabled — the toast just won't fire; reload still works.
+      }
+      const sw = waitingRef.current;
+      waitingRef.current = null;
+      sw.postMessage({ type: "SKIP_WAITING" });
+      // controllerchange handler will trigger the actual reload.
+    }, IDLE_CHECK_INTERVAL_MS);
+
     void (async () => {
       try {
-        const registration = await navigator.serviceWorker.getRegistration("/sw.js");
+        const registration =
+          await navigator.serviceWorker.getRegistration("/sw.js");
         if (!registration || cancelled) return;
 
-        // If the user landed on a tab that already had a waiting SW
-        // (e.g. opened a new tab after an old deploy), surface it now.
         if (registration.waiting && navigator.serviceWorker.controller) {
           markWaiting(registration.waiting);
         }
-
         if (registration.installing) {
           trackInstalling(registration, registration.installing);
         }
-
         registration.addEventListener("updatefound", () => {
           const installing = registration.installing;
           if (installing) trackInstalling(registration, installing);
         });
 
-        // Periodically nudge the browser to check for an updated SW
-        // script. Without this, the browser only checks on navigation,
-        // which long-lived PWA tabs rarely trigger.
         pollHandle = window.setInterval(() => {
           registration.update().catch(() => {
             // Silent — network failures here aren't user-facing.
@@ -88,19 +127,23 @@ export function useSwUpdate(): SwUpdateState {
       }
     })();
 
-    // When the active SW changes (because we sent SKIP_WAITING), reload
-    // the page so the new assets get used. Guard against the reload
-    // loop with `reloadingRef`.
     const onControllerChange = () => {
       if (reloadingRef.current) return;
       reloadingRef.current = true;
       window.location.reload();
     };
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      onControllerChange,
+    );
 
     return () => {
       cancelled = true;
       if (pollHandle !== null) window.clearInterval(pollHandle);
+      if (idleCheckHandle !== null) window.clearInterval(idleCheckHandle);
+      document.removeEventListener("pointerdown", touch);
+      document.removeEventListener("keydown", touch);
+      document.removeEventListener("touchstart", touch);
       navigator.serviceWorker.removeEventListener(
         "controllerchange",
         onControllerChange,
@@ -111,15 +154,10 @@ export function useSwUpdate(): SwUpdateState {
   const applyUpdate = useCallback(() => {
     const sw = waitingRef.current;
     if (!sw) {
-      // Nothing waiting (shouldn't happen given the banner only renders
-      // when updateAvailable === true). Hard-reload as a fallback.
       window.location.reload();
       return;
     }
     sw.postMessage({ type: "SKIP_WAITING" });
-    // The actual reload fires from the `controllerchange` handler once
-    // the new SW takes over — gives a smoother transition than reloading
-    // before the swap completes.
   }, []);
 
   return { updateAvailable, applyUpdate };
