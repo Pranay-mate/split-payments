@@ -33,6 +33,7 @@ import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
 import { ContributionBar } from "./contribution-bar";
 import { GroupSettings } from "./group-settings";
+import { InviteModal } from "./invite-modal";
 import { SubscriptionAudit } from "./subscription-audit";
 import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
@@ -64,6 +65,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
   const [showCharts, setShowCharts] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const focusForm = () => {
@@ -138,15 +140,9 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     return summariseTrip(people, tripExpenses, recordedSettlements);
   }, [membersQuery.data, expensesQuery.data, settlementsQuery.data, tripExpenses]);
 
-  const copyInviteLink = async () => {
+  const openInvite = () => {
     if (!groupQuery.data) return;
-    const url = `${window.location.origin}/app/join/${groupQuery.data.inviteToken}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Invite link copied");
-    } catch {
-      toast.error("Could not copy. Try again.");
-    }
+    setInviteOpen(true);
   };
 
   if (groupQuery.isLoading) {
@@ -264,8 +260,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={copyInviteLink}
-                  aria-label="Copy invite link"
+                  onClick={openInvite}
+                  aria-label="Show invite QR + link"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-white/25"
                 >
                   <Share2 className="h-3.5 w-3.5" aria-hidden />
@@ -826,6 +822,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           <Plus className="h-5 w-5" aria-hidden />
           <span className="hidden sm:inline">Add expense</span>
         </button>
+      )}
+      {groupQuery.data && (
+        <InviteModal
+          groupName={groupQuery.data.name}
+          inviteToken={groupQuery.data.inviteToken}
+          open={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+        />
       )}
     </main>
   );
