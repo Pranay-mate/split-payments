@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Mic, MicOff, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { markFirstActionDone } from "@/lib/use-install-prompt";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
 import { formatINR } from "@/lib/format";
 import { COMMON_CURRENCIES, getRate } from "@/lib/fx";
@@ -472,6 +473,9 @@ export function AddExpense({
         });
         resetForm();
       }
+      // Mark "first meaningful action" so the install-prompt banner can
+      // start nudging this user (it stays silent until earned).
+      markFirstActionDone();
       onSuccess(result.queued);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Save failed";

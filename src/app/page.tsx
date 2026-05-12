@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles, Users, Wallet } from "lucide-react";
 import { SITE, SPLIT_FEATURES, PERSONAL_FEATURES } from "@/lib/site";
 import { organizationLd, softwareApplicationLd } from "@/lib/jsonld";
 import { LiveScorecardDemo } from "@/components/live-scorecard-demo";
+import { InstallFooterLink } from "@/components/install-footer-link";
 
 export default function HomePage() {
   return (
@@ -225,6 +226,7 @@ export default function HomePage() {
             © {new Date().getFullYear()} {SITE.name}. Built in India.
           </p>
           <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <InstallFooterLink />
             <Link href="/features" className="hover:text-slate-900 dark:hover:text-slate-200">
               Features
             </Link>

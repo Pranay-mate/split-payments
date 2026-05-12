@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { markFirstActionDone } from "@/lib/use-install-prompt";
 
 type FormState = {
   age: number | "";
@@ -236,6 +237,7 @@ export function OnboardWizard() {
         markCompleted: true,
       });
       utils.personal.profile.get.invalidate();
+      markFirstActionDone();
       toast.success(isExisting ? "Score updated" : "Score computed");
       router.push("/app/personal");
     } catch (err) {
