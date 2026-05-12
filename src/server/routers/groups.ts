@@ -18,6 +18,7 @@ import {
   profileAvatarDefault,
   profileDisplayDefault,
 } from "@/lib/profile-defaults";
+import { pushToUser } from "@/lib/push";
 
 const currencySchema = z
   .string()
@@ -584,6 +585,32 @@ export const groupsRouter = router({
           actorId: ctx.user.id,
           payload: {},
         });
+
+        // Notify the group creator that their invite landed. Fire-and-
+        // forget — don't block the join on push delivery. Skip if the
+        // joiner IS the creator (e.g. they hit their own invite URL).
+        if (group.createdBy !== ctx.user.id) {
+          void (async () => {
+            try {
+              const [joiner] = await db
+                .select({ displayName: profiles.displayName })
+                .from(profiles)
+                .where(eq(profiles.id, ctx.user.id))
+                .limit(1);
+              const joinerName = joiner?.displayName ?? "Someone";
+              await pushToUser(group.createdBy, {
+                title: `${joinerName} joined ${group.name}`,
+                body: "via your invite link",
+                url: `/app/groups/${group.id}`,
+                // Per-group tag so back-to-back joins collapse into
+                // one OS notification ribbon instead of stacking.
+                tag: `easysplits-member-joined-${group.id}`,
+              });
+            } catch {
+              // Silent — push failures shouldn't surface to the joiner.
+            }
+          })();
+        }
       }
 
       return group;
