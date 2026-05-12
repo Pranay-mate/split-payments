@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "sonner";
 import { SITE } from "@/lib/site";
 import { ServiceWorkerRegister } from "@/components/sw-register";
+import { SwUpdateBanner } from "@/components/sw-update-banner";
 import { SiteHeader } from "@/components/site-header";
 import { InstallPrompt } from "@/components/install-prompt";
 import { OfflineIndicator } from "@/components/offline-indicator";
@@ -78,6 +79,7 @@ export default function RootLayout({
             <OfflineProvider>
               <SiteHeader />
               {children}
+              <SwUpdateBanner />
               <OfflineIndicator />
               <InstallPrompt />
               <Toaster

@@ -12,12 +12,25 @@
  * to be evicted on next activation.
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const RUNTIME_CACHE = `easysplits-runtime-${CACHE_VERSION}`;
 
 self.addEventListener("install", () => {
-  // Activate immediately on first install — no need to wait for old tabs.
-  self.skipWaiting();
+  // Don't auto-skipWaiting. We want the new SW to sit in 'waiting'
+  // state so the page can detect it and show the "Update available"
+  // banner — the user controls when to activate via a SKIP_WAITING
+  // postMessage from the banner's Reload button. First-time installs
+  // (no controller yet) skip waiting via the message handler below
+  // immediately on `activate` setup, so first-time UX still feels fast.
+});
+
+self.addEventListener("message", (event) => {
+  // Triggered by <SwUpdateBanner /> when the user accepts the update.
+  // Sending SKIP_WAITING transitions this SW from 'waiting' to 'active'
+  // and the page then reloads to pick up the new assets.
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
