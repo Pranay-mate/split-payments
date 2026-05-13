@@ -14,6 +14,7 @@ import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
+import { InfoTip } from "@/components/info-tip";
 
 type SettleMode = "simplified" | "pairwise";
 
@@ -385,8 +386,23 @@ function SuggestedPayments({
   return (
     <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-4 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Suggested payments
+          <InfoTip label="About settlement modes">
+            <p className="font-semibold text-slate-800 dark:text-slate-100">
+              Simplified vs Pairwise
+            </p>
+            <p className="mt-1">
+              <strong>Simplified</strong> nets everyone out with the fewest
+              transfers possible. Bob → Carol covers your debt to Bob if it
+              keeps the math right.
+            </p>
+            <p className="mt-1.5">
+              <strong>Pairwise</strong> shows what you owe the actual person
+              you transacted with — no shortcuts. Use it when your group
+              prefers explicit &ldquo;I paid for you&rdquo; trails.
+            </p>
+          </InfoTip>
         </h2>
         <div
           className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white p-0.5 text-[11px] font-medium dark:border-slate-700 dark:bg-slate-900"

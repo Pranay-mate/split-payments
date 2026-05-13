@@ -6,8 +6,37 @@ import { PEER_CITATIONS, type ScoreResult } from "@/lib/financial-score";
 import { pillarSeries } from "@/lib/financial-badges";
 import { trpc } from "@/lib/trpc/client";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
+import { InfoTip } from "@/components/info-tip";
 import { BadgesStrip } from "./badges-strip";
 import { PillarSparkline } from "./pillar-sparkline";
+
+/**
+ * Short, plain-language definitions of each pillar — surfaces through
+ * the inline InfoTip next to each pillar label so first-time users
+ * understand what's being measured without leaving the page.
+ */
+const PILLAR_EXPLAINERS: Record<string, { what: string; how: string }> = {
+  emergency: {
+    what: "Cash cushion you could tap in an emergency, measured in months of expenses.",
+    how: "Target = 6 months (9 if freelance). Counts savings account + breakable FDs.",
+  },
+  insurance: {
+    what: "Coverage that protects you from financial catastrophes.",
+    how: "Aim for ≥10× annual income in term life (if dependents) + ₹15L+ in health.",
+  },
+  debt: {
+    what: "How much of your income is locked up in monthly loan payments.",
+    how: "EMIs under 40% of income = healthy. Credit-card carryover drags this hard.",
+  },
+  savingsRate: {
+    what: "What's left from income after expenses + investments, as a percentage.",
+    how: "20% is decent, 25%+ is great. Boost via more income or trimmed expenses.",
+  },
+  investing: {
+    what: "How much you've put into long-term growth instruments.",
+    how: "Compares your invested balance vs an age-glide target (younger = leaner).",
+  },
+};
 import {
   ScoreTrajectory,
   summariseSnapshots,
@@ -243,6 +272,20 @@ function ScorecardWithHistory({ score }: { score: ScoreResult }) {
               <p className="flex items-center gap-1.5 text-sm font-semibold">
                 <span aria-hidden>{p.emoji}</span>
                 {p.label}
+                {PILLAR_EXPLAINERS[p.key] && (
+                  <InfoTip
+                    label={`About the ${p.label} pillar`}
+                    className="ml-0.5"
+                  >
+                    <p className="font-semibold text-slate-800 dark:text-slate-100">
+                      {p.label}
+                    </p>
+                    <p className="mt-1">{PILLAR_EXPLAINERS[p.key].what}</p>
+                    <p className="mt-1.5 text-slate-500 dark:text-slate-400">
+                      {PILLAR_EXPLAINERS[p.key].how}
+                    </p>
+                  </InfoTip>
+                )}
                 <span className="ml-auto flex items-center gap-2">
                   {pillarSpark.length >= 2 && (
                     <PillarSparkline

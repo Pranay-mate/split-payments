@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, Eye, EyeOff, Globe, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { InfoTip } from "@/components/info-tip";
 
 /**
  * Wealth-share opt-in panel. Slots into the profile editor.
@@ -141,13 +142,32 @@ export function WealthShareBlock() {
           </div>
 
           {/* Show-amounts sub-toggle */}
+          <div>
+            <p className="flex items-center gap-1.5 text-[10.5px] font-medium text-slate-500 dark:text-slate-400">
+              Privacy
+              <InfoTip label="About show amounts">
+                <p className="font-semibold text-slate-800 dark:text-slate-100">
+                  Show amounts toggle
+                </p>
+                <p className="mt-1">
+                  <strong>Off</strong> (default) — public viewers see your
+                  asset-type breakdown as a pie + percentages only. Rupee
+                  values are hidden.
+                </p>
+                <p className="mt-1.5">
+                  <strong>On</strong> — public viewers see the actual
+                  numbers. Only turn this on if you&apos;re comfortable with
+                  exact rupee figures being visible to anyone with the link.
+                </p>
+              </InfoTip>
+            </p>
           <button
             type="button"
             onClick={() =>
               showAmountsMutation.mutate({ show: !showAmounts })
             }
             disabled={showAmountsMutation.isPending}
-            className="inline-flex w-full items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] dark:border-slate-700 dark:bg-slate-900"
+            className="mt-1 inline-flex w-full items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] dark:border-slate-700 dark:bg-slate-900"
           >
             <span className="flex items-center gap-1.5">
               {showAmounts ? (
@@ -174,6 +194,7 @@ export function WealthShareBlock() {
               />
             </span>
           </button>
+          </div>
 
           {/* Rotate token */}
           <button
