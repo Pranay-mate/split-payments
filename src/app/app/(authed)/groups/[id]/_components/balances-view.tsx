@@ -143,6 +143,7 @@ export function BalancesView({
   memberById,
   recorded,
   tripExpenses,
+  currentUserId,
 }: {
   groupId: string;
   /** Used in the "settled" share milestone OG card. */
@@ -153,6 +154,8 @@ export function BalancesView({
   /** Raw expense ledger — used by the "Why?" expander to show how each
    *  simplified-payment row derived from per-person paid vs. share. */
   tripExpenses: TripExpense[];
+  /** Drives the "Just my balances" auto-default + filter on pairwise. */
+  currentUserId: string | null;
 }) {
   const utils = trpc.useUtils();
   const userTz = useUserTimezone();
@@ -276,6 +279,7 @@ export function BalancesView({
           summary={summary}
           memberById={memberById}
           groupId={groupId}
+          currentUserId={currentUserId}
           submitRecord={submitRecord}
           recordPending={recordMutation.isPending}
           tripExpenses={tripExpenses}
@@ -360,6 +364,7 @@ function SuggestedPayments({
   submitRecord,
   recordPending,
   tripExpenses,
+  currentUserId,
 }: {
   summary: TripSummary;
   memberById: Map<string, { id: string; name: string }>;
@@ -372,14 +377,38 @@ function SuggestedPayments({
   }) => Promise<{ queued: boolean }>;
   recordPending: boolean;
   tripExpenses: TripExpense[];
+  currentUserId: string | null;
 }) {
   const [mode, setMode] = useState<SettleMode>("simplified");
+  // Pairwise lists can balloon in big groups (N² potential pairs).
+  // Default to "Just my balances" the moment we detect a large group
+  // (≥ 12) so a member of 50 doesn't scan thousands of rows.
+  // Default to "Just my balances" once the group passes ~12 members
+  // since pairwise lists balloon fast. `memberById` is a Map, so use
+  // .size — not Object.keys.
+  const [justMine, setJustMine] = useState(memberById.size >= 12);
+  const showFilterToggle = mode === "pairwise" && memberById.size >= 8;
   // Track which simplified row's "Why?" expander is open. Pairwise rows
   // don't need the explainer — those are the underlying debts already.
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const list =
+  const rawList =
     mode === "simplified" ? summary.settlements : summary.pairwiseSettlements;
-  if (list.length === 0) {
+  // Drop zero-balance rows defensively (already filtered server-side
+  // but the type allows them). When "Just my balances" is on, narrow
+  // to rows involving the current user.
+  const list = rawList.filter((r) => {
+    if (Math.abs(r.amount) < 0.01) return false;
+    if (
+      justMine &&
+      currentUserId &&
+      r.fromPersonId !== currentUserId &&
+      r.toPersonId !== currentUserId
+    ) {
+      return false;
+    }
+    return true;
+  });
+  if (rawList.length === 0) {
     return null;
   }
 
@@ -445,11 +474,11 @@ function SuggestedPayments({
         {mode === "simplified" ? (
           <>
             Minimum number of transfers to settle the group.
-            {summary.pairwiseSettlements.length > list.length && (
+            {summary.pairwiseSettlements.length > rawList.length && (
               <span className="ml-1 text-slate-400">
                 · saves{" "}
-                {summary.pairwiseSettlements.length - list.length} transfer
-                {summary.pairwiseSettlements.length - list.length === 1
+                {summary.pairwiseSettlements.length - rawList.length} transfer
+                {summary.pairwiseSettlements.length - rawList.length === 1
                   ? ""
                   : "s"}{" "}
                 vs. pairwise
@@ -460,6 +489,20 @@ function SuggestedPayments({
           "Direct debts — pay back the person who actually paid for you."
         )}
       </p>
+      {showFilterToggle && currentUserId && (
+        <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          <input
+            type="checkbox"
+            checked={justMine}
+            onChange={(e) => setJustMine(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-400 dark:border-slate-600 dark:bg-slate-800"
+          />
+          Just my balances
+          <span className="font-normal text-slate-400">
+            · hides rows that don&apos;t involve you
+          </span>
+        </label>
+      )}
       <ul className="mt-4 space-y-2">
         {list.map((s, idx) => {
           const fromName = memberById.get(s.fromPersonId)?.name ?? "?";

@@ -109,10 +109,27 @@ export function ActivityFeed({
   memberById: Map<string, { id: string; name: string }>;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState<
+    "all" | "expenses" | "settlements" | "members" | "comments"
+  >("all");
   const userTz = useUserTimezone();
   const eventsQuery = trpc.events.listByGroup.useQuery({ groupId, limit: 30 });
-  const items = eventsQuery.data ?? [];
+  const rawItems = eventsQuery.data ?? [];
+  const items = rawItems.filter((e) => {
+    if (filter === "all") return true;
+    if (filter === "expenses") return e.eventType.startsWith("expense.");
+    if (filter === "settlements") return e.eventType.startsWith("settlement.");
+    if (filter === "members")
+      return (
+        e.eventType.startsWith("member.") || e.eventType.startsWith("group.")
+      );
+    if (filter === "comments") return e.eventType.startsWith("comment.");
+    return true;
+  });
   const visible = showAll ? items : items.slice(0, RECENT_ACTIVITY_COUNT);
+  // Only show filter chips once the raw feed has enough volume to warrant
+  // them — keeps small groups uncluttered.
+  const showFilters = rawItems.length >= 8;
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
@@ -120,6 +137,33 @@ export function ActivityFeed({
         <Activity className="h-4 w-4 text-violet-500" aria-hidden />
         Activity
       </h2>
+      {showFilters && (
+        <div className="mt-2 -mx-1 flex flex-wrap gap-1">
+          {(
+            [
+              { value: "all", label: "All" },
+              { value: "expenses", label: "Expenses" },
+              { value: "settlements", label: "Settlements" },
+              { value: "members", label: "Members" },
+              { value: "comments", label: "Comments" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setFilter(opt.value)}
+              aria-pressed={filter === opt.value}
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition ${
+                filter === opt.value
+                  ? "bg-violet-500 text-white shadow-sm"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {eventsQuery.isLoading ? (
         <div className="mt-3 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">

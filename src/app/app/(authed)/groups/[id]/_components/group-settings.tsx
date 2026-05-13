@@ -53,6 +53,10 @@ export function GroupSettings({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(group.name);
   const [guestName, setGuestName] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberSort, setMemberSort] = useState<"name" | "joined" | "guests">(
+    "joined",
+  );
 
   const utils = trpc.useUtils();
 
@@ -230,8 +234,51 @@ export function GroupSettings({
                   <Users className="h-3.5 w-3.5" aria-hidden /> Members ·{" "}
                   {members.length}
                 </p>
+                {members.length >= 8 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <input
+                      type="search"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      placeholder="Search members…"
+                      className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                    />
+                    <select
+                      value={memberSort}
+                      onChange={(e) =>
+                        setMemberSort(
+                          e.target.value as "name" | "joined" | "guests",
+                        )
+                      }
+                      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] dark:border-slate-700 dark:bg-slate-900"
+                      aria-label="Sort members"
+                    >
+                      <option value="joined">Sort: Joined</option>
+                      <option value="name">Sort: Name (A→Z)</option>
+                      <option value="guests">Sort: Guests first</option>
+                    </select>
+                  </div>
+                )}
                 <ul className="mt-2 space-y-1.5">
-                  {members.map((m) => {
+                  {members
+                    .filter((m) =>
+                      memberSearch
+                        ? m.displayName
+                            .toLowerCase()
+                            .includes(memberSearch.toLowerCase())
+                        : true,
+                    )
+                    .sort((a, b) => {
+                      if (memberSort === "name") {
+                        return a.displayName.localeCompare(b.displayName);
+                      }
+                      if (memberSort === "guests") {
+                        if (a.isGuest === b.isGuest) return 0;
+                        return a.isGuest ? -1 : 1;
+                      }
+                      return 0; // "joined" = preserve server order (joinedAt)
+                    })
+                    .map((m) => {
                     const isSelf = m.userId === meId;
                     const isGuest = m.isGuest;
                     return (

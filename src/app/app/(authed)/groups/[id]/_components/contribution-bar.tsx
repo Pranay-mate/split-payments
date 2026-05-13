@@ -35,6 +35,12 @@ export function ContributionBar({
   expenses: Expense[];
   members: Member[];
 }) {
+  /**
+   * Beyond ~6 colored segments the stacked bar turns into visual mush
+   * (and the legend below wraps to 3+ lines). Cap to the top 6 named
+   * contributors and lump the rest into one neutral "Others" segment.
+   */
+  const TOP_N = 6;
   const segments = useMemo(() => {
     const totals = new Map<string, number>();
     let sum = 0;
@@ -43,19 +49,33 @@ export function ContributionBar({
       sum += e.convertedAmount;
     }
     if (sum <= 0) return null;
-    return members
-      .map((m, i) => {
-        const total = totals.get(m.id) ?? 0;
-        return {
-          id: m.id,
-          name: m.name,
-          total: Math.round(total * 100) / 100,
-          pct: total / sum,
-          color: PALETTE[i % PALETTE.length],
-        };
-      })
+    const ranked = members
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        total: Math.round((totals.get(m.id) ?? 0) * 100) / 100,
+      }))
       .filter((s) => s.total > 0)
       .sort((a, b) => b.total - a.total);
+    const named = ranked.slice(0, TOP_N).map((s, i) => ({
+      ...s,
+      pct: s.total / sum,
+      color: PALETTE[i % PALETTE.length],
+    }));
+    if (ranked.length <= TOP_N) return named;
+    const rest = ranked.slice(TOP_N);
+    const restTotal = rest.reduce((acc, x) => acc + x.total, 0);
+    return [
+      ...named,
+      {
+        id: "__others__",
+        name: `Others (${rest.length})`,
+        total: Math.round(restTotal * 100) / 100,
+        pct: restTotal / sum,
+        color: "#94a3b8", // slate-400 — intentionally neutral so it
+                          // doesn't compete with the named segments.
+      },
+    ];
   }, [expenses, members]);
 
   if (!segments || segments.length === 0) return null;

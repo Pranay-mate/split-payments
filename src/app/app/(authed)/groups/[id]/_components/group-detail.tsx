@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -310,6 +310,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </div>
         </div>
 
+        {/* Soft warning past 30 members — purely advisory. Doesn't cap
+            the group, just nudges toward sub-grouping for trip-specific
+            spending. localStorage flag so the user can dismiss for a
+            week. */}
+        <LargeGroupNudge groupId={groupId} memberCount={members.length} />
+
         {/* Balances first — answers the #1 user question ("do I owe anyone?")
             before showing supporting context like contribution share. */}
         {summary && summary.balances.length > 0 && (
@@ -320,6 +326,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             memberById={memberById}
             recorded={settlementsQuery.data ?? []}
             tripExpenses={tripExpenses}
+            currentUserId={meQuery.data?.id ?? null}
           />
         )}
 
@@ -853,5 +860,76 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         />
       )}
     </main>
+  );
+}
+
+/**
+ * Soft advisory banner for groups past ~30 members. Renders nothing
+ * below the threshold. Dismissable for 7 days per (user × group) via
+ * localStorage so it doesn't pester the same person on every visit.
+ */
+function LargeGroupNudge({
+  groupId,
+  memberCount,
+}: {
+  groupId: string;
+  memberCount: number;
+}) {
+  const [dismissed, setDismissed] = useState(false);
+  const storageKey = `easysplits.large-group-nudge.${groupId}`;
+  const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return;
+      const until = Number(raw);
+      if (Number.isFinite(until) && until > Date.now()) {
+        queueMicrotask(() => setDismissed(true));
+      }
+    } catch {
+      // localStorage disabled — banner just keeps showing, harmless.
+    }
+  }, [storageKey]);
+
+  if (memberCount < 30 || dismissed) return null;
+
+  const dismiss = () => {
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        String(Date.now() + COOLDOWN_MS),
+      );
+    } catch {
+      // ignore
+    }
+    setDismissed(true);
+  };
+
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+      <Users
+        className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400"
+        aria-hidden
+      />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+          Heads up — {memberCount} members in one group
+        </p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-amber-800/90 dark:text-amber-200/85">
+          For trip-specific spending, smaller sub-groups (e.g. &ldquo;Goa
+          weekend&rdquo;, &ldquo;Office lunch&rdquo;) keep balances easier
+          to read. This one will still work — just sharing the tip.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={dismiss}
+        className="shrink-0 rounded-md px-1.5 py-0.5 text-[10.5px] font-medium text-amber-700 transition hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/40"
+        aria-label="Dismiss for a week"
+      >
+        Got it
+      </button>
+    </div>
   );
 }
