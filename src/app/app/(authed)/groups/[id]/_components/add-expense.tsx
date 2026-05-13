@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Mic, MicOff, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -61,6 +61,7 @@ export function AddExpense({
   groupId,
   primaryCurrency,
   members,
+  currentUserId,
   editing,
   onSuccess,
   onCancel,
@@ -68,11 +69,18 @@ export function AddExpense({
   groupId: string;
   primaryCurrency: string;
   members: { id: string; name: string }[];
+  /** Drives "Just me" + "Except me" quick-picks and the default payer.
+   *  Optional so callers without auth context (tests, calculators) work. */
+  currentUserId?: string | null;
   editing?: EditingExpense | null;
   onSuccess: (queued: boolean) => void;
   onCancel?: () => void;
 }) {
   const isEditing = Boolean(editing);
+  // Threshold at which we add a search input + quick-pick buttons to
+  // the member picker. Below this, the chip list is fine on its own.
+  const LARGE_GROUP_THRESHOLD = 8;
+  const isLargeGroup = members.length >= LARGE_GROUP_THRESHOLD;
 
   const [description, setDescription] = useState(editing?.description ?? "");
   const [amount, setAmount] = useState<number | "">(editing?.amount ?? "");
@@ -80,8 +88,12 @@ export function AddExpense({
     editing?.currency ?? primaryCurrency,
   );
   const [payerId, setPayerId] = useState<string>(
-    editing?.payerId ?? members[0]?.id ?? "",
+    editing?.payerId ??
+      (currentUserId && members.some((m) => m.id === currentUserId)
+        ? currentUserId
+        : members[0]?.id ?? ""),
   );
+  const [memberSearch, setMemberSearch] = useState("");
   const [splitMode, setSplitMode] = useState<SplitMode>(
     editing?.splitMode ?? "equal",
   );
@@ -621,22 +633,17 @@ export function AddExpense({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
+        <div className="block">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
             Paid by
           </span>
-          <select
+          <PayerSelect
+            members={members}
             value={payerId}
-            onChange={(e) => setPayerId(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
-          >
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={setPayerId}
+            currentUserId={currentUserId ?? null}
+          />
+        </div>
 
         <div>
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -678,6 +685,9 @@ export function AddExpense({
         <div className="flex items-baseline justify-between">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
             {splitMode === "equal" ? "Split between" : "Each person owes"}
+            <span className="ml-1.5 font-normal text-slate-400">
+              · {sharerIds.length}/{members.length}
+            </span>
           </span>
           {splitMode === "equal" && (
             <button
@@ -690,9 +700,54 @@ export function AddExpense({
           )}
         </div>
 
+        {/* Search + quick-picks for larger groups — picking from a list
+            of 15+ scrollable chips is painful. Below the threshold we
+            keep the original chip-list-only UX to stay uncluttered. */}
+        {isLargeGroup && splitMode === "equal" && (
+          <div className="mt-2 space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <QuickPick
+                label="Everyone"
+                onClick={() => setSharerIds(members.map((m) => m.id))}
+              />
+              {currentUserId && members.some((m) => m.id === currentUserId) && (
+                <>
+                  <QuickPick
+                    label="Just me"
+                    onClick={() => setSharerIds([currentUserId])}
+                  />
+                  <QuickPick
+                    label="Everyone except me"
+                    onClick={() =>
+                      setSharerIds(
+                        members
+                          .filter((m) => m.id !== currentUserId)
+                          .map((m) => m.id),
+                      )
+                    }
+                  />
+                </>
+              )}
+            </div>
+            <input
+              type="search"
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+              placeholder={`Search ${members.length} members…`}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+            />
+          </div>
+        )}
+
         {splitMode === "equal" ? (
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {members.map((m) => {
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {members
+              .filter((m) =>
+                memberSearch
+                  ? m.name.toLowerCase().includes(memberSearch.toLowerCase())
+                  : true,
+              )
+              .map((m) => {
               const selected = sharerIds.includes(m.id);
               return (
                 <button
@@ -710,6 +765,15 @@ export function AddExpense({
                 </button>
               );
             })}
+            {isLargeGroup &&
+              memberSearch &&
+              members.filter((m) =>
+                m.name.toLowerCase().includes(memberSearch.toLowerCase()),
+              ).length === 0 && (
+                <p className="w-full text-[11px] text-slate-500 dark:text-slate-400">
+                  No members match &ldquo;{memberSearch}&rdquo;.
+                </p>
+              )}
           </div>
         ) : (
           <div className="mt-2 space-y-2">
@@ -896,6 +960,164 @@ export function AddExpense({
         )}
         {isEditing ? "Save changes" : "Add expense"}
       </button>
+    </div>
+  );
+}
+
+/** Small quick-pick chip — used for "Everyone / Just me / Except me"
+ *  presets above the member chip list in larger groups. */
+function QuickPick({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/60 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-emerald-600 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300"
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * Searchable payer combobox. Plain native <select> works at <8 members
+ * but breaks at scale — you can't filter, scrolling is slow, names
+ * become a wall of text. This renders the current selection as a
+ * trigger button + opens a popover with a search input and filterable
+ * list. Click outside / Esc closes.
+ */
+function PayerSelect({
+  members,
+  value,
+  onChange,
+  currentUserId,
+}: {
+  members: { id: string; name: string }[];
+  value: string;
+  onChange: (id: string) => void;
+  currentUserId: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const selectedName =
+    members.find((m) => m.id === value)?.name ?? "Choose payer";
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent | TouchEvent) => {
+      if (!wrapRef.current) return;
+      if (!wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("touchstart", onClick, { passive: true });
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("touchstart", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const filtered = search
+    ? members.filter((m) =>
+        m.name.toLowerCase().includes(search.toLowerCase()),
+      )
+    : members;
+
+  return (
+    <div ref={wrapRef} className="relative mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm outline-none transition focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+      >
+        <span className="truncate">{selectedName}</span>
+        <span aria-hidden className="text-slate-400">
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900"
+        >
+          {members.length >= 8 && (
+            <input
+              type="search"
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search members…"
+              className="w-full border-b border-slate-200 bg-transparent px-3 py-2 text-xs outline-none dark:border-slate-800"
+            />
+          )}
+          <ul className="max-h-56 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
+                No match
+              </li>
+            ) : (
+              filtered.map((m) => {
+                const isSelf = m.id === currentUserId;
+                const isSelected = m.id === value;
+                return (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        onChange(m.id);
+                        setOpen(false);
+                        setSearch("");
+                      }}
+                      className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm transition hover:bg-slate-50 dark:hover:bg-slate-800 ${
+                        isSelected
+                          ? "bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          : ""
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {m.name}
+                        {isSelf && (
+                          <span className="rounded bg-slate-100 px-1 py-0.5 text-[9.5px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                            you
+                          </span>
+                        )}
+                      </span>
+                      {isSelected && (
+                        <span
+                          aria-hidden
+                          className="text-emerald-500"
+                        >
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

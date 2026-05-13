@@ -263,7 +263,7 @@
 
 _(Empty — v4.0 → v4.4 all shipped 2026-05-09. Next candidates: v4.5 mute-category for anomaly alerts, 2-alerts-per-month rate cap, `/insights` dedicated route. None blocking.)_
 
-### Onboarding & invite polish — 2026-05-13 batch (sequential ship)
+### Onboarding & invite polish — 2026-05-13 batch (sequential ship) — ✅ all shipped
 
 Three small, complementary improvements. Pushing one commit each so they're easy to review / rollback.
 
@@ -272,6 +272,25 @@ Three small, complementary improvements. Pushing one commit each so they're easy
 | 1 | **Group invite QR code** | Mobile-to-mobile group joining: scan instead of copy-link. `qrcode.react` (~7 KB, MIT, free, client-only) renders the existing `/app/join/<token>` URL. No new routes or backend. | ~1h |
 | 2 | **Onboarding empty states with action prompts** | Every "empty" screen gets a contextual CTA + 1-tap path to the next action. /app/groups → "Create your first group" (+ Trip / Roommates / Solo templates), /app/personal → "Log your first expense", /app/personal/wealth → "Add your first holding", scorecard → "Complete in 60 seconds" with a progress bar. Targets the most fragile moment in the funnel. | ~2h |
 | 3 | **Goal-progress projections** | Goals show "31/80 (38%)". Add "At your current pace → Aug 2026" computed from the slope between the user's score snapshots. Falls back to a gentle "Take another snapshot to see projections" line until ≥2 data points exist. Makes goals feel like a real trajectory, not a static target. | ~2h |
+
+### Large-group UX hardening — 2026-05-14 audit (Priority 2 + 3 still pending)
+
+The group UI was originally designed for 3-6 person trips. Audit at 10-15 / 50 members surfaced these surfaces that degrade as size grows. Priority 1 shipped 2026-05-14. Rest pending.
+
+| Priority | Surface | Fix | Estimate | Status |
+| --- | --- | --- | --- | --- |
+| 1 | **Add-expense split picker** | Search box + "Everyone / Just me / Except me" presets above the chip list (gated to ≥8 members). | ~1.5h | ✅ shipped 2026-05-14 |
+| 1 | **Payer combobox** | Replace `<select>` with searchable button popover; show "you" badge; defaults to current user. | ~1.5h | ✅ shipped 2026-05-14 |
+| 2 | **Pairwise balances filter** | Auto-hide zero-balance pairs (large groups settle most pairs to zero quickly). Add "Just my balances" toggle so a member of 50 doesn't scan 2 450 rows. | ~1.5h | ⬜ pending |
+| 2 | **Contribution bar cap** | Top 6 contributors + "Others X%" — beyond 8 distinct colors the stripe becomes visual mush. | ~30 min | ⬜ pending |
+| 3 | **Member list search + sort** | Sort by join date / name / net balance; search input above the list. | ~1.5h | ⬜ pending |
+| 3 | **Activity feed filter chips** | Filter by event type or by actor — feed becomes noisy past ~20 active members. | ~1h | ⬜ pending |
+| 3 | **Soft warning at 30+ members** | "Large groups work best with sub-groups for specific trips" — gentle nudge, not a cap. | ~30 min | ⬜ pending |
+
+What we explicitly DECIDED NOT to build (per UX audit):
+- Pagination of the member list (search is enough below ~100; pagination adds complexity).
+- Virtualized lists (premature; only matters at 200+).
+- Hard member cap (frustrates legitimate use; better to give tools than limits).
 
 ### Effort spent
 

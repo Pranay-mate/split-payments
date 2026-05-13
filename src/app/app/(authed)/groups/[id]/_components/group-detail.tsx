@@ -373,6 +373,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     key={editingId ?? "new"}
                     groupId={groupId}
                     primaryCurrency={group.primaryCurrency}
+                    currentUserId={meQuery.data?.id ?? null}
                     members={members.map((m) => ({
                       id: m.userId,
                       name: m.displayName,

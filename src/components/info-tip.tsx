@@ -8,14 +8,11 @@ import { HelpCircle, Info } from "lucide-react";
  * genuinely won't know (scorecard pillars, Indian tax sections, opaque
  * toggles), NOT for every form field — that's noise.
  *
- * Behaviour:
- *   - Tap-only on both mobile + desktop (more reliable than hover-on-
- *     desktop, since the same component shouldn't render two different
- *     interaction models)
- *   - Click outside or Esc to close
- *   - Popover positions below the trigger by default; flips above if
- *     there's no room (smart-edge detection on first paint)
- *   - Trigger sizes itself to the surrounding text (`align-baseline`)
+ * Positioning: the popover renders with `position: fixed` and we compute
+ * a viewport-clamped (left, top) on open. That way the popover always
+ * fits in the viewport regardless of where the trigger sits — earlier
+ * versions of this anchored to `left: 0` or `right: 0` of the trigger,
+ * which overflowed for triggers in the middle of mobile screens.
  *
  * Three visual variants — pick by where it lives:
  *   - "muted"  → inline next to a stat or label (the default)
@@ -25,6 +22,10 @@ import { HelpCircle, Info } from "lucide-react";
  */
 
 type Variant = "muted" | "pill" | "header";
+
+const POPOVER_WIDTH_PX = 256;
+const POPOVER_APPROX_HEIGHT_PX = 160;
+const SAFE_MARGIN_PX = 12;
 
 export function InfoTip({
   label,
@@ -43,18 +44,13 @@ export function InfoTip({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [flipUp, setFlipUp] = useState(false);
-  const [flipRight, setFlipRight] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
-  const popRef = useRef<HTMLDivElement | null>(null);
   const id = useId();
 
-  // Popover width (must match the class below). Used for horizontal-
-  // overflow detection.
-  const POPOVER_WIDTH_PX = 256;
-  const SAFE_MARGIN_PX = 16;
-
-  // Close on outside click or Escape.
+  // Close on outside click or Escape. Also close on scroll — the
+  // fixed-positioned popover would otherwise hang in place while the
+  // anchor scrolled away from under it.
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent | TouchEvent) => {
@@ -64,31 +60,42 @@ export function InfoTip({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+    const onScroll = () => setOpen(false);
     document.addEventListener("mousedown", onClick);
     document.addEventListener("touchstart", onClick, { passive: true });
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
     return () => {
       document.removeEventListener("mousedown", onClick);
       document.removeEventListener("touchstart", onClick);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, { capture: true });
     };
   }, [open]);
 
-  // Smart-flip: if there isn't enough room below or to the right,
-  // anchor above / right-aligned. Measure on open, then leave alone —
-  // re-measuring on scroll would feel jittery.
+  // Compute clamped viewport position on open. `position: fixed` plus
+  // hard-clamped (left, top) means the popover NEVER overflows the
+  // viewport, no matter where the trigger lives.
   useEffect(() => {
     if (!open || !wrapRef.current) return;
     const rect = wrapRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceRight = window.innerWidth - rect.left;
-    queueMicrotask(() => {
-      setFlipUp(spaceBelow < 180);
-      // If the popover (left-anchored at the trigger) would overflow
-      // the right edge of the viewport, swap to right-anchored so it
-      // grows leftward instead.
-      setFlipRight(spaceRight < POPOVER_WIDTH_PX + SAFE_MARGIN_PX);
-    });
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(POPOVER_WIDTH_PX, vw - SAFE_MARGIN_PX * 2);
+    // Center on the trigger horizontally, then clamp into viewport.
+    const idealLeft =
+      rect.left + rect.width / 2 - width / 2;
+    const left = Math.max(
+      SAFE_MARGIN_PX,
+      Math.min(idealLeft, vw - width - SAFE_MARGIN_PX),
+    );
+    // Prefer below the trigger; flip above when there's no room.
+    const spaceBelow = vh - rect.bottom;
+    const top =
+      spaceBelow >= POPOVER_APPROX_HEIGHT_PX
+        ? rect.bottom + 8
+        : Math.max(SAFE_MARGIN_PX, rect.top - POPOVER_APPROX_HEIGHT_PX - 8);
+    queueMicrotask(() => setPos({ left, top }));
   }, [open]);
 
   const triggerClass =
@@ -126,16 +133,17 @@ export function InfoTip({
         )}
       </button>
 
-      {open && (
+      {open && pos && (
         <div
-          ref={popRef}
           id={id}
           role="tooltip"
-          className={`absolute z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 text-[11.5px] leading-relaxed text-slate-700 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
-            flipUp ? "bottom-full mb-2" : "top-full mt-2"
-          } ${flipRight ? "right-0" : "left-0"}`}
-          // Stop event propagation so clicking inside the popover
-          // (e.g. selecting text) doesn't bubble up to close-listeners.
+          style={{
+            position: "fixed",
+            left: pos.left,
+            top: pos.top,
+            width: `min(${POPOVER_WIDTH_PX}px, calc(100vw - ${SAFE_MARGIN_PX * 2}px))`,
+          }}
+          className="z-50 rounded-xl border border-slate-200 bg-white p-3 text-[11.5px] leading-relaxed text-slate-700 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
           onClick={(e) => e.stopPropagation()}
         >
           {children}
