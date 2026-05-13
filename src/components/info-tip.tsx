@@ -44,9 +44,15 @@ export function InfoTip({
 }) {
   const [open, setOpen] = useState(false);
   const [flipUp, setFlipUp] = useState(false);
+  const [flipRight, setFlipRight] = useState(false);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
   const id = useId();
+
+  // Popover width (must match the class below). Used for horizontal-
+  // overflow detection.
+  const POPOVER_WIDTH_PX = 256;
+  const SAFE_MARGIN_PX = 16;
 
   // Close on outside click or Escape.
   useEffect(() => {
@@ -68,14 +74,21 @@ export function InfoTip({
     };
   }, [open]);
 
-  // Smart-flip: if there isn't enough room below the trigger, render
-  // above. Measure on open, then leave alone — re-measuring on scroll
-  // would feel jittery.
+  // Smart-flip: if there isn't enough room below or to the right,
+  // anchor above / right-aligned. Measure on open, then leave alone —
+  // re-measuring on scroll would feel jittery.
   useEffect(() => {
     if (!open || !wrapRef.current) return;
     const rect = wrapRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    queueMicrotask(() => setFlipUp(spaceBelow < 180));
+    const spaceRight = window.innerWidth - rect.left;
+    queueMicrotask(() => {
+      setFlipUp(spaceBelow < 180);
+      // If the popover (left-anchored at the trigger) would overflow
+      // the right edge of the viewport, swap to right-anchored so it
+      // grows leftward instead.
+      setFlipRight(spaceRight < POPOVER_WIDTH_PX + SAFE_MARGIN_PX);
+    });
   }, [open]);
 
   const triggerClass =
@@ -118,9 +131,9 @@ export function InfoTip({
           ref={popRef}
           id={id}
           role="tooltip"
-          className={`absolute left-0 z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 text-[11.5px] leading-relaxed text-slate-700 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
+          className={`absolute z-50 w-64 max-w-[min(16rem,calc(100vw-2rem))] rounded-xl border border-slate-200 bg-white p-3 text-[11.5px] leading-relaxed text-slate-700 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
             flipUp ? "bottom-full mb-2" : "top-full mt-2"
-          }`}
+          } ${flipRight ? "right-0" : "left-0"}`}
           // Stop event propagation so clicking inside the popover
           // (e.g. selecting text) doesn't bubble up to close-listeners.
           onClick={(e) => e.stopPropagation()}
