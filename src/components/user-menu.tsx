@@ -2,19 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, LogOut, Pencil, Share, Users, Wallet, X } from "lucide-react";
+import { CloudDownload, Download, LogOut, Pencil, Share, Users, Wallet, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useInstallPrompt } from "@/lib/use-install-prompt";
 import { EditProfileModal } from "./edit-profile-modal";
+import { ExportDataModal } from "./export-data-modal";
 
 export function UserMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [iosInstallModal, setIosInstallModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
   const { setTheme } = useTheme();
   const install = useInstallPrompt();
@@ -149,6 +151,16 @@ export function UserMenu() {
             )}
             <button
               type="button"
+              onClick={() => {
+                setOpen(false);
+                setExporting(true);
+              }}
+              className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+            >
+              <CloudDownload className="h-4 w-4" aria-hidden /> Download my data
+            </button>
+            <button
+              type="button"
               onClick={signOut}
               className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
             >
@@ -159,6 +171,7 @@ export function UserMenu() {
       )}
 
       <EditProfileModal open={editing} onClose={() => setEditing(false)} />
+      <ExportDataModal open={exporting} onClose={() => setExporting(false)} />
 
       {iosInstallModal && (
         <div

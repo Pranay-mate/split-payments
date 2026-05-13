@@ -479,6 +479,9 @@ export const expensesRouter = router({
           }
         }
 
+        // Rich diff payload — captures both `before` and `after` so the
+        // history modal can render proper before→after diffs (e.g.
+        // "₹500 → ₹600", "Food → Travel") instead of just "X edited this."
         await logEvent({
           groupId: existing.groupId,
           expenseId: input.id,
@@ -486,9 +489,22 @@ export const expensesRouter = router({
           actorId: ctx.user.id,
           payload: {
             expenseId: input.id,
-            description: input.description,
-            amount: input.amount,
-            currency: input.currency,
+            before: {
+              description: existing.description,
+              amount: Number(existing.amount),
+              currency: existing.currency,
+              payerId: existing.payerId,
+              splitMode: existing.splitMode,
+              category: existing.category,
+            },
+            after: {
+              description: input.description,
+              amount: workingAmount,
+              currency: input.currency,
+              payerId: input.payerId,
+              splitMode: input.splitMode,
+              category: input.category,
+            },
           },
         });
 

@@ -12,7 +12,7 @@
  * to be evicted on next activation.
  */
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const RUNTIME_CACHE = `easysplits-runtime-${CACHE_VERSION}`;
 
 self.addEventListener("install", () => {

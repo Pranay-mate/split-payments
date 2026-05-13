@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Download,
   FileText,
+  History,
   Loader2,
   MessageSquare,
   Pencil,
@@ -34,6 +35,7 @@ import { BalancesView } from "./balances-view";
 import { ContributionBar } from "./contribution-bar";
 import { GroupSettings } from "./group-settings";
 import { InviteModal } from "./invite-modal";
+import { ItemHistoryModal } from "./item-history-modal";
 import { SubscriptionAudit } from "./subscription-audit";
 import { CommentsThread } from "./comments-thread";
 import { ActivityFeed } from "./activity-feed";
@@ -66,6 +68,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [showCharts, setShowCharts] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [historyForExpense, setHistoryForExpense] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const focusForm = () => {
@@ -531,6 +534,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
+                        onClick={() => setHistoryForExpense(e.id)}
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        aria-label="Show edit history"
+                        title="History"
+                      >
+                        <History className="h-4 w-4" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() =>
                           setCommentingOn((id) => (id === e.id ? null : e.id))
                         }
@@ -829,6 +841,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           inviteToken={groupQuery.data.inviteToken}
           open={inviteOpen}
           onClose={() => setInviteOpen(false)}
+        />
+      )}
+      {historyForExpense && (
+        <ItemHistoryModal
+          expenseId={historyForExpense}
+          open
+          onClose={() => setHistoryForExpense(null)}
+          memberById={memberById}
         />
       )}
     </main>

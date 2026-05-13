@@ -1,9 +1,27 @@
 import { randomBytes } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
-import { profiles } from "@/lib/db/schema";
+import {
+  anomalyMutes,
+  expenseComments,
+  expenseItems,
+  expenseSplits,
+  expenses,
+  financialGoals,
+  financialProfiles,
+  groupMembers,
+  groups,
+  personalEntries,
+  personalHoldings,
+  personalNetWorthSnapshots,
+  personalRecurrences,
+  profiles,
+  scoreSnapshots,
+  settlements,
+} from "@/lib/db/schema";
+import { decryptAmount, decryptValue } from "@/lib/encryption";
 import {
   looksLikeEmailPrefix,
   profileAvatarDefault,
@@ -167,5 +185,238 @@ export const profilesRouter = router({
       .set({ wealthShareToken: token, updatedAt: new Date() })
       .where(eq(profiles.id, ctx.user.id));
     return { token };
+  }),
+
+  /**
+   * "Download everything" export — server-side decryption of every row
+   * that belongs to the caller, then a JSON payload the client turns
+   * into a downloadable file. Surfaced via the profile editor.
+   *
+   * Privacy note: this is the user's own data, returned over their
+   * authed tRPC session. The file produced is plaintext — the UI
+   * shows a "store this securely" reminder.
+   */
+  exportAll: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user.id;
+    const dec = (s: string | null): number | null =>
+      s === null ? null : decryptAmount(s);
+
+    // --- Profile ---
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.id, userId))
+      .limit(1);
+
+    // --- Groups the user is in (plus every related row) ---
+    const memberRows = await db
+      .select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .where(eq(groupMembers.userId, userId));
+    const groupIds = memberRows.map((m) => m.groupId);
+
+    const myGroups = groupIds.length
+      ? await db
+          .select()
+          .from(groups)
+          .where(inArray(groups.id, groupIds))
+      : [];
+    const myMembers = groupIds.length
+      ? await db
+          .select()
+          .from(groupMembers)
+          .where(inArray(groupMembers.groupId, groupIds))
+      : [];
+    const myExpenses = groupIds.length
+      ? await db
+          .select()
+          .from(expenses)
+          .where(inArray(expenses.groupId, groupIds))
+          .orderBy(asc(expenses.occurredAt))
+      : [];
+    const expenseIds = myExpenses.map((e) => e.id);
+    const mySplits = expenseIds.length
+      ? await db
+          .select()
+          .from(expenseSplits)
+          .where(inArray(expenseSplits.expenseId, expenseIds))
+      : [];
+    const myItems = expenseIds.length
+      ? await db
+          .select()
+          .from(expenseItems)
+          .where(inArray(expenseItems.expenseId, expenseIds))
+      : [];
+    const myComments = expenseIds.length
+      ? await db
+          .select()
+          .from(expenseComments)
+          .where(inArray(expenseComments.expenseId, expenseIds))
+      : [];
+    const mySettlements = groupIds.length
+      ? await db
+          .select()
+          .from(settlements)
+          .where(inArray(settlements.groupId, groupIds))
+      : [];
+
+    // --- Personal-side data (decrypted) ---
+    const entries = await db
+      .select()
+      .from(personalEntries)
+      .where(eq(personalEntries.userId, userId))
+      .orderBy(asc(personalEntries.occurredAt));
+    const [finProfile] = await db
+      .select()
+      .from(financialProfiles)
+      .where(eq(financialProfiles.userId, userId))
+      .limit(1);
+    const goals = await db
+      .select()
+      .from(financialGoals)
+      .where(eq(financialGoals.userId, userId));
+    const holdings = await db
+      .select()
+      .from(personalHoldings)
+      .where(eq(personalHoldings.userId, userId));
+    const recurrences = await db
+      .select()
+      .from(personalRecurrences)
+      .where(eq(personalRecurrences.userId, userId));
+    const snapshots = await db
+      .select()
+      .from(scoreSnapshots)
+      .where(eq(scoreSnapshots.userId, userId))
+      .orderBy(asc(scoreSnapshots.snapshottedAt));
+    const netWorthSnaps = await db
+      .select()
+      .from(personalNetWorthSnapshots)
+      .where(eq(personalNetWorthSnapshots.userId, userId))
+      .orderBy(asc(personalNetWorthSnapshots.snapshotDate));
+    const mutes = await db
+      .select()
+      .from(anomalyMutes)
+      .where(eq(anomalyMutes.userId, userId));
+
+    return {
+      meta: {
+        exportedAt: new Date().toISOString(),
+        userId,
+        appVersion: "easysplits",
+        notice:
+          "This file contains your decrypted financial data. Store it securely; anyone with access to it can read your numbers.",
+      },
+      profile: profile
+        ? {
+            id: profile.id,
+            displayName: profile.displayName,
+            avatarUrl: profile.avatarUrl,
+            dob: profile.dob,
+            theme: profile.theme,
+            timezone: profile.timezone,
+            defaultCurrency: profile.defaultCurrency,
+            createdAt: profile.createdAt,
+            updatedAt: profile.updatedAt,
+          }
+        : null,
+      groups: myGroups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        primaryCurrency: g.primaryCurrency,
+        createdAt: g.createdAt,
+        archivedAt: g.archivedAt,
+      })),
+      members: myMembers,
+      expenses: myExpenses.map((e) => ({
+        id: e.id,
+        groupId: e.groupId,
+        description: e.description,
+        amount: Number(e.amount),
+        currency: e.currency,
+        convertedAmount: Number(e.convertedAmount),
+        payerId: e.payerId,
+        splitMode: e.splitMode,
+        category: e.category,
+        occurredAt: e.occurredAt,
+      })),
+      splits: mySplits.map((s) => ({
+        expenseId: s.expenseId,
+        userId: s.userId,
+        amount: Number(s.amount),
+      })),
+      items: myItems,
+      comments: myComments,
+      settlements: mySettlements.map((s) => ({
+        id: s.id,
+        groupId: s.groupId,
+        fromUserId: s.fromUserId,
+        toUserId: s.toUserId,
+        amount: Number(s.amount),
+        note: s.note,
+        occurredAt: s.occurredAt,
+      })),
+      personal: {
+        entries: entries.map((r) => ({
+          id: r.id,
+          type: r.type,
+          amount: decryptAmount(r.amount),
+          currency: r.currency,
+          category: r.category,
+          description: decryptValue(r.description),
+          occurredAt: r.occurredAt,
+          deletedAt: r.deletedAt,
+        })),
+        financialProfile: finProfile
+          ? {
+              age: finProfile.age,
+              retirementAge: finProfile.retirementAge,
+              isFreelancer: finProfile.isFreelancer,
+              hasDependents: finProfile.hasDependents,
+              hasCcCarryover: finProfile.hasCcCarryover,
+              monthlyIncome: dec(finProfile.monthlyIncome),
+              monthlyExpenses: dec(finProfile.monthlyExpenses),
+              liquidSavings: dec(finProfile.liquidSavings),
+              termCoverAmount: dec(finProfile.termCoverAmount),
+              healthCoverAmount: dec(finProfile.healthCoverAmount),
+              totalEmi: dec(finProfile.totalEmi),
+              investmentBalance: dec(finProfile.investmentBalance),
+              monthlyInvestment: dec(finProfile.monthlyInvestment),
+              completedAt: finProfile.completedAt,
+            }
+          : null,
+        goals,
+        holdings: holdings.map((h) => ({
+          id: h.id,
+          name: h.name,
+          type: h.type,
+          units: decryptAmount(h.units),
+          avgCost: decryptAmount(h.avgCost),
+          currentValue: decryptAmount(h.currentValue),
+          asOf: h.asOf,
+          notes: h.notes ? decryptValue(h.notes) : null,
+          archivedAt: h.archivedAt,
+        })),
+        recurrences: recurrences.map((r) => ({
+          id: r.id,
+          type: r.type,
+          amount: decryptAmount(r.amount),
+          description: decryptValue(r.description),
+          category: r.category,
+          currency: r.currency,
+          scheduleDay: r.scheduleDay,
+          nextDueAt: r.nextDueAt,
+          lastFiredAt: r.lastFiredAt,
+          pausedAt: r.pausedAt,
+        })),
+        scoreSnapshots: snapshots,
+        netWorthSnapshots: netWorthSnaps.map((s) => ({
+          snapshotDate: s.snapshotDate,
+          totalValue: decryptAmount(s.totalValue),
+          liquidSavings: decryptAmount(s.liquidSavings),
+          holdingsValue: decryptAmount(s.holdingsValue),
+        })),
+        anomalyMutes: mutes,
+      },
+    };
   }),
 });
