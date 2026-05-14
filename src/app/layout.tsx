@@ -48,6 +48,13 @@ export const metadata: Metadata = {
     title: `${SITE.name} — ${SITE.tagline}`,
     description: SITE.description,
   },
+  // GSC ownership verification for easy-split-payments.vercel.app.
+  // Next renders this as <meta name="google-site-verification"…>. Don't
+  // remove — Google rechecks periodically and revoking the meta tag
+  // unverifies the property (losing accumulated indexing history).
+  verification: {
+    google: "piqFkbWW4n4RAVn3kyzNkLSkTdqzA9iAAC1afe-lJZQ",
+  },
   formatDetection: { email: false, address: false, telephone: false },
   appleWebApp: {
     capable: true,
