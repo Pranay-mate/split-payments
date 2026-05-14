@@ -2,7 +2,7 @@
 
 > Phased roadmap with **per-task status**. Updated as we ship. PLANNING.html mirrors this — keep them in sync.
 
-**Last updated:** 2026-05-09 (full PFT v1→v4 + Phase 2.6 shipped)
+**Last updated:** 2026-05-14 (Mumbai migration · 2026-05-10..14 batch shipped · personal-side offline in flight)
 **Live:** https://easy-split-payments.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 **Status legend:** ✅ done · 🟡 in progress · ⬜ not started · ⏸ blocked (waiting on something)
@@ -261,7 +261,11 @@
 
 ### Active queue (next push)
 
-_(Empty — v4.0 → v4.4 all shipped 2026-05-09. Next candidates: v4.5 mute-category for anomaly alerts, 2-alerts-per-month rate cap, `/insights` dedicated route. None blocking.)_
+| Order | Title | Why it matters | Status |
+| --- | --- | --- | --- |
+| 1 | **Personal-side offline parity** | The marketing copy on `?from=` invites says *"works offline"*. Group mutations honour that; personal `create/update/delete` currently bypass the queue. User chose Option 2 (extend the queue) over softening the message. | 🟡 in progress — `QueuedPath` union + `ALLOWED_PATHS` + `entityKey()` extended in `src/lib/offline/db.ts` + `src/lib/offline/queue.ts`. Still need to wrap `createMutation/updateMutation` in `add-personal-entry.tsx` and `deleteMutation` in `personal-dashboard.tsx` with `useMutationWithQueue`, generate `clientEventId` on create, and pass `clientUpdatedAt` on update. Server side already supports both. |
+| 2 | **GSC indexing — remaining 5 URLs** | 5 of 10 priority URLs indexed (`/`, `/financial-health-india`, `/calculators/trip`, `/calculators/split-bill`, `/features`). Remaining: `/use-cases/split-rent`, `/use-cases/trip-expenses`, `/use-cases/roommate-utilities`, `/use-cases/group-dinner`, `/about`. Daily-quota gated. | ⬜ resume daily as GSC quota allows |
+| 3 | **Manual verifies still pending** | Items marked `🟡 needs manual verify` across Phase 1/2 — guests + claim flow with two Google accounts, creator-only UI gating from a non-creator account, donut/area/KPI charts at 375px, itemized-split end-to-end on a real group, CSV/PDF export, etc. | ⬜ |
 
 ### Onboarding & invite polish — 2026-05-13 batch (sequential ship) — ✅ all shipped
 
@@ -524,3 +528,31 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-09 | **Phase 1.I launch checks** — three real-device verifications complete: PWA install on Android Chrome ✅, PWA install on iOS Safari ✅, offline test (airplane → add expense → reconnect → sync) ✅ end-to-end. |
 | 2026-05-09 | **Voice input** shipped: mic button in AddExpense via browser Web Speech API (en-IN), parser splits transcripts like "pizza six hundred" / "uber 350" into description + amount, auto-prefills the form. No API costs, hidden on Firefox. |
 | 2026-05-09 | Planning: locked **Option B** (server-side field-level encryption via `pgcrypto`) for PFT sensitive columns. Added **5-pillar Financial Health Scorecard** sub-plan (Emergency / Insurance / Debt / Savings rate / Investing), India-specific rule set, onboarding wizard scope, locked disclaimers. Added **v3.5 Anomaly alerts** that piggyback on Phase 2.6 reminder-nudges infrastructure. |
+| 2026-05-10 | **Goal celebration confetti** — when a financial goal flips from in-progress to completed, the dashboard fires `canvas-confetti` (lazy-loaded) once + offers a privacy-safe OG share card. |
+| 2026-05-10 | **Net-worth trajectory chart** in `/app/personal/wealth` — monthly snapshots, lazy-loaded recharts area; falls back to "Take another snapshot" line until ≥2 data points. |
+| 2026-05-10 | **Live demo scorecard** on the landing page — interactive 5-pillar widget with sample data, no login required. Drops bounce-from-landing. |
+| 2026-05-10 | **User timezone applied everywhere** — every date formatter pulls from `profiles.timezone` (set in EditProfile) instead of browser-local. Closes a long-stored-but-unused field. |
+| 2026-05-10 | **Monthly Review modal** (Spotify-Wrapped style) — animated 5-slide deck on /app/personal once per month: spend totals, top category, savings rate, score delta, biggest win. Tap → OG share card via ImageResponse. |
+| 2026-05-10 | **Branded PWA icons v2.6** — gradient sweep donut with ₹ wordmark. 192 + 512 + maskable variants. Shipped via three split files (`icon.tsx`, `icon0.tsx`, `icon1.tsx`, `icon2.tsx`) after Next.js coerced numeric IDs in `generateImageMetadata`. |
+| 2026-05-10 | **`<BrandMark />` component** — replaces every hand-rolled "ES" gradient badge across the app (top nav, login, empty states, footer) so the visual identity stays in sync. |
+| 2026-05-10 | **Lighthouse audit on `/app/groups`**: 93 mobile perf — accepted as ship-it baseline. |
+| 2026-05-10 | **Mumbai migration**: spun up new Supabase project `rnrwjocisbasoupjxeqo` in `ap-south-1` + new Vercel project `easy-split-payments` pinned to `bom1`. Converted `db/schema.sql` → `supabase/migrations/0001_init.sql` for GitHub-auto-deploy. Added `0002_disable_rls.sql` (RLS off — service-role connection). Refactored `financial_profiles` upsert to atomic `INSERT … ON CONFLICT DO UPDATE` because the 2-query Drizzle pattern failed through the transaction pooler. Production now ~10× perceived speed. |
+| 2026-05-10 | **tRPC errors now logged in production** (`onError` no longer gated on `NODE_ENV !== "production"`) — surfaced the ENOTFOUND on the wrong pooler host during the Mumbai cutover. |
+| 2026-05-11 | **PWA update banner** + silent-on-idle apply — service worker bumped to `v4`. New version triggers an in-app banner (`A new version is ready · Reload`) on visibility change, and applies silently after 3min of idle if the user doesn't engage. |
+| 2026-05-11 | **Install-app menu item** in the user menu (permanent fallback) — surfaces Chromium's `beforeinstallprompt` when captured, falls back to a custom iOS "Add to Home Screen" sheet on Safari. Banner-dismissal nag now gated on `firstActionDone` so it never shows before user has logged a first expense / scorecard. |
+| 2026-05-11 | **Group invite QR code** modal — renders the existing `/app/join/[token]` URL with `qrcode.react` (~7 KB). Mobile-to-mobile join in one scan. |
+| 2026-05-11 | **Push-to-creator on join** — when a non-creator member accepts an invite token, the group creator gets a real-time Web Push ("`<name>` joined `<group>`"). |
+| 2026-05-12 | **Onboarding empty states** — every "no data yet" surface gets a contextual CTA + 1-tap path: `/app/groups` → Create your first group (Trip / Roommates / Solo templates); `/app/personal` → Log your first expense; `/app/personal/wealth` → Add your first holding; scorecard → Complete in 60 seconds (with progress bar). |
+| 2026-05-12 | **Goal-progress projections** — goal cards now show "At your current pace → Aug 2026" derived from the slope between snapshots. Falls back to gentle "Take another snapshot" until ≥2 data points. |
+| 2026-05-12 | **Year-over-year trend card** on `/app/personal` — same-month-last-year vs this month, ±delta with badge colour. Hidden when no prior year of data. |
+| 2026-05-12 | **Edit history with diffs** on every expense (and personal entry) — `<ItemHistoryModal />` renders before-after diff rows (amount, description, category, splits) per `events.expense_id` change. |
+| 2026-05-12 | **Download-all-data** modal in user menu — bundles profile + groups + expenses + settlements + personal entries + score snapshots into a single JSON; runs server-side so encrypted columns decrypt before serialising. |
+| 2026-05-12 | **Security: CVE-2026-44574** — bumped Next.js 16.2.4 → 16.2.6 across split-payments + portfolio + finance-site. |
+| 2026-05-13 | **`<InfoTip />`** — accessible info-circle tooltip with viewport-clamped fixed positioning. Closes on outside click / Escape / scroll. Surgical placement on opaque terms across the app. Width clamps to `min(256px, calc(100vw - 24px))`. |
+| 2026-05-13 | **Large-group UX hardening (7 features)** — searchable payer combobox + split picker with "Everyone / Just me / Except me" presets (≥8 members), pairwise balances filter + auto-hide zero pairs (≥12), contribution-bar cap + "Others (N)" segment (≥8 distinct), member-list search + sort (≥8), activity-feed filter chips (≥8 items), soft amber banner at 30+ members. Explicitly skipped: pagination, virtualisation, hard cap. |
+| 2026-05-13 | **Search & filter across personal entries + group expenses** — debounced text search + type / category chips, persists in `?q=` / `?type=` for back-button stability. |
+| 2026-05-13 | **GSC site-verification meta tag** + first 5 priority URLs indexed (`/`, `/financial-health-india`, `/calculators/trip`, `/calculators/split-bill`, `/features`). Sitemap auto-generated from `src/app/sitemap.ts`. |
+| 2026-05-13 | **Auto-roll the /app/personal month picker** at midnight on month-end — `visibilitychange` listener snaps the dropdown to the new "current" if the user was viewing the previous month at the moment it became "last". 6 months history visible; year selector added when more than 12 months exist. |
+| 2026-05-13 | **`/about` page restored** + footer link no longer 404s. Branded dynamic favicon (R wordmark) replaces the create-next-app default. Yandex-only Host directive stripped from `robots.txt`. |
+| 2026-05-13 | **Share with friends** — personalized invite URL `?from=<firstName>` with sanitiser (latin + Devanagari + Hebrew + apostrophes/hyphens, 24-char cap). Top-of-home gradient banner + dynamic OG card (Satori-rendered, CSS-only, every div `display:flex` to satisfy ImageResponse). Web Share API → clipboard fallback. |
+| 2026-05-14 | **Honest-claim audit**: `?from=` invite copy says "works offline". Group mutations honour that; personal `create/update/delete` currently bypass the queue. User chose **Option 2 — extend the queue** (over softening the copy). Started: `QueuedPath` + `ALLOWED_PATHS` + `entityKey()` extended for `personal.*` paths. Pending: wrap mutations + ship. |
