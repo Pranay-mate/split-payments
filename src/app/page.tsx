@@ -28,19 +28,23 @@ export async function generateMetadata({
   const sp = await searchParams;
   const from = cleanFromName(sp.from);
   if (!from) return {};
-  // Override the default homepage title/description when arriving via a
-  // shared link — the WhatsApp / Twitter / LinkedIn preview becomes a
-  // friend recommendation instead of generic homepage meta.
+  // Override the default homepage title/description AND OG image when
+  // arriving via a shared link — the WhatsApp / Twitter / LinkedIn
+  // preview becomes a personalised friend recommendation card.
+  const initial = from.slice(0, 1).toUpperCase();
+  const ogUrl = `/api/og/milestone?type=invite&from=${encodeURIComponent(from)}&initial=${encodeURIComponent(initial)}`;
   return {
     title: `${from} invited you to EasySplits`,
     description: `${from} thought you'd like this — a free, India-first app for splitting bills with friends and tracking your own money. Encrypted, no ads, works offline.`,
     openGraph: {
       title: `${from} invited you to EasySplits`,
       description: `${from} thinks you'll love EasySplits — try the free scorecard + group splitter.`,
+      images: [{ url: ogUrl, width: 1200, height: 630, alt: `${from} invited you to EasySplits` }],
     },
     twitter: {
       title: `${from} invited you to EasySplits`,
       description: `${from} thinks you'll love EasySplits — try the free scorecard + group splitter.`,
+      images: [ogUrl],
     },
   };
 }

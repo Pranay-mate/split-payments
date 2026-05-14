@@ -83,6 +83,12 @@ export async function GET(req: NextRequest) {
         initial,
       });
     }
+    if (type === "invite") {
+      return inviteCard({
+        from: (url.searchParams.get("from") ?? "").slice(0, 24),
+        initial,
+      });
+    }
     return scoreCard({
       score: clampScore(url.searchParams.get("score")),
       band: parseBand(url.searchParams.get("band")),
@@ -544,6 +550,121 @@ function monthlyReviewCard({
               ))}
             </div>
           )}
+        </div>
+        <Footer />
+      </div>
+    ),
+    { width: 1200, height: 630, headers: CACHE_HEADERS },
+  );
+}
+
+/**
+ * Share-with-friends invite card. Shown by WhatsApp / iMessage / Twitter
+ * / LinkedIn when the recipient sees a `?from=<firstName>` link unfurl.
+ *
+ * Gradient mirrors the on-page banner (indigo → violet → emerald) so the
+ * preview and the destination feel like the same surface.
+ */
+function inviteCard({ from, initial }: { from: string; initial: string }) {
+  const greeting = from
+    ? `${from} invited you to EasySplits`
+    : "You're invited to EasySplits";
+  const tagline = from
+    ? `${from} thinks you'll love it — split bills + track your money, free + offline.`
+    : "Split bills with friends + track your own money — free, India-first, works offline.";
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          background:
+            "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
+          color: "white",
+          fontFamily:
+            "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          padding: 80,
+        }}
+      >
+        <Brand initial={initial} />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            flex: 1,
+            marginTop: 32,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              fontSize: 28,
+              fontWeight: 600,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              opacity: 0.9,
+            }}
+          >
+            You&apos;re invited
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 84,
+              fontWeight: 800,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.05,
+              marginTop: 16,
+            }}
+          >
+            {greeting}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 32,
+              fontWeight: 500,
+              lineHeight: 1.35,
+              marginTop: 24,
+              opacity: 0.95,
+              maxWidth: 920,
+            }}
+          >
+            {tagline}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 32,
+              flexWrap: "wrap",
+            }}
+          >
+            {[
+              "Encrypted",
+              "No ads",
+              "Works offline",
+              "India-first",
+            ].map((label) => (
+              <div
+                key={label}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "8px 16px",
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.18)",
+                  fontSize: 22,
+                  fontWeight: 600,
+                }}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
         </div>
         <Footer />
       </div>

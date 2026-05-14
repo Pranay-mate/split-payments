@@ -42,11 +42,23 @@ export const metadata: Metadata = {
     description: SITE.description,
     url: SITE.url,
     siteName: SITE.name,
+    // Default unfurl card for WhatsApp / iMessage / Twitter / LinkedIn.
+    // The friend-invite path (?from=…) overrides this with a personalised
+    // version in src/app/page.tsx generateMetadata().
+    images: [
+      {
+        url: "/api/og/milestone?type=invite",
+        width: 1200,
+        height: 630,
+        alt: `${SITE.name} — ${SITE.tagline}`,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: `${SITE.name} — ${SITE.tagline}`,
     description: SITE.description,
+    images: ["/api/og/milestone?type=invite"],
   },
   // GSC ownership verification for easy-split-payments.vercel.app.
   // Next renders this as <meta name="google-site-verification"…>. Don't
