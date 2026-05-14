@@ -17,6 +17,9 @@ const ALLOWED_PATHS: ReadonlySet<QueuedPath> = new Set<QueuedPath>([
   "settlements.delete",
   "comments.add",
   "comments.delete",
+  "personal.create",
+  "personal.update",
+  "personal.delete",
 ]);
 
 export async function enqueue(
@@ -128,12 +131,13 @@ function isPermanentError(err: unknown): boolean {
  * get batched into a single HTTP request — a meaningful Mumbai→Sydney
  * latency win.
  */
-function entityKey(item: QueuedMutation): string {
+export function entityKey(item: QueuedMutation): string {
   const input = item.input as { id?: string; clientEventId?: string };
   const entityId = input.id ?? input.clientEventId ?? item.clientEventId;
   if (item.path.startsWith("expenses.")) return `expense:${entityId}`;
   if (item.path.startsWith("settlements.")) return `settlement:${entityId}`;
   if (item.path.startsWith("comments.")) return `comment:${entityId}`;
+  if (item.path.startsWith("personal.")) return `personal-entry:${entityId}`;
   return `${item.path}:${entityId}`;
 }
 

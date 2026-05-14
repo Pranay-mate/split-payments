@@ -28,6 +28,7 @@ import { RecurrencesCard } from "./recurrences-card";
 import { Scorecard } from "./scorecard";
 import { YearlyTrendCard } from "./yearly-trend-card";
 import { MonthlyReviewModal } from "@/components/monthly-review-modal";
+import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 const PersonalCharts = dynamic(
   () => import("./personal-charts").then((m) => m.PersonalCharts),
@@ -135,6 +136,14 @@ export function PersonalDashboard() {
       utils.personal.summary.invalidate();
       utils.personal.topCategoriesThisMonth.invalidate();
       utils.personal.availableMonths.invalidate();
+    },
+  });
+  const submitDelete = useMutationWithQueue("personal.delete", deleteMutation, {
+    onQueued: (rawInput) => {
+      const i = rawInput as { id: string };
+      utils.personal.list.setData({ month }, (old) =>
+        old ? old.filter((e) => e.id !== i.id) : old,
+      );
     },
   });
 
@@ -514,8 +523,10 @@ export function PersonalDashboard() {
                               if (!confirm("Remove this entry?")) return;
                               if (editingId === e.id) setEditingId(null);
                               try {
-                                await deleteMutation.mutateAsync({ id: e.id });
-                                toast.success("Entry removed");
+                                const { queued } = await submitDelete({
+                                  id: e.id,
+                                });
+                                if (!queued) toast.success("Entry removed");
                               } catch (err) {
                                 toast.error(
                                   err instanceof Error

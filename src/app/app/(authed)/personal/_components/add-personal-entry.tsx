@@ -15,6 +15,7 @@ import {
 import { detectCategory } from "@/lib/category-detect";
 import { parseVoiceTranscript } from "@/lib/voice-input";
 import { useVoiceInput } from "@/lib/use-voice-input";
+import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 export type EntryType = "income" | "expense" | "investment";
 
@@ -142,6 +143,80 @@ export function AddPersonalEntry({
     trpc.personal.recurrences.create.useMutation();
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // Optimistically prepend a queued create into the list cache for the
+  // entry's own month, so the user sees their row immediately while
+  // offline. _pending lets the row class indicate "syncs later" if we
+  // ever surface that in the UI.
+  const submitCreate = useMutationWithQueue("personal.create", createMutation, {
+    onQueued: (rawInput, clientEventId) => {
+      const i = rawInput as {
+        type: EntryType;
+        amount: number;
+        currency: string;
+        category: string;
+        description: string;
+        occurredAt: Date;
+      };
+      const occurred = i.occurredAt ?? new Date();
+      const monthKey = `${occurred.getFullYear()}-${String(occurred.getMonth() + 1).padStart(2, "0")}`;
+      utils.personal.list.setData({ month: monthKey }, (old) => {
+        const optimistic = {
+          id: clientEventId,
+          userId: "",
+          type: i.type,
+          amount: i.amount,
+          currency: i.currency,
+          category: i.category,
+          description: i.description,
+          occurredAt: occurred,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          _pending: true,
+        } as unknown as NonNullable<typeof old>[number];
+        return old ? [optimistic, ...old] : [optimistic];
+      });
+    },
+  });
+
+  // For update we don't know which month-cache the row currently lives
+  // in (user could be editing a row whose occurredAt moved to a different
+  // month). Map any cached row matching the id in the entry's-new month
+  // bucket; if the row isn't there yet, the replayed mutation will fix
+  // it on sync.
+  const submitUpdate = useMutationWithQueue("personal.update", updateMutation, {
+    onQueued: (rawInput) => {
+      const i = rawInput as {
+        id: string;
+        type: EntryType;
+        amount: number;
+        currency: string;
+        category: string;
+        description: string;
+        occurredAt: Date;
+      };
+      const occurred = i.occurredAt ?? new Date();
+      const monthKey = `${occurred.getFullYear()}-${String(occurred.getMonth() + 1).padStart(2, "0")}`;
+      utils.personal.list.setData({ month: monthKey }, (old) => {
+        if (!old) return old;
+        return old.map((e) =>
+          e.id === i.id
+            ? ({
+                ...e,
+                type: i.type,
+                amount: i.amount,
+                currency: i.currency,
+                category: i.category,
+                description: i.description,
+                occurredAt: occurred,
+                _pending: true,
+              } as typeof e)
+            : e,
+        );
+      });
+    },
+  });
+
   const reset = () => {
     setDescription("");
     setAmount("");
@@ -159,7 +234,7 @@ export function AddPersonalEntry({
     try {
       const occurred = new Date(`${occurredAt}T00:00:00`);
       if (editing) {
-        await updateMutation.mutateAsync({
+        const { queued } = await submitUpdate({
           id: editing.id,
           type,
           amount: numericAmount,
@@ -169,9 +244,11 @@ export function AddPersonalEntry({
           occurredAt: occurred,
           clientUpdatedAt: new Date(),
         });
-        toast.success("Entry updated");
+        // The queue helper already toasts "Saved offline" — only toast
+        // the green path here so we don't double-up.
+        if (!queued) toast.success("Entry updated");
       } else {
-        await createMutation.mutateAsync({
+        const { queued } = await submitCreate({
           type,
           amount: numericAmount,
           currency,
@@ -179,10 +256,16 @@ export function AddPersonalEntry({
           description: description.trim(),
           occurredAt: occurred,
         });
-        // If user opted in to recurring, also create a recurrence row.
-        // Failure here doesn't roll back the entry — the entry is real
-        // and useful even if the recurrence creation hiccups.
-        if (makeRecurring && recurrenceDay >= 1 && recurrenceDay <= 31) {
+        // Recurrence creation isn't on the offline queue path — skip it
+        // when offline; user can re-toggle "Make recurring" on the
+        // dedicated card once connectivity is back. Failure here doesn't
+        // roll back the entry either.
+        if (
+          !queued &&
+          makeRecurring &&
+          recurrenceDay >= 1 &&
+          recurrenceDay <= 31
+        ) {
           try {
             await recurrenceCreateMutation.mutateAsync({
               type,
@@ -203,11 +286,14 @@ export function AddPersonalEntry({
                 : "Recurrence creation failed",
             );
           }
-        } else {
+        } else if (!queued) {
           toast.success("Entry added");
         }
         reset();
       }
+      // Online: refresh server-truth caches. Offline: invalidate is
+      // harmless — refetch attempts will fail, but onQueued already
+      // wrote the optimistic row into the cache above.
       utils.personal.list.invalidate();
       utils.personal.summary.invalidate();
       utils.personal.topCategoriesThisMonth.invalidate();

@@ -15,7 +15,10 @@ export type QueuedPath =
   | "settlements.create"
   | "settlements.delete"
   | "comments.add"
-  | "comments.delete";
+  | "comments.delete"
+  | "personal.create"
+  | "personal.update"
+  | "personal.delete";
 
 export interface QueuedMutation {
   id?: number;
