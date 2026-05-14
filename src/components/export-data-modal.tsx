@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckCircle2,
   Download,
@@ -249,7 +250,13 @@ export function ExportDataModal({
     );
   };
 
-  return (
+  // Portal to document.body. The user-menu host (SiteHeader) uses
+  // backdrop-blur, which creates a containing block for `position: fixed`
+  // descendants on Webkit/Blink — without the portal, `inset-0` would
+  // resolve to the 56px-tall header rather than the viewport, and the
+  // bottom-sheet would render almost entirely above the visible screen.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/70 backdrop-blur-sm sm:items-center"
       role="dialog"
@@ -258,7 +265,7 @@ export function ExportDataModal({
       onClick={onClose}
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:rounded-3xl"
+        className="relative flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -284,7 +291,7 @@ export function ExportDataModal({
           </p>
         </div>
 
-        <div className="space-y-4 px-5 py-5 sm:px-6">
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
           {/* Privacy reassurance line */}
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
             <Lock
@@ -376,7 +383,8 @@ export function ExportDataModal({
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   CloudDownload,
@@ -228,7 +229,7 @@ export function UserMenu() {
       <EditProfileModal open={editing} onClose={() => setEditing(false)} />
       <ExportDataModal open={exporting} onClose={() => setExporting(false)} />
 
-      {iosInstallModal && (
+      {iosInstallModal && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/70 backdrop-blur-sm sm:items-center"
           role="dialog"
@@ -275,7 +276,8 @@ export function UserMenu() {
               </li>
             </ol>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

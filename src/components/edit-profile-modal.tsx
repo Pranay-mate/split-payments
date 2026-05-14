@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Loader2, Save, Trash2, X } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -361,7 +362,12 @@ function Backdrop({
   children: React.ReactNode;
   onClose: () => void;
 }) {
-  return (
+  // Portal to body — UserMenu lives inside a sticky <header> with
+  // backdrop-blur, which creates a containing block for `position: fixed`
+  // descendants. Without the portal, inset-0 resolves to the 56px header
+  // rather than the viewport.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <>
       <button
         type="button"
@@ -373,10 +379,11 @@ function Backdrop({
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-profile-title"
-        className="fixed inset-x-3 top-12 z-50 mx-auto flex max-h-[calc(100vh-6rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:top-20 sm:max-h-[calc(100vh-10rem)]"
+        className="fixed inset-x-3 top-12 z-50 mx-auto flex max-h-[calc(100dvh-6rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 sm:top-20 sm:max-h-[calc(100dvh-10rem)]"
       >
         {children}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
