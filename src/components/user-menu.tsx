@@ -2,7 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CloudDownload, Download, LogOut, Pencil, Share, Users, Wallet, X } from "lucide-react";
+import {
+  CloudDownload,
+  Download,
+  LogOut,
+  Pencil,
+  Send,
+  Share,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -59,6 +69,44 @@ export function UserMenu() {
     ? meQuery.data.displayName.slice(0, 1).toUpperCase()
     : "";
   const supabase = createSupabaseBrowserClient();
+
+  // First name only (no surname) for the personalized share URL — keeps
+  // the link tasteful + slightly more private than full display name.
+  const firstName = (meQuery.data?.displayName ?? "")
+    .trim()
+    .split(/\s+/)[0]
+    ?.slice(0, 24)
+    ?? "";
+
+  const onShareApp = async () => {
+    setOpen(false);
+    const base =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://easy-split-payments.vercel.app";
+    const url = firstName
+      ? `${base}/?from=${encodeURIComponent(firstName)}`
+      : base + "/";
+    const title = "EasySplits — split bills + track your money";
+    const text = firstName
+      ? `${firstName} thought you'd like this — a free, India-first app for splitting bills with friends and tracking your own money. Encrypted, no ads, works offline.`
+      : "A free, India-first app for splitting bills + tracking your money. Encrypted, no ads, works offline.";
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch (err) {
+        if ((err as DOMException)?.name === "AbortError") return;
+        // Fall through to clipboard on other errors.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied — paste it anywhere");
+    } catch {
+      toast.error("Couldn't copy. Try again.");
+    }
+  };
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -149,6 +197,13 @@ export function UserMenu() {
                 <Download className="h-4 w-4" aria-hidden /> Install app
               </button>
             )}
+            <button
+              type="button"
+              onClick={onShareApp}
+              className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+            >
+              <Send className="h-4 w-4" aria-hidden /> Share with friends
+            </button>
             <button
               type="button"
               onClick={() => {

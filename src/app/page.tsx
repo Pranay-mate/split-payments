@@ -1,13 +1,76 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Users, Wallet } from "lucide-react";
+import { ArrowRight, Send, Sparkles, Users, Wallet } from "lucide-react";
 import { SITE, SPLIT_FEATURES, PERSONAL_FEATURES } from "@/lib/site";
 import { organizationLd, softwareApplicationLd } from "@/lib/jsonld";
 import { LiveScorecardDemo } from "@/components/live-scorecard-demo";
 import { InstallFooterLink } from "@/components/install-footer-link";
 
-export default function HomePage() {
+type SearchParams = Promise<{ from?: string | string[] }>;
+
+/** Sanitize the ?from= name so it can't be used to inject XSS or
+ *  exfiltrate via OG meta. Letters/digits/spaces only, length capped. */
+function cleanFromName(raw: string | string[] | undefined): string | null {
+  if (!raw) return null;
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  const cleaned = v
+    .replace(/[^a-zA-Zऀ-ॿ֐-׿\s'-]/g, "")
+    .trim()
+    .slice(0, 24);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const from = cleanFromName(sp.from);
+  if (!from) return {};
+  // Override the default homepage title/description when arriving via a
+  // shared link — the WhatsApp / Twitter / LinkedIn preview becomes a
+  // friend recommendation instead of generic homepage meta.
+  return {
+    title: `${from} invited you to EasySplits`,
+    description: `${from} thought you'd like this — a free, India-first app for splitting bills with friends and tracking your own money. Encrypted, no ads, works offline.`,
+    openGraph: {
+      title: `${from} invited you to EasySplits`,
+      description: `${from} thinks you'll love EasySplits — try the free scorecard + group splitter.`,
+    },
+    twitter: {
+      title: `${from} invited you to EasySplits`,
+      description: `${from} thinks you'll love EasySplits — try the free scorecard + group splitter.`,
+    },
+  };
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const sp = await searchParams;
+  const fromName = cleanFromName(sp.from);
   return (
     <main className="flex-1">
+      {fromName && (
+        <div className="border-b border-indigo-100 bg-gradient-to-r from-indigo-50 via-violet-50 to-emerald-50 px-4 py-2.5 dark:border-indigo-900/50 dark:from-indigo-950/40 dark:via-violet-950/40 dark:to-emerald-950/40">
+          <div className="mx-auto flex max-w-3xl items-center justify-center gap-2 text-center text-xs">
+            <Send
+              className="h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-400"
+              aria-hidden
+            />
+            <p className="text-slate-700 dark:text-slate-200">
+              <span className="font-semibold">{fromName}</span> thinks
+              you&apos;ll love {SITE.name} —{" "}
+              <span className="text-slate-500 dark:text-slate-400">
+                a free, India-first money app
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(99,102,241,0.18),transparent_60%)] dark:bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(99,102,241,0.30),transparent_60%)]" />
         <div className="mx-auto flex max-w-3xl flex-col items-center px-6 py-20 text-center sm:py-28">
