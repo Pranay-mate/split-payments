@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -81,6 +81,37 @@ export function PersonalDashboard() {
     "all" | "income" | "expense" | "investment"
   >("all");
   const [month, setMonth] = useState<string>(monthKeyForDate(new Date()));
+  // Tracks the month that was "current" the last time we computed it.
+  // When the user lands on this row (via auto-default OR manual pick of
+  // the row labelled current at that moment) and the calendar later
+  // rolls over to a new month, the visibilitychange handler below snaps
+  // them forward — but only if they haven't drifted to a different
+  // historical month, which we infer from `month === lastCurrentRef`.
+  const lastCurrentRef = useRef<string>(monthKeyForDate(new Date()));
+
+  // Snap to the current month when the tab regains visibility on a new
+  // calendar day. Long-lived PWA tabs would otherwise stay stuck on the
+  // old month past midnight on month-end. Only fires when the user is
+  // ALREADY on what was the current month — preserves any deliberate
+  // historical-month browsing they're doing.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const today = monthKeyForDate(new Date());
+      if (today === lastCurrentRef.current) return;
+      const wasOnCurrent = month === lastCurrentRef.current;
+      lastCurrentRef.current = today;
+      if (wasOnCurrent) {
+        queueMicrotask(() => {
+          setMonth(today);
+          setVisibleCount(PAGE_SIZE);
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [month]);
   const [showCharts, setShowCharts] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
   const userTz = useUserTimezone();
