@@ -76,6 +76,10 @@ export function PersonalDashboard() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<
+    "all" | "income" | "expense" | "investment"
+  >("all");
   const [month, setMonth] = useState<string>(monthKeyForDate(new Date()));
   const [showCharts, setShowCharts] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -115,7 +119,24 @@ export function PersonalDashboard() {
     return Array.from(set).sort().reverse();
   }, [monthsQuery.data]);
 
-  const visibleEntries = entries.slice(0, visibleCount);
+  // Client-side search + type filter over the already-fetched month. The
+  // month is filtered server-side; this further narrows by free-text
+  // match on description/category/amount and an income/expense/investment
+  // chip. Browser-fast at ≤500 rows (our practical month max).
+  const filteredEntries = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return entries.filter((e) => {
+      if (typeFilter !== "all" && e.type !== typeFilter) return false;
+      if (!q) return true;
+      // Numeric-ish queries should match amount loosely (allow "1500" to
+      // match a 1500.00 row). Text queries match description + category.
+      if (/^\d/.test(q) && String(e.amount).includes(q)) return true;
+      if (e.description.toLowerCase().includes(q)) return true;
+      if (e.category.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }, [entries, searchQuery, typeFilter]);
+  const visibleEntries = filteredEntries.slice(0, visibleCount);
   const editing = editingId ? entries.find((e) => e.id === editingId) : null;
 
   const savingsPct =
@@ -280,9 +301,72 @@ export function PersonalDashboard() {
         {/* Transactions list — primary daily content surfaces above
             charts/forms (charts are derived; FAB scrolls to add form). */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Transactions ({entries.length})
-          </h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Transactions
+              <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-400">
+                ({filteredEntries.length}
+                {filteredEntries.length !== entries.length
+                  ? ` of ${entries.length}`
+                  : ""}
+                )
+              </span>
+            </h2>
+          </div>
+
+          {/* Search + type filter — only renders when the user has
+              enough entries that scanning the list would be slow. Keeps
+              the dashboard uncluttered for new users. */}
+          {entries.length >= 8 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                placeholder="Search description, category, amount…"
+                className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+              />
+              <div className="inline-flex shrink-0 rounded-full border border-slate-200 bg-white p-0.5 text-[11px] font-medium dark:border-slate-700 dark:bg-slate-900">
+                {(["all", "income", "expense", "investment"] as const).map(
+                  (opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        setTypeFilter(opt);
+                        setVisibleCount(PAGE_SIZE);
+                      }}
+                      aria-pressed={typeFilter === opt}
+                      className={`rounded-full px-2 py-0.5 transition ${
+                        typeFilter === opt
+                          ? "bg-emerald-500 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {opt === "all"
+                        ? "All"
+                        : opt[0].toUpperCase() + opt.slice(1)}
+                    </button>
+                  ),
+                )}
+              </div>
+              {(searchQuery || typeFilter !== "all") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setTypeFilter("all");
+                  }}
+                  className="shrink-0 text-[11px] text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
           {listQuery.isLoading ? (
             <div className="mt-4 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Loading…
@@ -309,6 +393,21 @@ export function PersonalDashboard() {
                 <Plus className="h-4 w-4" aria-hidden /> Add an entry
               </button>
             </div>
+          ) : filteredEntries.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+              No matches.{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setTypeFilter("all");
+                }}
+                className="text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400"
+              >
+                Clear filters
+              </button>
+              {" "}to see all {entries.length} entries.
+            </p>
           ) : (
             <>
               <ul className="mt-4 space-y-2">
@@ -406,25 +505,25 @@ export function PersonalDashboard() {
                   );
                 })}
               </ul>
-              {entries.length > visibleCount && (
+              {filteredEntries.length > visibleCount && (
                 <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
                   <button
                     type="button"
                     onClick={() =>
                       setVisibleCount((n) =>
-                        Math.min(n + PAGE_SIZE, entries.length),
+                        Math.min(n + PAGE_SIZE, filteredEntries.length),
                       )
                     }
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
                   >
-                    Show {Math.min(PAGE_SIZE, entries.length - visibleCount)} more
+                    Show {Math.min(PAGE_SIZE, filteredEntries.length - visibleCount)} more
                   </button>
                   <button
                     type="button"
-                    onClick={() => setVisibleCount(entries.length)}
+                    onClick={() => setVisibleCount(filteredEntries.length)}
                     className="text-xs font-medium text-emerald-600 transition hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                   >
-                    Show all {entries.length}
+                    Show all {filteredEntries.length}
                   </button>
                 </div>
               )}

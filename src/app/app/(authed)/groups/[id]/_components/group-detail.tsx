@@ -69,6 +69,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [exportingPdf, setExportingPdf] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [historyForExpense, setHistoryForExpense] = useState<string | null>(null);
+  const [expenseSearch, setExpenseSearch] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
   const focusForm = () => {
@@ -182,10 +183,30 @@ export function GroupDetail({ groupId }: { groupId: string }) {
     | { kind: "day"; key: string; label: string; total: number; count: number }
     | { kind: "expense"; expense: ExpenseRow };
 
+  // Client-side search across the loaded expenses. Matches description,
+  // category, payer name, and (loose) amount. Inline (not memoized) —
+  // expensesQuery already lives behind a useQuery cache, and even a
+  // 500-row .filter() is sub-millisecond in practice. Memoizing here
+  // would also fight the early-return-before-this-line rule of hooks.
+  const filteredExpenses = (() => {
+    const q = expenseSearch.trim().toLowerCase();
+    if (!q) return expenses;
+    return expenses.filter((e) => {
+      if (e.description?.toLowerCase().includes(q)) return true;
+      if (e.category?.toLowerCase().includes(q)) return true;
+      const payerName = memberById.get(e.payerId)?.name ?? "";
+      if (payerName.toLowerCase().includes(q)) return true;
+      if (/^\d/.test(q) && String(e.convertedAmount).includes(q)) return true;
+      return false;
+    });
+  })();
+
   // Pagination only applies in Recent mode — By day mode is already
   // visually broken up by date headers so truncating there fights the layout.
   const visibleExpenses =
-    viewMode === "byDay" ? expenses : expenses.slice(0, visibleCount);
+    viewMode === "byDay"
+      ? filteredExpenses
+      : filteredExpenses.slice(0, visibleCount);
 
   const displayItems: DisplayItem[] = (() => {
     if (viewMode === "recent") {
@@ -443,23 +464,52 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             )
           ) : (
             <>
-            <div className="mt-4 inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900">
-              {(["recent", "byDay"] as const).map((mode) => (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900">
+                {(["recent", "byDay"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setViewMode(mode)}
+                    aria-pressed={viewMode === mode}
+                    className={`rounded-md px-2.5 py-1 transition ${
+                      viewMode === mode
+                        ? "bg-emerald-500 text-white"
+                        : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    {mode === "recent" ? "Recent" : "By day"}
+                  </button>
+                ))}
+              </div>
+              {expenses.length >= 8 && (
+                <input
+                  type="search"
+                  value={expenseSearch}
+                  onChange={(e) => {
+                    setExpenseSearch(e.target.value);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
+                  placeholder="Search description, category, payer, amount…"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900"
+                />
+              )}
+              {expenseSearch && (
                 <button
-                  key={mode}
                   type="button"
-                  onClick={() => setViewMode(mode)}
-                  aria-pressed={viewMode === mode}
-                  className={`rounded-md px-2.5 py-1 transition ${
-                    viewMode === mode
-                      ? "bg-emerald-500 text-white"
-                      : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                  }`}
+                  onClick={() => setExpenseSearch("")}
+                  className="shrink-0 text-[11px] text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline dark:text-slate-400 dark:hover:text-slate-200"
                 >
-                  {mode === "recent" ? "Recent" : "By day"}
+                  Clear
                 </button>
-              ))}
+              )}
             </div>
+            {expenseSearch && (
+              <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                {filteredExpenses.length} of {expenses.length} match
+                &ldquo;{expenseSearch}&rdquo;
+              </p>
+            )}
             <ul className="mt-3 space-y-2">
               {displayItems.map((item) => {
                 if (item.kind === "day") {
@@ -615,31 +665,31 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 );
               })}
             </ul>
-            {viewMode === "recent" && expenses.length > visibleCount && (
+            {viewMode === "recent" && filteredExpenses.length > visibleCount && (
               <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
                 <button
                   type="button"
                   onClick={() =>
                     setVisibleCount((n) =>
-                      Math.min(n + PAGE_SIZE, expenses.length),
+                      Math.min(n + PAGE_SIZE, filteredExpenses.length),
                     )
                   }
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
                 >
-                  Show {Math.min(PAGE_SIZE, expenses.length - visibleCount)} more
+                  Show {Math.min(PAGE_SIZE, filteredExpenses.length - visibleCount)} more
                 </button>
                 <button
                   type="button"
-                  onClick={() => setVisibleCount(expenses.length)}
+                  onClick={() => setVisibleCount(filteredExpenses.length)}
                   className="text-xs font-medium text-emerald-600 transition hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                 >
-                  Show all {expenses.length}
+                  Show all {filteredExpenses.length}
                 </button>
               </div>
             )}
             {viewMode === "recent" &&
               visibleCount > PAGE_SIZE &&
-              visibleCount >= expenses.length && (
+              visibleCount >= filteredExpenses.length && (
                 <button
                   type="button"
                   onClick={() => setVisibleCount(PAGE_SIZE)}
