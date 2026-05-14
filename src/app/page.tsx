@@ -66,8 +66,10 @@ export default async function HomePage({
               aria-hidden
             />
             <p className="text-slate-700 dark:text-slate-200">
-              <span className="font-semibold">{fromName}</span> thinks
-              you&apos;ll love {SITE.name} —{" "}
+              <span className="font-semibold">{fromName}</span>
+              {" thinks you'll love "}
+              {SITE.name}
+              {" — "}
               <span className="text-slate-500 dark:text-slate-400">
                 a free, India-first money app
               </span>
