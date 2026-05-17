@@ -14,7 +14,7 @@
  * date window to avoid full-table scans as the data grows.
  */
 import { z } from "zod";
-import { sql, gte, desc } from "drizzle-orm";
+import { sql, gte, desc, lt, and } from "drizzle-orm";
 import { router } from "../trpc";
 import { adminProcedure } from "../admin-auth";
 import { db } from "@/lib/db";
@@ -26,6 +26,8 @@ import {
   personalEntries,
   groupMembers,
   expenses,
+  groups,
+  pushSubscriptions,
 } from "@/lib/db/schema";
 
 /** Start of day (UTC) for the given offset-from-today. dayOffset=0 → today's midnight. */
@@ -84,98 +86,202 @@ export const adminRouter = router({
       const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      // Single query — all 9 KPI counts + 2 WoW priors in one round trip.
-      const countsResult = await db.execute<{
-        total_users: number;
-        users_seven_day_prior: number;
-        dau: number;
-        wau: number;
-        mau: number;
-        prior_dau: number;
-        prior_wau: number;
-        today_signups: number;
-        today_groups: number;
-        today_expenses: number;
-        active_push: number;
-      }>(sql`
-        SELECT
-          (SELECT count(*)::int FROM profiles) AS total_users,
-          (SELECT count(*)::int FROM profiles WHERE created_at < ${sevenDaysAgo}) AS users_seven_day_prior,
-          (SELECT count(DISTINCT actor_id)::int FROM events WHERE occurred_at >= ${oneDayAgo}) AS dau,
-          (SELECT count(DISTINCT actor_id)::int FROM events WHERE occurred_at >= ${sevenDaysAgo}) AS wau,
-          (SELECT count(DISTINCT actor_id)::int FROM events WHERE occurred_at >= ${thirtyDaysAgo}) AS mau,
-          (SELECT count(DISTINCT actor_id)::int FROM events
-             WHERE occurred_at >= ${eightDaysAgo} AND occurred_at < ${oneDayAgo}) AS prior_dau,
-          (SELECT count(DISTINCT actor_id)::int FROM events
-             WHERE occurred_at >= ${fourteenDaysAgo} AND occurred_at < ${sevenDaysAgo}) AS prior_wau,
-          (SELECT count(*)::int FROM profiles WHERE created_at >= ${today}) AS today_signups,
-          (SELECT count(*)::int FROM groups WHERE created_at >= ${today}) AS today_groups,
-          (SELECT count(*)::int FROM expenses WHERE created_at >= ${today}) AS today_expenses,
-          (SELECT count(*)::int FROM push_subscriptions) AS active_push
-      `);
-      const c = countsResult[0]!;
+      // Each query is wrapped so partial failure doesn't bring down the
+      // whole pulse — we render zeros instead. Sequential execution
+      // (not Promise.all) so we never hold more than 1 pool connection
+      // at a time. With Mumbai pooler latency this is ~10-30ms each =
+      // ~250ms total for the worst case, well within budget.
+      const safe = async <T,>(label: string, run: () => Promise<T>, fallback: T): Promise<T> => {
+        try {
+          return await run();
+        } catch (err) {
+          console.error(`[admin.pulse:${label}] failed:`, err);
+          return fallback;
+        }
+      };
 
-      // Single query for sparkline data — UNION ALL across the three
-      // source tables, then group by (kind, day) in app-land.
-      const bucketRows = await db.execute<{ kind: string; day: string; count: number }>(sql`
-        SELECT 'signups' AS kind,
-               to_char(created_at, 'YYYY-MM-DD') AS day,
-               count(*)::int AS count
-          FROM profiles
-         WHERE created_at >= ${sevenDaysAgo}
-         GROUP BY day
-        UNION ALL
-        SELECT 'groups', to_char(created_at, 'YYYY-MM-DD'), count(*)::int
-          FROM groups
-         WHERE created_at >= ${sevenDaysAgo}
-         GROUP BY 2
-        UNION ALL
-        SELECT 'expenses', to_char(created_at, 'YYYY-MM-DD'), count(*)::int
-          FROM expenses
-         WHERE created_at >= ${sevenDaysAgo}
-         GROUP BY 2
-      `);
+      const cnt = (rows: { count: number }[]): number => rows[0]?.count ?? 0;
 
-      const signupsBucket: { day: string; count: number }[] = [];
-      const groupsBucket: { day: string; count: number }[] = [];
-      const expensesBucket: { day: string; count: number }[] = [];
-      for (const r of bucketRows) {
-        const entry = { day: r.day, count: r.count };
-        if (r.kind === "signups") signupsBucket.push(entry);
-        else if (r.kind === "groups") groupsBucket.push(entry);
-        else if (r.kind === "expenses") expensesBucket.push(entry);
-      }
+      const totalUsers = await safe(
+        "totalUsers",
+        async () =>
+          cnt(
+            await db.select({ count: sql<number>`count(*)::int` }).from(profiles),
+          ),
+        0,
+      );
+      const usersSevenDayPrior = await safe(
+        "usersSevenDayPrior",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(profiles)
+              .where(lt(profiles.createdAt, sevenDaysAgo)),
+          ),
+        0,
+      );
+      const dau = await safe(
+        "dau",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(distinct ${events.actorId})::int` })
+              .from(events)
+              .where(gte(events.occurredAt, oneDayAgo)),
+          ),
+        0,
+      );
+      const wau = await safe(
+        "wau",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(distinct ${events.actorId})::int` })
+              .from(events)
+              .where(gte(events.occurredAt, sevenDaysAgo)),
+          ),
+        0,
+      );
+      const mau = await safe(
+        "mau",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(distinct ${events.actorId})::int` })
+              .from(events)
+              .where(gte(events.occurredAt, thirtyDaysAgo)),
+          ),
+        0,
+      );
+      const priorDau = await safe(
+        "priorDau",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(distinct ${events.actorId})::int` })
+              .from(events)
+              .where(and(gte(events.occurredAt, eightDaysAgo), lt(events.occurredAt, oneDayAgo))),
+          ),
+        0,
+      );
+      const priorWau = await safe(
+        "priorWau",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(distinct ${events.actorId})::int` })
+              .from(events)
+              .where(and(gte(events.occurredAt, fourteenDaysAgo), lt(events.occurredAt, sevenDaysAgo))),
+          ),
+        0,
+      );
+      const todaySignups = await safe(
+        "todaySignups",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(profiles)
+              .where(gte(profiles.createdAt, today)),
+          ),
+        0,
+      );
+      const todayGroups = await safe(
+        "todayGroups",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(groups)
+              .where(gte(groups.createdAt, today)),
+          ),
+        0,
+      );
+      const todayExpenses = await safe(
+        "todayExpenses",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(expenses)
+              .where(gte(expenses.createdAt, today)),
+          ),
+        0,
+      );
+      const activePushSubs = await safe(
+        "activePushSubs",
+        async () =>
+          cnt(
+            await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(pushSubscriptions),
+          ),
+        0,
+      );
 
-      const stickiness = c.mau > 0 ? Math.round((c.dau / c.mau) * 100) : 0;
+      // Sparkline buckets — independent queries, each gated by safe()
+      // so a slow/failing one doesn't take down the whole pulse.
+      const dayCol = (col: ReturnType<typeof sql>) =>
+        sql<string>`to_char(${col}, 'YYYY-MM-DD')`;
+      const signupsBucket = await safe(
+        "signupsBucket",
+        async () =>
+          await db
+            .select({
+              day: dayCol(profiles.createdAt as unknown as ReturnType<typeof sql>),
+              count: sql<number>`count(*)::int`,
+            })
+            .from(profiles)
+            .where(gte(profiles.createdAt, sevenDaysAgo))
+            .groupBy(dayCol(profiles.createdAt as unknown as ReturnType<typeof sql>)),
+        [] as { day: string; count: number }[],
+      );
+      const groupsBucket = await safe(
+        "groupsBucket",
+        async () =>
+          await db
+            .select({
+              day: dayCol(groups.createdAt as unknown as ReturnType<typeof sql>),
+              count: sql<number>`count(*)::int`,
+            })
+            .from(groups)
+            .where(gte(groups.createdAt, sevenDaysAgo))
+            .groupBy(dayCol(groups.createdAt as unknown as ReturnType<typeof sql>)),
+        [] as { day: string; count: number }[],
+      );
+      const expensesBucket = await safe(
+        "expensesBucket",
+        async () =>
+          await db
+            .select({
+              day: dayCol(expenses.createdAt as unknown as ReturnType<typeof sql>),
+              count: sql<number>`count(*)::int`,
+            })
+            .from(expenses)
+            .where(gte(expenses.createdAt, sevenDaysAgo))
+            .groupBy(dayCol(expenses.createdAt as unknown as ReturnType<typeof sql>)),
+        [] as { day: string; count: number }[],
+      );
+
+      const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0;
 
       const result = {
         totalUsers: {
-          value: c.total_users,
-          delta: c.total_users - c.users_seven_day_prior,
+          value: totalUsers,
+          delta: totalUsers - usersSevenDayPrior,
           sparkline: fill7(signupsBucket),
         },
-        dau: { value: c.dau, delta: c.dau - c.prior_dau, sparkline: [] },
-        wau: { value: c.wau, delta: c.wau - c.prior_wau, sparkline: [] },
-        mau: { value: c.mau, delta: 0, sparkline: [] },
+        dau: { value: dau, delta: dau - priorDau, sparkline: [] },
+        wau: { value: wau, delta: wau - priorWau, sparkline: [] },
+        mau: { value: mau, delta: 0, sparkline: [] },
         stickiness: { value: stickiness, delta: 0, sparkline: [] },
-        todaySignups: {
-          value: c.today_signups,
-          delta: 0,
-          sparkline: fill7(signupsBucket),
-        },
-        todayGroups: {
-          value: c.today_groups,
-          delta: 0,
-          sparkline: fill7(groupsBucket),
-        },
-        todayExpenses: {
-          value: c.today_expenses,
-          delta: 0,
-          sparkline: fill7(expensesBucket),
-        },
-        activePushSubs: { value: c.active_push, delta: 0, sparkline: [] },
+        todaySignups: { value: todaySignups, delta: 0, sparkline: fill7(signupsBucket) },
+        todayGroups: { value: todayGroups, delta: 0, sparkline: fill7(groupsBucket) },
+        todayExpenses: { value: todayExpenses, delta: 0, sparkline: fill7(expensesBucket) },
+        activePushSubs: { value: activePushSubs, delta: 0, sparkline: [] },
       };
-      console.log(`[admin.pulse] ${Date.now() - t0}ms`);
+      console.log(`[admin.pulse] ok in ${Date.now() - t0}ms`);
       return result;
     } catch (err) {
       console.error(`[admin.pulse] failed after ${Date.now() - t0}ms:`, err);
