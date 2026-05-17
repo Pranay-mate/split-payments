@@ -7,7 +7,7 @@
 > Canonical roadmap stays in `PLANNING.md` / `PLANNING.html`. This file only
 > captures *in-flight* state and decisions that aren't yet in those.
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-17
 **Branch:** `main` (no working branches — push directly)
 **Live:** https://easy-split-payments.vercel.app
 
@@ -15,7 +15,67 @@
 
 ## In-flight work
 
-### 🟡 Personal-side offline parity (Option 2 from 2026-05-14 audit)
+### 🟡 Phase 2.8 — Admin panel v1 (planned 2026-05-17)
+
+**Why:** founder-only observability surface. User has zero metrics visibility
+today; needs a single-page admin view to understand growth + activation.
+
+**Locked decisions:**
+- Auth gate by `ADMIN_USER_IDS` env var (comma-separated UUIDs), checked in a
+  tRPC `adminOnly()` middleware + `/app/admin/page.tsx` server-redirect.
+  Explicitly **no separate password** — extra password is more attack surface
+  than the existing Google MFA.
+- **Privacy constraint:** aggregate-only metrics. Amounts surface as buckets
+  (`₹<100` / `₹100-500` / `₹500-2k` / `₹2k+`), never exact values. This
+  preserves the app's *"our database only ever sees scrambled text, not your
+  numbers"* promise. No per-user financial drill-down anywhere.
+- Bundle isolation: admin route ships its own lazy chunk; recharts + heavy
+  formatters imported only inside `/app/admin/*`.
+
+**Scope (v1):**
+- 8 KPI tiles with sparklines (DAU/WAU/MAU, stickiness, today's signups etc.)
+- 90-day signups line chart with 7-day rolling avg overlay
+- Activation funnel (horizontal bars, %)
+- Anonymised activity feed (last 50 events)
+
+**Deferred to v2 (50+ users):** cohort retention, distributions, feature
+adoption donuts.
+**Deferred to v3 (200+ users):** geographic, source attribution, operational
+health, log explorer.
+
+**Files to create:**
+- `src/server/middleware/admin.ts` — `adminOnly()` tRPC middleware
+- `src/server/routers/admin.ts` — `pulse`, `signupsByDay`, `funnel`, `feed`
+- `src/app/app/admin/page.tsx` — admin route with server redirect
+- `src/app/app/admin/_components/*.tsx` — KPI tile, charts, feed
+
+**Reference:** PLANNING.md "Phase 2.8 — Admin panel" section + PLANNING.html.
+
+### ⬜ Magic-link delivery — needs custom SMTP (diagnosed 2026-05-17)
+
+**Symptom:** user reports magic-link emails not arriving. Google OAuth works.
+
+**Diagnosis:** code is correct (`signInWithOtp` + `emailRedirectTo: <origin>/auth/callback` + `shouldCreateUser: true` in `src/app/app/login/_components/login-form.tsx:46-61`).
+
+The bottleneck is Supabase free tier's built-in SMTP: **only 2 emails/hour
+per project**. Past the cap, Supabase returns `status: 200` from the API
+(so the app's toast says "Magic link sent"), but the email itself is silently
+dropped at the SMTP layer.
+
+**Fix (user action, ~15 min):**
+1. Sign up at [resend.com](https://resend.com) — free tier 100/day, 3000/mo.
+2. Verify sender domain (or use their `onboarding@resend.dev` for testing).
+3. Supabase dashboard → Auth → SMTP Settings → enable custom SMTP, paste
+   Resend SMTP credentials.
+4. Verify the Site URL + Redirect URLs allowlist still include
+   `https://easy-split-payments.vercel.app` and
+   `https://easy-split-payments.vercel.app/auth/callback*` post-migration.
+
+**Triage step before SMTP swap:** Supabase dashboard → Logs → Auth logs.
+Recent `/auth/v1/otp` calls will show either `Too Many Requests` (confirms
+rate-limit diagnosis) or another error (different root cause).
+
+### ✅ Personal-side offline parity — SHIPPED 2026-05-14
 
 **Why:** the `?from=<firstName>` share-with-friends banner promises *"a free,
 India-first app for splitting bills + tracking your money. Encrypted, no ads,

@@ -92,7 +92,7 @@
   <h1>EasySplits — PLANNING</h1>
   <p class="lead">Splitwise alternative. Free + ads, India-default + multi-currency, offline-capable PWA, SEO-first.</p>
   <p class="meta">
-    Updated <strong>2026-05-14</strong> (Mumbai migration · 2026-05-10..14 batch shipped · personal-side offline in flight) ·
+    Updated <strong>2026-05-17</strong> (Phase 2.8 Admin panel planned · magic-link SMTP issue diagnosed · personal-side offline shipped) ·
     <span class="badge badge-ok">Phase 1 ~95% done</span> ·
     <span class="badge badge-info">Live: <a href="https://easy-split-payments.vercel.app" style="color:inherit">easy-split-payments.vercel.app</a></span>
   </p>
@@ -424,6 +424,45 @@
   </tbody></table>
   <p class="meta"><strong>Skipped:</strong> per-expense view (already covered by the expense list which shows splits per row).</p>
 
+  <h2>Phase 2.8 — Admin panel <span class="badge badge-warn">planned</span></h2>
+  <p class="meta">Solo-dev observability surface at <code>/app/admin</code>. Built for the founder only — not a multi-tenant admin product. <strong>Aggregate-only metrics, no per-user financial drill-down</strong> so the encryption privacy promise stays intact.</p>
+
+  <h3>Locked decisions (2026-05-17)</h3>
+  <table><tbody>
+    <tr><td class="task"><strong>Auth model</strong> — No separate password. Gate by <code>ctx.user.id ∈ ADMIN_USER_IDS</code> env var (comma-separated UUIDs). A second password is more attack surface, not less — Google MFA on the existing account is stronger. tRPC middleware <code>adminOnly()</code> throws FORBIDDEN; <code>/app/admin/page.tsx</code> server-redirects on miss. v2 may add an optional TOTP step before admin routes hydrate.</td><td class="status">🔒 locked</td></tr>
+    <tr><td class="task"><strong>Privacy constraint</strong> — The app promises <em>"our database only ever sees scrambled text, not your numbers."</em> Admin panel must respect this: aggregate counts/distributions/percentiles only. Amounts surface as buckets (<code>₹&lt;100</code> · <code>₹100-500</code> · <code>₹500-2k</code> · <code>₹2k+</code>) — never exact. User-level support troubleshooting uses metadata (<code>user_id</code>, <code>created_at</code>, <code>last_active</code>, group/expense count) — never amounts. Decrypting an individual user's salary into the admin UI = breaking the promise.</td><td class="status">🔒 locked</td></tr>
+    <tr><td class="task"><strong>Bundle isolation</strong> — Admin route ships its own lazy chunk. Recharts + heavy formatters import inside <code>/app/admin/*</code> only — they never enter the main app bundle.</td><td class="status">🔒 locked</td></tr>
+  </tbody></table>
+
+  <h3>Data points (v1)</h3>
+  <table><tbody>
+    <tr><td class="task"><strong>Pulse — KPI tiles with sparklines + 7d delta</strong>: Total users · DAU · WAU · MAU · DAU/MAU stickiness · Today's signups/groups/expenses · Push subscribers · Offline queue items globally.</td><td class="status">v1</td></tr>
+    <tr><td class="task"><strong>Growth — line/area charts</strong>: New signups per day (90d) with 7-day rolling avg · WAU/MAU trends · Cohort retention (W+1, W+2, W+4, W+8) · Top referrers (<code>?from=</code> vs direct vs organic).</td><td class="status">v1 / v2</td></tr>
+    <tr><td class="task"><strong>Activation funnel</strong>: Signup → first group · Group → first expense · Signup → first personal entry · Started scorecard → completed · Completed scorecard → returned within 7d. Horizontal bars with %.</td><td class="status">v1</td></tr>
+    <tr><td class="task"><strong>Engagement distributions — histograms</strong>: Members per group (2 / 3-5 / 6-10 / 11-20 / 20+) · Expenses per group (0 / 1-5 / 6-20 / 21-100 / 100+) · Personal entries per active user (30d) · Score band distribution · Goal counts (active / completed / archived).</td><td class="status">v2</td></tr>
+    <tr><td class="task"><strong>Feature adoption — donuts/bars</strong>: PWA installed vs web-only · Push opt-in rate · Voice input use rate · Offline-queue trigger rate · Device split (iOS/Android/Desktop) · Browser split.</td><td class="status">v2</td></tr>
+    <tr><td class="task"><strong>Geographic — table/India map</strong>: Top cities/states (India-first) · Country split (diaspora signal).</td><td class="status">v3</td></tr>
+    <tr><td class="task"><strong>Operational health — progress bars + ticks</strong>: DB size vs 500MB cap · Vercel function executions vs 100k/mo cap · Last cron run + status · 410-Gone push subs pruned · Failed offline-queue drains (CONFLICT vs network) · Server errors last 24h by status code.</td><td class="status">v3</td></tr>
+    <tr><td class="task"><strong>Activity feed — anonymised, last 50</strong>: <em>"User #a8f3 joined group with 5 members"</em>, <em>"Scorecard completed · 82/100 · age 32"</em>, <em>"Settlement recorded · ₹500-2k range"</em>. Amounts as buckets only. No emails. User IDs truncated to 4-char prefix.</td><td class="status">v1</td></tr>
+  </tbody></table>
+
+  <h3>Explicitly skipped on v1</h3>
+  <ul>
+    <li>Individual user search / financial drill-down (privacy + premature)</li>
+    <li>Email exports / scheduled reports (no users to report to)</li>
+    <li>A/B test framework (one product, premature)</li>
+    <li>Real-time WebSocket dashboard (over-engineering at sub-2% utilisation)</li>
+    <li>Anomaly alerts on the admin metrics themselves (manual check is fine)</li>
+  </ul>
+
+  <h3>Phased ship plan</h3>
+  <table><tbody>
+    <tr><td class="task"><strong>v1</strong> — Auth gate + Pulse KPIs + 90d signups + activation funnel + activity feed.</td><td class="status">~1 day · anytime</td></tr>
+    <tr><td class="task"><strong>v2</strong> — Cohort retention + distributions + feature adoption.</td><td class="status">~0.5 day · 50+ users</td></tr>
+    <tr><td class="task"><strong>v3</strong> — Geographic, source attribution, operational health, log explorer.</td><td class="status">~1 day · 200+ users</td></tr>
+  </tbody></table>
+  <p class="meta">Earlier phases would be sparse histograms — the data needs population first.</p>
+
   <h2>Phase 2.6 — Free Phase 3 picks <span class="badge badge-ok">shipped</span></h2>
   <p class="meta">User decision (2026-05-09): cherry-pick the Phase 3 features that have a fully-free implementation path (browser API or built-in cron) and ship them now. Both shipped in production same-day.</p>
   <table><tbody>
@@ -548,6 +587,8 @@
       <tr><td>2026-05-13</td><td><strong>/about restored</strong> + footer link no longer 404s. Branded dynamic favicon (R wordmark) replaces the create-next-app default. Yandex-only Host directive stripped from <code>robots.txt</code>.</td></tr>
       <tr><td>2026-05-13</td><td><strong>Share with friends</strong> — personalized invite URL <code>?from=&lt;firstName&gt;</code> with sanitiser (latin + Devanagari + Hebrew + apostrophes/hyphens, 24-char cap). Top-of-home gradient banner + dynamic OG card (Satori-rendered, CSS-only, every div <code>display:flex</code> to satisfy ImageResponse). Web Share API → clipboard fallback.</td></tr>
       <tr><td>2026-05-14</td><td><strong>Honest-claim audit</strong>: <code>?from=</code> invite copy says "works offline". Group mutations honour that; personal <code>create/update/delete</code> currently bypass the queue. User chose Option 2 — extend the queue (over softening the copy). Started: <code>QueuedPath</code> + <code>ALLOWED_PATHS</code> + <code>entityKey()</code> extended for <code>personal.*</code> paths in <code>src/lib/offline/db.ts</code> + <code>src/lib/offline/queue.ts</code>. Pending: wrap mutations + ship.</td></tr>
+      <tr><td>2026-05-17</td><td>Planning: locked <strong>Phase 2.8 Admin panel</strong> — single-page founder-only <code>/app/admin</code> surface gated by <code>ADMIN_USER_IDS</code> env var (no separate password — extra password = more attack surface than Google MFA). <strong>Privacy constraint LOCKED</strong>: aggregate-only metrics, amounts surface as buckets (<code>₹&lt;100</code> / <code>₹100-500</code> / <code>₹500-2k</code> / <code>₹2k+</code>), no per-user financial drill-down — preserves the <em>"our database only ever sees scrambled text"</em> promise. v1 ships Pulse KPIs + 90d signups + activation funnel + activity feed; v2/v3 layered as user count grows.</td></tr>
+      <tr><td>2026-05-17</td><td><strong>Magic-link delivery diagnosed</strong>: Supabase free-tier built-in SMTP caps at 2 emails/hour and silently drops the rest. Code is correct (<code>signInWithOtp</code> + <code>emailRedirectTo</code>) — config is the issue. Plan: configure Resend (free: 100/day, 3000/mo) and paste creds into Supabase → Auth → SMTP Settings. Pending user action.</td></tr>
     </tbody>
   </table>
 </div>

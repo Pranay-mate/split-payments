@@ -2,7 +2,7 @@
 
 > Phased roadmap with **per-task status**. Updated as we ship. PLANNING.html mirrors this — keep them in sync.
 
-**Last updated:** 2026-05-14 (Mumbai migration · 2026-05-10..14 batch shipped · personal-side offline in flight)
+**Last updated:** 2026-05-17 (Phase 2.8 Admin panel planned · magic-link SMTP issue diagnosed · personal-side offline shipped)
 **Live:** https://easy-split-payments.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 **Status legend:** ✅ done · 🟡 in progress · ⬜ not started · ⏸ blocked (waiting on something)
@@ -266,6 +266,8 @@
 | 1 | **Personal-side offline parity** | The marketing copy on `?from=` invites says *"works offline"*. Group mutations honour that; personal `create/update/delete` currently bypass the queue. User chose Option 2 (extend the queue) over softening the message. | 🟡 in progress — `QueuedPath` union + `ALLOWED_PATHS` + `entityKey()` extended in `src/lib/offline/db.ts` + `src/lib/offline/queue.ts`. Still need to wrap `createMutation/updateMutation` in `add-personal-entry.tsx` and `deleteMutation` in `personal-dashboard.tsx` with `useMutationWithQueue`, generate `clientEventId` on create, and pass `clientUpdatedAt` on update. Server side already supports both. |
 | 2 | **GSC indexing — remaining 5 URLs** | 5 of 10 priority URLs indexed (`/`, `/financial-health-india`, `/calculators/trip`, `/calculators/split-bill`, `/features`). Remaining: `/use-cases/split-rent`, `/use-cases/trip-expenses`, `/use-cases/roommate-utilities`, `/use-cases/group-dinner`, `/about`. Daily-quota gated. | ⬜ resume daily as GSC quota allows |
 | 3 | **Manual verifies still pending** | Items marked `🟡 needs manual verify` across Phase 1/2 — guests + claim flow with two Google accounts, creator-only UI gating from a non-creator account, donut/area/KPI charts at 375px, itemized-split end-to-end on a real group, CSV/PDF export, etc. | ⬜ |
+| 4 | **Phase 2.8 — Admin panel v1** | Founder-only `/app/admin` surface: auth gate + Pulse KPIs + 90d signups + activation funnel + activity feed. See Phase 2.8 section for full spec + privacy constraint. | ⬜ ~1 day |
+| 5 | **Magic-link delivery — custom SMTP** | Supabase free tier caps built-in SMTP at 2 emails/hour, silently dropping magic links past the cap. Configure Resend (free: 100/day) and paste creds into Supabase → Auth → SMTP Settings. Also verify Site URL + Redirect URLs allowlist still include the production domain post-Mumbai migration. | ⬜ ~15 min |
 
 ### Onboarding & invite polish — 2026-05-13 batch (sequential ship) — ✅ all shipped
 
@@ -397,6 +399,124 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | **v1.1** | "Why?" chain expander on each Simplified row. Shows the underlying graph traversal: *"A→C ₹500 = A owes B ₹500 (dinner) · B owes C ₹500 (Uber)"*. Closes the trust gap that drives the request for raw mode in the first place. | ~1.5h |
 
 **Skipped:** per-expense view (already covered by the expense list which shows splits per row).
+
+---
+
+## Phase 2.8 — Admin panel (planned)
+
+> Solo-dev observability surface at `/app/admin`. Built for the founder
+> only — not a multi-tenant admin product. **Aggregate-only metrics, no
+> per-user financial drill-down** so the encryption privacy promise
+> stays intact.
+
+### Locked decisions (2026-05-17)
+
+| # | Decision | Locked value |
+|---|---|---|
+| 1 | **Auth model** | No separate password. Gate by `ctx.user.id ∈ ADMIN_USER_IDS` env var (comma-separated UUIDs). A second password is more attack surface, not less — Google MFA on the existing account is stronger. tRPC middleware `adminOnly()` throws FORBIDDEN; `/app/admin/page.tsx` server-redirects on miss. v2 may add an optional TOTP step before admin routes hydrate. |
+| 2 | **Privacy constraint** | The app promises *"our database only ever sees scrambled text, not your numbers."* The admin panel **must respect this**: aggregate counts/distributions/percentiles only. Amounts surface as buckets (`₹<100` · `₹100-500` · `₹500-2k` · `₹2k+`) — never exact. User-level support troubleshooting uses metadata (`user_id`, `created_at`, `last_active`, group/expense count) — never amounts. Decrypting an individual user's salary into the admin UI = breaking the promise. |
+| 3 | **Bundle isolation** | Admin route ships its own lazy chunk. Recharts + heavy formatters import inside `/app/admin/*` only — they never enter the main app bundle. Hot-path remains lean. |
+
+### Data points (v1)
+
+**Pulse — KPI tiles with sparklines + 7-day delta:**
+- Total users · DAU · WAU · MAU
+- DAU/MAU stickiness (target 20%+)
+- Today: signups · groups created · expenses added
+- Push subscribers (active count, sent count last 7d)
+- Offline queue items globally (sum across users, count not contents)
+
+**Growth — line/area charts:**
+- New signups per day, last 90d (with 7-day rolling avg overlay)
+- WAU / MAU trends, last 90d
+- Cohort retention: signups by week × % returning at W+1, W+2, W+4, W+8
+- Source: top referrers split by `?from=` invites · direct · organic
+
+**Activation funnel — horizontal bars, percentages:**
+- Signed up → first group joined/created
+- Joined group → first expense added
+- Signed up → first personal entry logged
+- Started scorecard wizard → completed it
+- Completed scorecard → returned within 7 days
+
+**Engagement distributions — histograms:**
+- Members per group (2 / 3-5 / 6-10 / 11-20 / 20+)
+- Expenses per group (0 / 1-5 / 6-20 / 21-100 / 100+)
+- Personal entries per active user, last 30d
+- Score distribution by band (red · amber · emerald · green bars)
+- Average score trend (line, monthly)
+- Goals: count active vs completed vs archived
+
+**Feature adoption — donuts/bars:**
+- PWA installed vs web-only (via `display-mode: standalone` detection)
+- Push notifications opted-in rate
+- Voice input used at least once (% of users)
+- Offline-queue actually triggered (% of mutations)
+- Device split (iOS · Android · Desktop) via Vercel Analytics
+- Browser split
+
+**Geographic — table or India map:**
+- Top cities/states (India-first)
+- Country split (diaspora signal)
+
+**Operational health — progress bars + ticks:**
+- DB size used / 500MB free-tier cap
+- Vercel function executions today vs 100k/mo cap
+- Last cron run (`/api/cron/daily`) + success/fail
+- 410-Gone push subscriptions pruned this week
+- Failed offline-queue drains (CONFLICT vs network split)
+- Server errors last 24h, by status code
+
+**Activity feed — anonymised, last 50 events:**
+- *"User #a8f3 joined group with 5 members"*
+- *"Scorecard completed · 82/100 · age 32"*
+- *"Goal hit: Emergency fund at 6 months"*
+- *"Settlement recorded · ₹500-2k range"*
+- Amounts as buckets only. No emails. User IDs truncated to 4-char prefix.
+
+### Explicitly skipped on v1
+
+- Individual user search / financial drill-down (privacy + premature)
+- Email exports / scheduled reports (no users to report to)
+- A/B test framework (one product, premature)
+- Real-time WebSocket dashboard (over-engineering at sub-2% utilisation)
+- Anomaly alerts on the admin metrics themselves (manual check is fine)
+
+### Layout (single page)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 8 KPI tiles in 4-col grid (sparklines + delta)          │
+├─────────────────────────────────────────────────────────┤
+│ Signups 90d (line, 2/3 width) │ Source breakdown (1/3) │
+├─────────────────────────────────────────────────────────┤
+│ Activation funnel (horizontal bars, full width)         │
+├─────────────────────────────────────────────────────────┤
+│ Cohort retention table (full width)                     │
+├─────────────────────────────────────────────────────────┤
+│ 4 small charts in 2×2: scores · groups · entries · feat │
+├─────────────────────────────────────────────────────────┤
+│ Activity feed (left, 2/3) │ Operational health (1/3)   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Phased ship plan
+
+| Phase | Threshold | Scope | Effort |
+|---|---|---|---|
+| **v1** | Anytime | Auth gate + Pulse KPIs + 90d signups + activation funnel + activity feed | ~1 day |
+| **v2** | 50+ users | Cohort retention + distributions + feature adoption | ~0.5 day |
+| **v3** | 200+ users | Geographic, source attribution, operational health, log explorer | ~1 day |
+
+Earlier phases would be sparse histograms — the data needs population first.
+
+### Stack
+
+- `protectedProcedure.use(adminOnly())` middleware in `src/server/middleware/admin.ts`.
+- New `admin.*` tRPC router (`adminRouter.ts`), surface: `pulse`, `signupsByDay`, `funnel`, `cohort`, `feed`, `health`.
+- Route: `src/app/app/admin/page.tsx` — server-side redirect if not admin.
+- Existing recharts + score band colors for visual consistency.
+- KPI tiles use existing `<InfoTip />` for "what does DAU/MAU mean" affordances.
 
 ---
 
@@ -556,3 +676,4 @@ Skipped: heatmap calendars, expense-by-member pie (redundant with balance bars),
 | 2026-05-13 | **`/about` page restored** + footer link no longer 404s. Branded dynamic favicon (R wordmark) replaces the create-next-app default. Yandex-only Host directive stripped from `robots.txt`. |
 | 2026-05-13 | **Share with friends** — personalized invite URL `?from=<firstName>` with sanitiser (latin + Devanagari + Hebrew + apostrophes/hyphens, 24-char cap). Top-of-home gradient banner + dynamic OG card (Satori-rendered, CSS-only, every div `display:flex` to satisfy ImageResponse). Web Share API → clipboard fallback. |
 | 2026-05-14 | **Honest-claim audit**: `?from=` invite copy says "works offline". Group mutations honour that; personal `create/update/delete` currently bypass the queue. User chose **Option 2 — extend the queue** (over softening the copy). Started: `QueuedPath` + `ALLOWED_PATHS` + `entityKey()` extended for `personal.*` paths. Pending: wrap mutations + ship. |
+| 2026-05-17 | Planning: locked **Phase 2.8 Admin panel** — single-page founder-only `/app/admin` surface gated by `ADMIN_USER_IDS` env var (no separate password — extra password = more attack surface than Google MFA). **Privacy constraint LOCKED**: aggregate-only metrics, amounts surface as buckets (`₹<100` / `₹100-500` / `₹500-2k` / `₹2k+`), no per-user financial drill-down — preserves the *"our database only ever sees scrambled text"* promise. v1 ships Pulse KPIs + 90d signups + activation funnel + activity feed; v2/v3 layered as user count grows. |
