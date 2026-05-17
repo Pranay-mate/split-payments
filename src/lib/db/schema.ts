@@ -535,6 +535,56 @@ export const personalHoldings = pgTable(
 export type PersonalHolding = typeof personalHoldings.$inferSelect;
 
 /**
+ * Personal debts (Phase 2.5 v5.2). Tracks user loans (home / car /
+ * personal / education / credit-card / other) so the net-worth math can
+ * subtract liabilities + project them decaying over time.
+ *
+ * Amortisation is computed on-the-fly in the app — see src/lib/amortise.ts.
+ * We store the SNAPSHOT at `startDate` (principal + EMI + rate); outstanding
+ * balance on any future date is derived, not stored. Avoids a cron.
+ */
+export const personalDebts = pgTable(
+  "personal_debts",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** Display label, e.g. "HDFC Home Loan", "Maruti car EMI". Plain text —
+     *  not sensitive in the same way as the amount columns. */
+    name: text("name").notNull(),
+    /** "home" | "car" | "personal" | "education" | "credit_card" | "other" */
+    debtType: text("debt_type").notNull().default("other"),
+    /** Encrypted outstanding principal at `startDate` (AES-256-GCM base64). */
+    principal: text("principal").notNull(),
+    /** Encrypted monthly EMI (₹/month). */
+    emi: text("emi").notNull(),
+    /** Annual interest rate as a percentage. Not encrypted — rates aren't
+     *  sensitive and storing as a number lets us do range queries / UI
+     *  filtering without decryption. */
+    annualRatePct: numeric("annual_rate_pct", { precision: 5, scale: 2 }).notNull(),
+    /** When the user logged this loan — treat as "as-of" for the principal
+     *  value. All projections compute forward from this date. */
+    startDate: timestamp("start_date", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** User-driven archive — closed/paid-off loans. Hidden from active
+     *  net-worth math but kept for historical context. */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("personal_debts_user_idx").on(t.userId),
+    index("personal_debts_user_active_idx").on(t.userId, t.archivedAt),
+  ],
+);
+
+export type PersonalDebt = typeof personalDebts.$inferSelect;
+
+/**
  * Net-worth snapshots — one row per user per calendar day. Powers the
  * trajectory chart on /app/personal/wealth so users can see the curve
  * over time without us having to recompute from holdings history (which
