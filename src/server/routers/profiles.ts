@@ -22,6 +22,7 @@ import {
   settlements,
 } from "@/lib/db/schema";
 import { decryptAmount, decryptValue } from "@/lib/encryption";
+import { isAdmin } from "@/server/admin-auth";
 import {
   looksLikeEmailPrefix,
   profileAvatarDefault,
@@ -77,9 +78,9 @@ export const profilesRouter = router({
           })
           .where(eq(profiles.id, ctx.user.id))
           .returning();
-        return updated;
+        return { ...updated, isAdmin: isAdmin(ctx.user.id) };
       }
-      return row;
+      return { ...row, isAdmin: isAdmin(ctx.user.id) };
     }
 
     const [created] = await db
@@ -90,7 +91,7 @@ export const profilesRouter = router({
         avatarUrl: profileAvatarDefault(ctx.user),
       })
       .returning();
-    return created;
+    return { ...created, isAdmin: isAdmin(ctx.user.id) };
   }),
 
   /** Update the current user's profile. All fields optional — only the

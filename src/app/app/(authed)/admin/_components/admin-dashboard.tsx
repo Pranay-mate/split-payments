@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Lock } from "lucide-react";
+import { AlertCircle, Lock } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { KpiTile } from "./kpi-tile";
 import { ActivationFunnel } from "./activation-funnel";
@@ -26,6 +26,12 @@ export function AdminDashboard() {
   const feed = trpc.admin.feed.useQuery(undefined, { staleTime: 30_000 });
 
   const p = pulse.data;
+  const firstError =
+    pulse.error?.message ??
+    signups.error?.message ??
+    funnel.error?.message ??
+    feed.error?.message ??
+    null;
 
   return (
     <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
@@ -40,6 +46,27 @@ export function AdminDashboard() {
           </p>
         </div>
       </div>
+
+      {/* Error banner — surfaces failed queries instead of leaving the
+          page in perpetual loading state. */}
+      {firstError && (
+        <div className="flex items-start gap-2 rounded-xl border border-rose-300 bg-rose-50 p-3 dark:border-rose-900/60 dark:bg-rose-950/30">
+          <AlertCircle
+            className="mt-0.5 h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+            aria-hidden
+          />
+          <div className="min-w-0 text-[12px] text-rose-900 dark:text-rose-200">
+            <p className="font-semibold">Some admin queries failed</p>
+            <p className="mt-0.5 break-words font-mono text-[11px] opacity-80">
+              {firstError}
+            </p>
+            <p className="mt-1.5 opacity-80">
+              Check Vercel Dashboard → Functions → Logs for the full server-side
+              stack trace.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Privacy banner */}
       <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">

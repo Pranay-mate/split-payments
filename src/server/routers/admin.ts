@@ -14,7 +14,7 @@
  * date window to avoid full-table scans as the data grows.
  */
 import { z } from "zod";
-import { sql, gte, desc, and } from "drizzle-orm";
+import { sql, gte, desc, and, lt } from "drizzle-orm";
 import { router } from "../trpc";
 import { adminProcedure } from "../admin-auth";
 import { db } from "@/lib/db";
@@ -63,6 +63,7 @@ export const adminRouter = router({
    * and a 7-day daily sparkline series.
    */
   pulse: adminProcedure.query(async () => {
+    try {
     const now = new Date();
     const today = startOfDay(0);
     const sevenDaysAgo = startOfDay(7);
@@ -88,7 +89,7 @@ export const adminRouter = router({
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(profiles)
-        .where(sql`${profiles.createdAt} < ${sevenDaysAgo}`),
+        .where(lt(profiles.createdAt, sevenDaysAgo)),
       distinctActorsSince(oneDayAgo),
       distinctActorsSince(sevenDaysAgo),
       distinctActorsSince(thirtyDaysAgo),
@@ -161,7 +162,7 @@ export const adminRouter = router({
         .where(
           and(
             gte(events.occurredAt, new Date(oneDayAgo.getTime() - 7 * 86400000)),
-            sql`${events.occurredAt} < ${oneDayAgo}`,
+            lt(events.occurredAt, oneDayAgo),
           ),
         ),
       db
@@ -170,7 +171,7 @@ export const adminRouter = router({
         })
         .from(events)
         .where(
-          and(gte(events.occurredAt, fourteenDaysAgo), sql`${events.occurredAt} < ${sevenDaysAgo}`),
+          and(gte(events.occurredAt, fourteenDaysAgo), lt(events.occurredAt, sevenDaysAgo)),
         ),
     ]);
 
@@ -213,6 +214,12 @@ export const adminRouter = router({
         sparkline: [],
       },
     };
+    } catch (err) {
+      // Surface in Vercel function logs — without this, the client just
+      // sees "Internal Server Error" with no actionable detail.
+      console.error("[admin.pulse] query failed:", err);
+      throw err;
+    }
   }),
 
   /**
