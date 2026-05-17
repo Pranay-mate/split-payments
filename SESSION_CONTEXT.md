@@ -47,6 +47,16 @@ Fix:
    (SPF + DKIM + DMARC, 3 records)
 3. Supabase Dashboard → Auth → SMTP Settings → change Sender email to
    `noreply@<your-domain>.com`
+4. **Restore the magic-link UI** — login form was simplified to
+   Google-only on 2026-05-17 (commit `23a4d8c`) because the sandbox
+   sender made the email path silently fail. Run:
+
+   ```sh
+   git revert 23a4d8c
+   ```
+
+   That puts the email input + "Send magic link" button + email-sent
+   confirmation state back exactly as they were. Build, push, done.
 
 Without this you're production-blocked for anyone other than yourself.
 
