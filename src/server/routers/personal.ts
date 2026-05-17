@@ -7,6 +7,7 @@ import {
   anomalyMutes,
   financialGoals,
   financialProfiles,
+  personalDebts,
   personalEntries,
   personalHoldings,
   personalNetWorthSnapshots,
@@ -23,6 +24,37 @@ import {
 } from "@/lib/encryption";
 import { computeScore, type ScoreInputs } from "@/lib/financial-score";
 import { detectAnomalies } from "@/lib/anomaly-detect";
+import {
+  outstandingAt,
+  totalOutstandingAt,
+  monthsToFreedom,
+  freedomDate,
+  debtTrajectory,
+  type LoanSnapshot,
+} from "@/lib/amortise";
+
+/** Decrypt + shape every active debt for a user into the LoanSnapshot
+ *  type used by the amortisation library. Centralised so all the net-worth
+ *  / debt queries below stay in sync. */
+async function loadActiveLoans(userId: string): Promise<
+  (LoanSnapshot & { id: string; name: string; debtType: string })[]
+> {
+  const rows = await db
+    .select()
+    .from(personalDebts)
+    .where(
+      and(eq(personalDebts.userId, userId), isNull(personalDebts.archivedAt)),
+    );
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    debtType: r.debtType,
+    principal: decryptAmount(r.principal),
+    emi: decryptAmount(r.emi),
+    annualRatePct: Number(r.annualRatePct),
+    startDate: new Date(r.startDate),
+  }));
+}
 
 const typeSchema = z.enum(["income", "expense", "investment"]);
 const categorySchema = z.enum(CATEGORY_KEYS);
@@ -68,7 +100,11 @@ async function recordNetWorthSnapshot(userId: string): Promise<void> {
     for (const h of holdingsRows) {
       holdingsValue += decryptAmount(h.currentValue);
     }
-    const totalValue = liquidSavings + holdingsValue;
+    // Subtract active loans' outstanding balance from net worth so the
+    // trajectory chart shows the true number, not just assets.
+    const loans = await loadActiveLoans(userId);
+    const debtsValue = totalOutstandingAt(loans, new Date());
+    const totalValue = liquidSavings + holdingsValue - debtsValue;
     const snapshotDate = todayISODate();
 
     // Upsert: same (user, date) collapses to one row — last write wins.
@@ -1647,7 +1683,10 @@ export const personalRouter = router({
         totalInvested += units * cost;
         byType.set(h.type, (byType.get(h.type) ?? 0) + cv);
       }
-      const netWorth = liquidSavings + totalCurrent;
+      // Subtract debts so net worth reflects liabilities, not just assets.
+      const loans = await loadActiveLoans(ctx.user.id);
+      const debtsValue = totalOutstandingAt(loans, new Date());
+      const netWorth = liquidSavings + totalCurrent - debtsValue;
       const totalGain =
         Math.round((totalCurrent - totalInvested) * 100) / 100;
       const totalGainPct = totalInvested > 0 ? totalGain / totalInvested : 0;
@@ -1655,6 +1694,7 @@ export const personalRouter = router({
         netWorth: Math.round(netWorth * 100) / 100,
         liquidSavings: Math.round(liquidSavings * 100) / 100,
         holdingsValue: Math.round(totalCurrent * 100) / 100,
+        debtsValue: Math.round(debtsValue * 100) / 100,
         totalInvested: Math.round(totalInvested * 100) / 100,
         totalGain,
         totalGainPct,
@@ -1663,6 +1703,7 @@ export const personalRouter = router({
           value: Math.round(value * 100) / 100,
         })),
         holdingsCount: holdingsRows.length,
+        debtsCount: loans.length,
       };
     }),
 
@@ -1839,6 +1880,184 @@ export const personalRouter = router({
           liquidSavings: decryptAmount(r.liquidSavings),
           holdingsValue: decryptAmount(r.holdingsValue),
         }));
+      }),
+  }),
+
+  /**
+   * Loans / EMIs (Phase 2.5 v5.2). Amounts encrypted, the rest plain.
+   * Outstanding balance and freedom date are computed on read using the
+   * amortise.ts library — we never store decrementing balances, no cron.
+   */
+  debts: router({
+    list: protectedProcedure
+      .input(
+        z
+          .object({ includeArchived: z.boolean().default(false) })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const filters = [eq(personalDebts.userId, ctx.user.id)];
+        if (!input?.includeArchived) {
+          filters.push(isNull(personalDebts.archivedAt));
+        }
+        const rows = await db
+          .select()
+          .from(personalDebts)
+          .where(and(...filters))
+          .orderBy(asc(personalDebts.createdAt));
+        const now = new Date();
+        return rows.map((r) => {
+          const loan: LoanSnapshot = {
+            principal: decryptAmount(r.principal),
+            emi: decryptAmount(r.emi),
+            annualRatePct: Number(r.annualRatePct),
+            startDate: new Date(r.startDate),
+          };
+          const currentOutstanding = outstandingAt(loan, now);
+          const monthsLeft = monthsToFreedom(loan);
+          const finishDate = freedomDate(loan);
+          return {
+            id: r.id,
+            name: r.name,
+            debtType: r.debtType as
+              | "home" | "car" | "personal" | "education" | "credit_card" | "other",
+            principal: loan.principal,
+            emi: loan.emi,
+            annualRatePct: loan.annualRatePct,
+            startDate: loan.startDate,
+            archivedAt: r.archivedAt,
+            // Derived values — UI uses these directly so it doesn't need
+            // its own amortisation implementation.
+            currentOutstanding: Math.round(currentOutstanding * 100) / 100,
+            monthsRemaining: Number.isFinite(monthsLeft) ? monthsLeft : null,
+            finishDate,
+            isUnderwater: !Number.isFinite(monthsLeft), // EMI ≤ interest
+          };
+        });
+      }),
+
+    /** 24-month projection of total outstanding debt at each month
+     *  boundary, for the /wealth trajectory chart. */
+    trajectory: protectedProcedure
+      .input(z.object({ months: z.number().int().min(1).max(60).default(24) }).optional())
+      .query(async ({ ctx, input }) => {
+        const months = input?.months ?? 24;
+        const loans = await loadActiveLoans(ctx.user.id);
+        const traj = debtTrajectory(loans, new Date(), months);
+        return traj.map((p) => ({
+          month: p.month,
+          outstanding: Math.round(p.outstanding * 100) / 100,
+        }));
+      }),
+
+    create: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1).max(80),
+          debtType: z.enum([
+            "home", "car", "personal", "education", "credit_card", "other",
+          ]),
+          principal: z.number().positive(),
+          emi: z.number().positive(),
+          annualRatePct: z.number().min(0).max(99.99),
+          startDate: z.date().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const [created] = await db
+          .insert(personalDebts)
+          .values({
+            userId: ctx.user.id,
+            name: input.name.trim(),
+            debtType: input.debtType,
+            principal: encryptAmount(input.principal),
+            emi: encryptAmount(input.emi),
+            // Drizzle's numeric column accepts strings on insert.
+            annualRatePct: input.annualRatePct.toFixed(2),
+            startDate: input.startDate ?? new Date(),
+          })
+          .returning();
+        void recordNetWorthSnapshot(ctx.user.id);
+        return created;
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          name: z.string().min(1).max(80).optional(),
+          debtType: z
+            .enum(["home", "car", "personal", "education", "credit_card", "other"])
+            .optional(),
+          principal: z.number().positive().optional(),
+          emi: z.number().positive().optional(),
+          annualRatePct: z.number().min(0).max(99.99).optional(),
+          startDate: z.date().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalDebts.userId })
+          .from(personalDebts)
+          .where(eq(personalDebts.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        const [updated] = await db
+          .update(personalDebts)
+          .set({
+            ...(input.name !== undefined && { name: input.name.trim() }),
+            ...(input.debtType !== undefined && { debtType: input.debtType }),
+            ...(input.principal !== undefined && {
+              principal: encryptAmount(input.principal),
+            }),
+            ...(input.emi !== undefined && { emi: encryptAmount(input.emi) }),
+            ...(input.annualRatePct !== undefined && {
+              annualRatePct: input.annualRatePct.toFixed(2),
+            }),
+            ...(input.startDate !== undefined && { startDate: input.startDate }),
+            updatedAt: new Date(),
+          })
+          .where(eq(personalDebts.id, input.id))
+          .returning();
+        void recordNetWorthSnapshot(ctx.user.id);
+        return updated;
+      }),
+
+    archive: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalDebts.userId })
+          .from(personalDebts)
+          .where(eq(personalDebts.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db
+          .update(personalDebts)
+          .set({ archivedAt: new Date(), updatedAt: new Date() })
+          .where(eq(personalDebts.id, input.id));
+        void recordNetWorthSnapshot(ctx.user.id);
+        return { ok: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const [existing] = await db
+          .select({ userId: personalDebts.userId })
+          .from(personalDebts)
+          .where(eq(personalDebts.id, input.id))
+          .limit(1);
+        if (!existing || existing.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND" });
+        }
+        await db.delete(personalDebts).where(eq(personalDebts.id, input.id));
+        void recordNetWorthSnapshot(ctx.user.id);
+        return { ok: true };
       }),
   }),
 });
