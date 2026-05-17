@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Plus, Trophy, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, Pencil, Plus, Trophy, X } from "lucide-react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
@@ -262,6 +263,7 @@ function GoalRow({
   const days = daysUntil(goal.targetDate);
   const onTrack = days === null ? null : goal.completedAt ? true : days >= 0;
   const isDone = !!goal.completedAt;
+  const [editing, setEditing] = useState(false);
 
   return (
     <li
@@ -320,16 +322,41 @@ function GoalRow({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => onArchive(goal.id)}
-          className="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-          title="Archive this goal"
-          aria-label="Archive goal"
-        >
-          <X className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {!compact && !isDone && (
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              aria-pressed={editing}
+              className={`rounded-md p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200 ${
+                editing
+                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
+                  : ""
+              }`}
+              title="Edit target / date"
+              aria-label="Edit goal"
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onArchive(goal.id)}
+            className="rounded-md p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            title="Archive this goal"
+            aria-label="Archive goal"
+          >
+            <X className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden />
+          </button>
+        </div>
       </div>
+
+      {editing && !compact && !isDone && (
+        <GoalEditPanel
+          goal={goal}
+          onClose={() => setEditing(false)}
+        />
+      )}
 
       {!compact && (
         <>
@@ -471,6 +498,120 @@ function GoalPicker({ onClose }: { onClose: () => void }) {
           className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
         >
           Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Inline editor for an existing goal's target score + target date.
+ * Mounts beneath the goal row when the pencil is clicked. Live on the
+ * server already (personal.goals.update at personal.ts:1245) — this is
+ * the UI exposure of an existing mutation.
+ */
+function GoalEditPanel({
+  goal,
+  onClose,
+}: {
+  goal: GoalListItem;
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const updateMutation = trpc.personal.goals.update.useMutation({
+    onSuccess: () => utils.personal.goals.list.invalidate(),
+  });
+  const max = goal.goalKind === "total" ? 100 : 20;
+  const [targetScore, setTargetScore] = useState<number>(goal.targetScore);
+  const [targetDate, setTargetDate] = useState<string>(() => {
+    if (!goal.targetDate) return "";
+    const d = new Date(goal.targetDate);
+    return d.toISOString().slice(0, 10);
+  });
+
+  const valid =
+    Number.isInteger(targetScore) && targetScore > 0 && targetScore <= max;
+
+  const save = async () => {
+    if (!valid) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: goal.id,
+        targetScore,
+        targetDate: targetDate ? new Date(`${targetDate}T00:00:00`) : null,
+      });
+      toast.success("Goal updated");
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    }
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Target score
+          <div className="mt-1 flex items-center gap-1.5">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={max}
+              value={targetScore}
+              onChange={(e) => setTargetScore(Number(e.target.value) || 0)}
+              className="w-20 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-700 dark:bg-slate-900"
+            />
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              / {max}
+            </span>
+          </div>
+          {!valid && (
+            <span className="mt-1 block text-[10.5px] text-rose-600 dark:text-rose-400">
+              Must be 1–{max}
+            </span>
+          )}
+        </label>
+        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Target date{" "}
+          <span className="font-normal opacity-70">(optional)</span>
+          <input
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+          />
+          {targetDate && (
+            <button
+              type="button"
+              onClick={() => setTargetDate("")}
+              className="mt-1 text-[10.5px] font-medium text-slate-500 underline-offset-2 hover:underline dark:text-slate-400"
+            >
+              Clear date
+            </button>
+          )}
+        </label>
+      </div>
+      <div className="mt-3 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!valid || updateMutation.isPending}
+          className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
+        >
+          {updateMutation.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Check className="h-3.5 w-3.5" aria-hidden />
+          )}
+          Save
         </button>
       </div>
     </div>
