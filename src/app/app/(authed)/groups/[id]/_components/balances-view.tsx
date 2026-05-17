@@ -550,7 +550,7 @@ function SuggestedPayments({
                   ) : (
                     <Check className="h-3.5 w-3.5" aria-hidden />
                   )}
-                  Mark as paid
+                  Log payment
                 </button>
                 {/* "Why?" only for simplified — pairwise debts are
                     already the underlying transactions. */}

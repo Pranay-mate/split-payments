@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowLeftRight,
   BarChart3,
   ChevronDown,
   Download,
@@ -32,6 +33,7 @@ import { useUserTimezone } from "@/lib/use-user-timezone";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
+import { RecordPaymentModal } from "./record-payment-modal";
 import { ContributionBar } from "./contribution-bar";
 import { GroupSettings } from "./group-settings";
 import { InviteModal } from "./invite-modal";
@@ -62,6 +64,7 @@ const PAGE_SIZE = 5;
 export function GroupDetail({ groupId }: { groupId: string }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [recordingPayment, setRecordingPayment] = useState(false);
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
@@ -370,24 +373,36 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         />
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <Receipt className="h-4 w-4 text-emerald-500" aria-hidden />
               Expenses
             </h2>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingId(null);
-                const next = !adding;
-                setAdding(next);
-                if (next) focusForm();
-              }}
-              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden />
-              {adding ? "Cancel" : "Add expense"}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRecordingPayment(true)}
+                title="Log a member-to-member payment (cash, UPI, advance)"
+                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/60"
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
+                <span className="hidden sm:inline">Record payment</span>
+                <span className="sm:hidden">Payment</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  const next = !adding;
+                  setAdding(next);
+                  if (next) focusForm();
+                }}
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                {adding ? "Cancel" : "Add expense"}
+              </button>
+            </div>
           </div>
 
           {(adding || editingId) && (
@@ -909,6 +924,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           memberById={memberById}
         />
       )}
+      <RecordPaymentModal
+        groupId={groupId}
+        primaryCurrency={group?.primaryCurrency ?? "INR"}
+        members={members.map((m) => ({ id: m.userId, name: m.displayName }))}
+        currentUserId={meQuery.data?.id ?? null}
+        open={recordingPayment}
+        onClose={() => setRecordingPayment(false)}
+      />
     </main>
   );
 }
