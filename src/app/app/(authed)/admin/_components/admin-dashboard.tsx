@@ -1,0 +1,173 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { Lock } from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
+import { KpiTile } from "./kpi-tile";
+import { ActivationFunnel } from "./activation-funnel";
+import { ActivityFeed } from "./activity-feed";
+
+const SignupsChart = dynamic(
+  () => import("./signups-chart").then((m) => m.SignupsChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[260px] animate-pulse rounded-xl bg-slate-100 dark:bg-slate-900" />
+    ),
+  },
+);
+
+export function AdminDashboard() {
+  const pulse = trpc.admin.pulse.useQuery(undefined, { staleTime: 60_000 });
+  const signups = trpc.admin.signupsByDay.useQuery(undefined, {
+    staleTime: 60_000,
+  });
+  const funnel = trpc.admin.funnel.useQuery(undefined, { staleTime: 60_000 });
+  const feed = trpc.admin.feed.useQuery(undefined, { staleTime: 30_000 });
+
+  const p = pulse.data;
+
+  return (
+    <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Admin
+          </h1>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Founder-only observability surface · aggregate-only metrics
+          </p>
+        </div>
+      </div>
+
+      {/* Privacy banner */}
+      <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+        <Lock
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400"
+          aria-hidden
+        />
+        <p className="text-[11.5px] leading-relaxed text-amber-900 dark:text-amber-200">
+          <strong>Privacy lock:</strong> every metric on this page is aggregate
+          or anonymised. Amounts surface as buckets (
+          <code>₹&lt;100</code> · <code>₹100-500</code> · <code>₹500-2k</code>{" "}
+          · <code>₹2k+</code>), never exact. User IDs in the feed are truncated
+          to a 4-char prefix. Personal-entry payloads stay encrypted — we never
+          decrypt them here.
+        </p>
+      </div>
+
+      {/* KPI grid */}
+      <section
+        aria-label="Pulse KPIs"
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+      >
+        <KpiTile
+          label="Total users"
+          value={p?.totalUsers.value}
+          delta={p?.totalUsers.delta}
+          sparkline={p?.totalUsers.sparkline.map((s) => s.count) ?? []}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="DAU"
+          tooltip="Distinct users with any event in the last 24h"
+          value={p?.dau.value}
+          delta={p?.dau.delta}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="WAU"
+          tooltip="Distinct users with any event in the last 7d"
+          value={p?.wau.value}
+          delta={p?.wau.delta}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="MAU"
+          tooltip="Distinct users with any event in the last 30d"
+          value={p?.mau.value}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="Stickiness"
+          tooltip="DAU ÷ MAU — target 20%+"
+          value={p ? `${p.stickiness.value}%` : undefined}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="Today · signups"
+          value={p?.todaySignups.value}
+          sparkline={p?.todaySignups.sparkline.map((s) => s.count) ?? []}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="Today · groups"
+          value={p?.todayGroups.value}
+          sparkline={p?.todayGroups.sparkline.map((s) => s.count) ?? []}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="Today · expenses"
+          value={p?.todayExpenses.value}
+          sparkline={p?.todayExpenses.sparkline.map((s) => s.count) ?? []}
+          loading={pulse.isLoading}
+        />
+        <KpiTile
+          label="Push subscribers"
+          tooltip="Active Web Push subscriptions across all users"
+          value={p?.activePushSubs.value}
+          loading={pulse.isLoading}
+        />
+      </section>
+
+      {/* Signups chart */}
+      <section
+        aria-label="Signups over time"
+        className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5"
+      >
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">Signups · last 90 days</h2>
+          <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+            7-day rolling avg overlay
+          </span>
+        </div>
+        <div className="mt-3">
+          <SignupsChart data={signups.data ?? []} loading={signups.isLoading} />
+        </div>
+      </section>
+
+      {/* Activation funnel */}
+      <section
+        aria-label="Activation funnel"
+        className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5"
+      >
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">Activation funnel</h2>
+          <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+            Where users drop off
+          </span>
+        </div>
+        <div className="mt-3">
+          <ActivationFunnel data={funnel.data} loading={funnel.isLoading} />
+        </div>
+      </section>
+
+      {/* Activity feed */}
+      <section
+        aria-label="Anonymised activity feed"
+        className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5"
+      >
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">Recent activity</h2>
+          <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+            Anonymised · last {feed.data?.length ?? 50}
+          </span>
+        </div>
+        <div className="mt-3">
+          <ActivityFeed data={feed.data ?? []} loading={feed.isLoading} />
+        </div>
+      </section>
+    </main>
+  );
+}

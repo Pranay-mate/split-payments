@@ -9,6 +9,7 @@ import { eventsRouter } from "./eventsRouter";
 import { claimRouter } from "./claim";
 import { notificationsRouter } from "./notifications";
 import { personalRouter } from "./personal";
+import { adminRouter } from "./admin";
 
 export const appRouter = router({
   auth: authRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   claim: claimRouter,
   notifications: notificationsRouter,
   personal: personalRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;
