@@ -50,11 +50,12 @@ export function RecordPaymentModal({
     new Date().toISOString().slice(0, 10),
   );
 
-  // Re-seed defaults when the modal opens — current user as the "from"
-  // (most common case: "I paid X"), first other member as the "to".
-  // queueMicrotask wrap satisfies react-hooks/set-state-in-effect — same
-  // pattern used elsewhere in the codebase for legitimate effect-driven
-  // resets.
+  // Re-seed defaults ONLY when the modal opens. Earlier version included
+  // `members`/`currentUserId`/`primaryCurrency` in deps — but the parent
+  // passes `members={members.map(...)}` which is a fresh reference every
+  // render, so the effect re-fired on every keystroke and wiped the
+  // amount input via the queueMicrotask reset. Capture the snapshot once
+  // per open and trust subsequent prop changes won't matter mid-edit.
   useEffect(() => {
     if (!open) return;
     const me = currentUserId ?? "";
@@ -67,7 +68,8 @@ export function RecordPaymentModal({
       setNote("");
       setOccurredAt(new Date().toISOString().slice(0, 10));
     });
-  }, [open, currentUserId, members, primaryCurrency]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
   if (typeof document === "undefined") return null;
