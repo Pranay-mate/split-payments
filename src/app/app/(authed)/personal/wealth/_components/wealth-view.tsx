@@ -7,9 +7,11 @@ import {
   ArrowLeft,
   ArrowDown,
   ArrowUp,
+  CreditCard,
   Loader2,
   Pencil,
   Plus,
+  TrendingDown,
   TrendingUp,
   Trash2,
   Wallet,
@@ -131,7 +133,13 @@ export function WealthView() {
             </p>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+          <div
+            className={`mt-4 grid gap-2 text-xs ${
+              summary && summary.debtsValue > 0
+                ? "grid-cols-3"
+                : "grid-cols-2"
+            }`}
+          >
             <div className="rounded-lg bg-white/15 px-3 py-2 backdrop-blur">
               <p className="text-[10px] uppercase tracking-wider text-white/90">
                 Liquid savings
@@ -148,11 +156,21 @@ export function WealthView() {
                 {summary ? formatINR(summary.holdingsValue, 0) : "—"}
               </p>
             </div>
+            {summary && summary.debtsValue > 0 && (
+              <div className="rounded-lg bg-rose-500/30 px-3 py-2 backdrop-blur">
+                <p className="text-[10px] uppercase tracking-wider text-white/90">
+                  Debts
+                </p>
+                <p className="mt-0.5 text-sm font-semibold tabular-nums sm:text-base">
+                  −{formatINR(summary.debtsValue, 0)}
+                </p>
+              </div>
+            )}
           </div>
 
           <p className="mt-3 text-[10.5px] text-white/90">
-            🔐 Each amount is encrypted before storage. Liquid savings come from
-            your scorecard profile; holdings live below.
+            🔐 Each amount is encrypted. Net worth = liquid + holdings
+            {summary && summary.debtsValue > 0 ? " − active debts" : ""}.
           </p>
         </section>
 
@@ -366,6 +384,8 @@ export function WealthView() {
             </ul>
           )}
         </section>
+
+        <DebtsSection />
       </div>
     </main>
   );
@@ -603,6 +623,440 @@ function HoldingForm({
         >
           {isPending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
           {editing ? "Save changes" : "Add holding"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ----- Debts section (Phase 2.5 v5.2) ----------------------------------- */
+
+type DebtType = "home" | "car" | "personal" | "education" | "credit_card" | "other";
+
+const DEBT_LABEL: Record<DebtType, string> = {
+  home: "Home loan",
+  car: "Car loan",
+  personal: "Personal loan",
+  education: "Education loan",
+  credit_card: "Credit card",
+  other: "Other",
+};
+
+const DEBT_EMOJI: Record<DebtType, string> = {
+  home: "🏠",
+  car: "🚗",
+  personal: "👤",
+  education: "🎓",
+  credit_card: "💳",
+  other: "📄",
+};
+
+function DebtsSection() {
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const listQuery = trpc.personal.debts.list.useQuery();
+  const utils = trpc.useUtils();
+
+  const archiveMutation = trpc.personal.debts.archive.useMutation({
+    onSuccess: () => {
+      utils.personal.debts.list.invalidate();
+      utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
+      toast.success("Debt archived");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const deleteMutation = trpc.personal.debts.delete.useMutation({
+    onSuccess: () => {
+      utils.personal.debts.list.invalidate();
+      utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
+      toast.success("Debt deleted");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const items = listQuery.data ?? [];
+  const editing = editingId ? items.find((d) => d.id === editingId) ?? null : null;
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+          <CreditCard className="h-4 w-4 text-rose-500" aria-hidden />
+          Debts ({items.length})
+        </h2>
+        {!adding && !editingId && (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-500"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Add debt
+          </button>
+        )}
+      </div>
+
+      {(adding || editing) && (
+        <DebtForm
+          key={editingId ?? "new"}
+          editing={editing}
+          onCancel={() => {
+            setAdding(false);
+            setEditingId(null);
+          }}
+          onSaved={() => {
+            setAdding(false);
+            setEditingId(null);
+          }}
+        />
+      )}
+
+      {!adding && !editingId && items.length === 0 ? (
+        <p className="mt-4 text-center text-[12.5px] text-slate-500 dark:text-slate-400">
+          No debts tracked. Add a home loan, EMI, or any loan and we&apos;ll
+          subtract the outstanding balance from net worth and project it
+          shrinking month-by-month.
+        </p>
+      ) : (
+        !adding &&
+        !editingId && (
+          <ul className="mt-3 space-y-2">
+            {items.map((d) => {
+              const dt = d.debtType as DebtType;
+              return (
+                <li
+                  key={d.id}
+                  className="rounded-xl border border-slate-100 bg-slate-50/40 p-3 dark:border-slate-800 dark:bg-slate-800/30"
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      aria-hidden
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-rose-100 text-base text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                    >
+                      {DEBT_EMOJI[dt]}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span className="truncate text-sm font-semibold">
+                          {d.name}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {DEBT_LABEL[dt]}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        EMI {formatINR(d.emi, 0)} · {d.annualRatePct}% p.a.
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        {d.isUnderwater ? (
+                          <span className="text-rose-600 dark:text-rose-400">
+                            ⚠ EMI doesn&apos;t cover interest — balance is
+                            growing.
+                          </span>
+                        ) : d.monthsRemaining === null ? (
+                          ""
+                        ) : d.monthsRemaining === 0 ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            Fully paid off
+                          </span>
+                        ) : (
+                          <>
+                            {Math.floor(d.monthsRemaining / 12)}y{" "}
+                            {d.monthsRemaining % 12}m left
+                            {d.finishDate && (
+                              <>
+                                {" "}
+                                · debt-free{" "}
+                                {d.finishDate.toLocaleDateString(undefined, {
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold tabular-nums text-rose-700 dark:text-rose-300">
+                        −{formatINR(d.currentOutstanding, 0)}
+                      </p>
+                      <p className="text-[10px] text-slate-400">outstanding</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditingId(d.id)}
+                      className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-indigo-100 hover:text-indigo-700 dark:hover:bg-indigo-950/40"
+                      aria-label="Edit debt"
+                      title="Edit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Archive "${d.name}"? It stops counting toward net worth but isn't deleted.`,
+                          )
+                        ) {
+                          archiveMutation.mutate({ id: d.id });
+                        }
+                      }}
+                      className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-950/40"
+                      aria-label="Archive debt"
+                      title="Archive"
+                    >
+                      <Archive className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Delete "${d.name}" permanently? This cannot be undone.`,
+                          )
+                        ) {
+                          deleteMutation.mutate({ id: d.id });
+                        }
+                      }}
+                      className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                      aria-label="Delete debt"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      )}
+    </section>
+  );
+}
+
+function DebtForm({
+  editing,
+  onCancel,
+  onSaved,
+}: {
+  editing: {
+    id: string;
+    name: string;
+    debtType: DebtType;
+    principal: number;
+    emi: number;
+    annualRatePct: number;
+    startDate: Date;
+  } | null;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const isEditing = Boolean(editing);
+  const [name, setName] = useState(editing?.name ?? "");
+  const [debtType, setDebtType] = useState<DebtType>(editing?.debtType ?? "home");
+  const [principal, setPrincipal] = useState<number | "">(editing?.principal ?? "");
+  const [emi, setEmi] = useState<number | "">(editing?.emi ?? "");
+  const [rate, setRate] = useState<number | "">(editing?.annualRatePct ?? "");
+
+  const utils = trpc.useUtils();
+  const createMutation = trpc.personal.debts.create.useMutation({
+    onSuccess: () => {
+      utils.personal.debts.list.invalidate();
+      utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
+      toast.success("Debt added");
+      onSaved();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const updateMutation = trpc.personal.debts.update.useMutation({
+    onSuccess: () => {
+      utils.personal.debts.list.invalidate();
+      utils.personal.holdings.netWorth.invalidate();
+      utils.personal.holdings.netWorthHistory.invalidate();
+      toast.success("Debt updated");
+      onSaved();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const numericPrincipal = typeof principal === "number" ? principal : 0;
+  const numericEmi = typeof emi === "number" ? emi : 0;
+  const numericRate = typeof rate === "number" ? rate : 0;
+  const valid =
+    name.trim().length > 0 &&
+    numericPrincipal > 0 &&
+    numericEmi > 0 &&
+    numericRate >= 0;
+
+  // Live preview: at current inputs, what does the math say about
+  // months-to-freedom and EMI sufficiency? Helps users catch typos
+  // before saving (e.g. EMI < interest = predatory).
+  const preview = (() => {
+    if (!valid) return null;
+    const r = numericRate / 12 / 100;
+    if (numericEmi <= numericPrincipal * r) {
+      return { underwater: true, monthsLeft: null };
+    }
+    const monthsLeft =
+      r === 0
+        ? Math.ceil(numericPrincipal / numericEmi)
+        : Math.ceil(
+            Math.log(numericEmi / (numericEmi - numericPrincipal * r)) /
+              Math.log(1 + r),
+          );
+    return { underwater: false, monthsLeft };
+  })();
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!valid) return;
+    if (editing) {
+      await updateMutation.mutateAsync({
+        id: editing.id,
+        name: name.trim(),
+        debtType,
+        principal: numericPrincipal,
+        emi: numericEmi,
+        annualRatePct: numericRate,
+      });
+    } else {
+      await createMutation.mutateAsync({
+        name: name.trim(),
+        debtType,
+        principal: numericPrincipal,
+        emi: numericEmi,
+        annualRatePct: numericRate,
+      });
+    }
+  };
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <form onSubmit={submit} className="mt-4 space-y-3 rounded-xl border border-rose-200 bg-rose-50/40 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Name
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="HDFC Home Loan"
+            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+            maxLength={80}
+          />
+        </label>
+        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Type
+          <select
+            value={debtType}
+            onChange={(e) => setDebtType(e.target.value as DebtType)}
+            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+          >
+            {(Object.keys(DEBT_LABEL) as DebtType[]).map((t) => (
+              <option key={t} value={t}>
+                {DEBT_EMOJI[t]} {DEBT_LABEL[t]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Outstanding (₹)
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={1}
+            value={principal}
+            onChange={(e) =>
+              setPrincipal(e.target.value === "" ? "" : Number(e.target.value))
+            }
+            placeholder="4000000"
+            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
+        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Monthly EMI (₹)
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={1}
+            value={emi}
+            onChange={(e) =>
+              setEmi(e.target.value === "" ? "" : Number(e.target.value))
+            }
+            placeholder="35000"
+            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
+        <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
+          Interest rate (% p.a.)
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={99.99}
+            step={0.01}
+            value={rate}
+            onChange={(e) =>
+              setRate(e.target.value === "" ? "" : Number(e.target.value))
+            }
+            placeholder="8.5"
+            className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm tabular-nums dark:border-slate-700 dark:bg-slate-900"
+          />
+        </label>
+      </div>
+
+      {preview && (
+        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11.5px] dark:border-slate-700 dark:bg-slate-900">
+          {preview.underwater ? (
+            <p className="text-rose-600 dark:text-rose-400">
+              ⚠ EMI ≤ monthly interest — at these numbers the balance
+              would grow, not shrink. Double-check your inputs.
+            </p>
+          ) : (
+            <p className="text-slate-600 dark:text-slate-300">
+              <TrendingDown className="-mt-0.5 mr-1 inline h-3 w-3 text-emerald-600" aria-hidden />
+              At this EMI + rate, debt-free in{" "}
+              <strong>
+                {Math.floor((preview.monthsLeft ?? 0) / 12)}y{" "}
+                {(preview.monthsLeft ?? 0) % 12}m
+              </strong>{" "}
+              ({preview.monthsLeft} EMIs).
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={!valid || isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
+        >
+          {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+          {isEditing ? "Save changes" : "Add debt"}
         </button>
       </div>
     </form>
