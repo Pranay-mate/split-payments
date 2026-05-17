@@ -94,23 +94,54 @@ export default async function HomePage({
             {SITE.tagline}
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          {/* Two co-equal primary CTAs — one for each product pillar. The
+              prior single "Open the app" hid the personal-finance side
+              entirely above the fold. */}
+          <div className="mt-8 grid w-full max-w-xl gap-3 sm:grid-cols-2">
             <Link
               href="/app/groups"
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              className="group inline-flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
             >
-              Open the app
-              <ArrowRight className="h-4 w-4" aria-hidden />
+              <span className="flex items-center gap-2">
+                <Users className="h-4 w-4" aria-hidden />
+                Split bills with friends
+              </span>
+              <ArrowRight
+                className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
             </Link>
             <Link
+              href="/app/personal"
+              className="group inline-flex items-center justify-between gap-2 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:shadow-md"
+            >
+              <span className="flex items-center gap-2">
+                <Wallet className="h-4 w-4" aria-hidden />
+                Track money + scorecard
+              </span>
+              <ArrowRight
+                className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </Link>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs">
+            <Link
               href="/calculators/trip"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Try without signup
             </Link>
+            <Link
+              href="/use-cases/financial-health-india"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <Sparkles className="h-3 w-3 text-amber-500" aria-hidden />
+              See the scorecard
+            </Link>
           </div>
           <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-            Standalone calculators · no signup · works offline · install as a PWA
+            Encrypted · offline-first · works in your pocket · no ads
           </p>
         </div>
       </section>
