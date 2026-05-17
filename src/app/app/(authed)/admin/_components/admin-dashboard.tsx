@@ -18,12 +18,20 @@ const SignupsChart = dynamic(
 );
 
 export function AdminDashboard() {
-  const pulse = trpc.admin.pulse.useQuery(undefined, { staleTime: 60_000 });
-  const signups = trpc.admin.signupsByDay.useQuery(undefined, {
+  // Admin queries are aggregate counts — staleTime of 60s is fine.
+  // retry: 1 prevents a refetch storm if the server hits a regression
+  // (the previous unbounded retry-with-backoff turned a single slow query
+  // into 3+ slow queries piled up against the connection pool).
+  // refetchOnWindowFocus disabled so tab-switching doesn't re-hammer.
+  const opts = {
     staleTime: 60_000,
-  });
-  const funnel = trpc.admin.funnel.useQuery(undefined, { staleTime: 60_000 });
-  const feed = trpc.admin.feed.useQuery(undefined, { staleTime: 30_000 });
+    retry: 1,
+    refetchOnWindowFocus: false,
+  } as const;
+  const pulse = trpc.admin.pulse.useQuery(undefined, opts);
+  const signups = trpc.admin.signupsByDay.useQuery(undefined, opts);
+  const funnel = trpc.admin.funnel.useQuery(undefined, opts);
+  const feed = trpc.admin.feed.useQuery(undefined, { ...opts, staleTime: 30_000 });
 
   const p = pulse.data;
   const firstError =

@@ -14,20 +14,18 @@
  * date window to avoid full-table scans as the data grows.
  */
 import { z } from "zod";
-import { sql, gte, desc, and, lt } from "drizzle-orm";
+import { sql, gte, desc } from "drizzle-orm";
 import { router } from "../trpc";
 import { adminProcedure } from "../admin-auth";
 import { db } from "@/lib/db";
 import {
   profiles,
-  groups,
-  expenses,
   events,
-  pushSubscriptions,
   financialProfiles,
   scoreSnapshots,
   personalEntries,
   groupMembers,
+  expenses,
 } from "@/lib/db/schema";
 
 /** Start of day (UTC) for the given offset-from-today. dayOffset=0 → today's midnight. */
@@ -44,180 +42,143 @@ function dayKey(d: Date): string {
 }
 
 /**
- * Single-pass count of distinct user IDs from events whose occurred_at
- * falls within [since, now]. Used for DAU/WAU/MAU.
+ * Expand a sparse `[{day, count}]` Postgres group-by result into a dense
+ * 7-day array so sparklines render flat (no gaps from missing days).
  */
-async function distinctActorsSince(since: Date): Promise<number> {
-  const [row] = await db
-    .select({
-      count: sql<number>`count(distinct ${events.actorId})::int`,
-    })
-    .from(events)
-    .where(gte(events.occurredAt, since));
-  return row?.count ?? 0;
+function fill7(rows: { day: string; count: number }[]): { day: string; count: number }[] {
+  const map = new Map(rows.map((r) => [r.day, r.count]));
+  const out: { day: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = startOfDay(i);
+    const k = dayKey(d);
+    out.push({ day: k, count: map.get(k) ?? 0 });
+  }
+  return out;
 }
 
 export const adminRouter = router({
   /**
    * Top-of-page KPI tiles: 9 metrics with current value, 7-day delta,
-   * and a 7-day daily sparkline series.
+   * and 7-day daily sparkline series.
+   *
+   * Previous version fired 14 parallel queries against a `max: 10`
+   * connection pool. Result: pool exhaustion and 300s function timeouts
+   * on Vercel Pro. This version collapses everything into TWO queries:
+   *
+   *   1. One combined-counts query — subqueries for all 9 scalar KPIs
+   *      plus week-over-week priors. ~1 round trip, ~ms.
+   *   2. One bucketed-counts query — daily-grouped counts for sparklines,
+   *      from a UNION ALL across signups + groups + expenses. ~1 trip.
+   *
+   * Total: 2 round trips, no pool contention. console.time logs latency
+   * so future Vercel function logs surface regressions immediately.
    */
   pulse: adminProcedure.query(async () => {
+    const t0 = Date.now();
     try {
-    const now = new Date();
-    const today = startOfDay(0);
-    const sevenDaysAgo = startOfDay(7);
-    const fourteenDaysAgo = startOfDay(14);
-    const thirtyDaysAgo = startOfDay(30);
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const now = new Date();
+      const today = startOfDay(0);
+      const sevenDaysAgo = startOfDay(7);
+      const fourteenDaysAgo = startOfDay(14);
+      const thirtyDaysAgo = startOfDay(30);
+      const eightDaysAgo = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000);
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const [
-      totalUsersRow,
-      sevenDayPriorUsersRow,
-      dau,
-      wau,
-      mau,
-      todaySignupsRow,
-      todayGroupsRow,
-      todayExpensesRow,
-      activePushRow,
-      signupsBucket,
-      groupsBucket,
-      expensesBucket,
-    ] = await Promise.all([
-      db.select({ count: sql<number>`count(*)::int` }).from(profiles),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(profiles)
-        .where(lt(profiles.createdAt, sevenDaysAgo)),
-      distinctActorsSince(oneDayAgo),
-      distinctActorsSince(sevenDaysAgo),
-      distinctActorsSince(thirtyDaysAgo),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(profiles)
-        .where(gte(profiles.createdAt, today)),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(groups)
-        .where(gte(groups.createdAt, today)),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(expenses)
-        .where(gte(expenses.createdAt, today)),
-      db.select({ count: sql<number>`count(*)::int` }).from(pushSubscriptions),
-      // 7-day sparkline series for sign-ups
-      db
-        .select({
-          day: sql<string>`to_char(${profiles.createdAt}, 'YYYY-MM-DD')`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(profiles)
-        .where(gte(profiles.createdAt, sevenDaysAgo))
-        .groupBy(sql`to_char(${profiles.createdAt}, 'YYYY-MM-DD')`),
-      db
-        .select({
-          day: sql<string>`to_char(${groups.createdAt}, 'YYYY-MM-DD')`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(groups)
-        .where(gte(groups.createdAt, sevenDaysAgo))
-        .groupBy(sql`to_char(${groups.createdAt}, 'YYYY-MM-DD')`),
-      db
-        .select({
-          day: sql<string>`to_char(${expenses.createdAt}, 'YYYY-MM-DD')`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(expenses)
-        .where(gte(expenses.createdAt, sevenDaysAgo))
-        .groupBy(sql`to_char(${expenses.createdAt}, 'YYYY-MM-DD')`),
-    ]);
+      // Single query — all 9 KPI counts + 2 WoW priors in one round trip.
+      const countsResult = await db.execute<{
+        total_users: number;
+        users_seven_day_prior: number;
+        dau: number;
+        wau: number;
+        mau: number;
+        prior_dau: number;
+        prior_wau: number;
+        today_signups: number;
+        today_groups: number;
+        today_expenses: number;
+        active_push: number;
+      }>(sql`
+        SELECT
+          (SELECT count(*)::int FROM profiles) AS total_users,
+          (SELECT count(*)::int FROM profiles WHERE created_at < ${sevenDaysAgo}) AS users_seven_day_prior,
+          (SELECT count(DISTINCT actor_id)::int FROM events WHERE occurred_at >= ${oneDayAgo}) AS dau,
+          (SELECT count(DISTINCT actor_id)::int FROM events WHERE occurred_at >= ${sevenDaysAgo}) AS wau,
+          (SELECT count(DISTINCT actor_id)::int FROM events WHERE occurred_at >= ${thirtyDaysAgo}) AS mau,
+          (SELECT count(DISTINCT actor_id)::int FROM events
+             WHERE occurred_at >= ${eightDaysAgo} AND occurred_at < ${oneDayAgo}) AS prior_dau,
+          (SELECT count(DISTINCT actor_id)::int FROM events
+             WHERE occurred_at >= ${fourteenDaysAgo} AND occurred_at < ${sevenDaysAgo}) AS prior_wau,
+          (SELECT count(*)::int FROM profiles WHERE created_at >= ${today}) AS today_signups,
+          (SELECT count(*)::int FROM groups WHERE created_at >= ${today}) AS today_groups,
+          (SELECT count(*)::int FROM expenses WHERE created_at >= ${today}) AS today_expenses,
+          (SELECT count(*)::int FROM push_subscriptions) AS active_push
+      `);
+      const c = countsResult[0]!;
 
-    // Expand the per-day group-by results into dense 7-day arrays so the
-    // sparklines render flat (and not spiky from missing days).
-    const fill7 = (rows: { day: string; count: number }[]) => {
-      const map = new Map(rows.map((r) => [r.day, r.count]));
-      const out: { day: string; count: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = startOfDay(i);
-        const k = dayKey(d);
-        out.push({ day: k, count: map.get(k) ?? 0 });
+      // Single query for sparkline data — UNION ALL across the three
+      // source tables, then group by (kind, day) in app-land.
+      const bucketRows = await db.execute<{ kind: string; day: string; count: number }>(sql`
+        SELECT 'signups' AS kind,
+               to_char(created_at, 'YYYY-MM-DD') AS day,
+               count(*)::int AS count
+          FROM profiles
+         WHERE created_at >= ${sevenDaysAgo}
+         GROUP BY day
+        UNION ALL
+        SELECT 'groups', to_char(created_at, 'YYYY-MM-DD'), count(*)::int
+          FROM groups
+         WHERE created_at >= ${sevenDaysAgo}
+         GROUP BY 2
+        UNION ALL
+        SELECT 'expenses', to_char(created_at, 'YYYY-MM-DD'), count(*)::int
+          FROM expenses
+         WHERE created_at >= ${sevenDaysAgo}
+         GROUP BY 2
+      `);
+
+      const signupsBucket: { day: string; count: number }[] = [];
+      const groupsBucket: { day: string; count: number }[] = [];
+      const expensesBucket: { day: string; count: number }[] = [];
+      for (const r of bucketRows) {
+        const entry = { day: r.day, count: r.count };
+        if (r.kind === "signups") signupsBucket.push(entry);
+        else if (r.kind === "groups") groupsBucket.push(entry);
+        else if (r.kind === "expenses") expensesBucket.push(entry);
       }
-      return out;
-    };
 
-    const totalUsers = totalUsersRow[0]?.count ?? 0;
-    const usersSevenDayPrior = sevenDayPriorUsersRow[0]?.count ?? 0;
-    const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0;
+      const stickiness = c.mau > 0 ? Math.round((c.dau / c.mau) * 100) : 0;
 
-    // 7d prior baselines for delta — DAU vs 8d-ago DAU, etc.
-    // Approximation: we use the count of unique actors from 14→7d ago
-    // window as the "previous WAU", so the delta is week-over-week.
-    const [priorDau, priorWau] = await Promise.all([
-      db
-        .select({
-          count: sql<number>`count(distinct ${events.actorId})::int`,
-        })
-        .from(events)
-        .where(
-          and(
-            gte(events.occurredAt, new Date(oneDayAgo.getTime() - 7 * 86400000)),
-            lt(events.occurredAt, oneDayAgo),
-          ),
-        ),
-      db
-        .select({
-          count: sql<number>`count(distinct ${events.actorId})::int`,
-        })
-        .from(events)
-        .where(
-          and(gte(events.occurredAt, fourteenDaysAgo), lt(events.occurredAt, sevenDaysAgo)),
-        ),
-    ]);
-
-    return {
-      totalUsers: {
-        value: totalUsers,
-        delta: totalUsers - usersSevenDayPrior,
-        sparkline: fill7(signupsBucket),
-      },
-      dau: {
-        value: dau,
-        delta: dau - (priorDau[0]?.count ?? 0),
-        sparkline: [],
-      },
-      wau: {
-        value: wau,
-        delta: wau - (priorWau[0]?.count ?? 0),
-        sparkline: [],
-      },
-      mau: { value: mau, delta: 0, sparkline: [] },
-      stickiness: { value: stickiness, delta: 0, sparkline: [] },
-      todaySignups: {
-        value: todaySignupsRow[0]?.count ?? 0,
-        delta: 0,
-        sparkline: fill7(signupsBucket),
-      },
-      todayGroups: {
-        value: todayGroupsRow[0]?.count ?? 0,
-        delta: 0,
-        sparkline: fill7(groupsBucket),
-      },
-      todayExpenses: {
-        value: todayExpensesRow[0]?.count ?? 0,
-        delta: 0,
-        sparkline: fill7(expensesBucket),
-      },
-      activePushSubs: {
-        value: activePushRow[0]?.count ?? 0,
-        delta: 0,
-        sparkline: [],
-      },
-    };
+      const result = {
+        totalUsers: {
+          value: c.total_users,
+          delta: c.total_users - c.users_seven_day_prior,
+          sparkline: fill7(signupsBucket),
+        },
+        dau: { value: c.dau, delta: c.dau - c.prior_dau, sparkline: [] },
+        wau: { value: c.wau, delta: c.wau - c.prior_wau, sparkline: [] },
+        mau: { value: c.mau, delta: 0, sparkline: [] },
+        stickiness: { value: stickiness, delta: 0, sparkline: [] },
+        todaySignups: {
+          value: c.today_signups,
+          delta: 0,
+          sparkline: fill7(signupsBucket),
+        },
+        todayGroups: {
+          value: c.today_groups,
+          delta: 0,
+          sparkline: fill7(groupsBucket),
+        },
+        todayExpenses: {
+          value: c.today_expenses,
+          delta: 0,
+          sparkline: fill7(expensesBucket),
+        },
+        activePushSubs: { value: c.active_push, delta: 0, sparkline: [] },
+      };
+      console.log(`[admin.pulse] ${Date.now() - t0}ms`);
+      return result;
     } catch (err) {
-      // Surface in Vercel function logs — without this, the client just
-      // sees "Internal Server Error" with no actionable detail.
-      console.error("[admin.pulse] query failed:", err);
+      console.error(`[admin.pulse] failed after ${Date.now() - t0}ms:`, err);
       throw err;
     }
   }),
