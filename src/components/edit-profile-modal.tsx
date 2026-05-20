@@ -18,6 +18,7 @@ import {
 } from "@/components/notification-settings";
 import { EmbedCodeBlock } from "@/components/embed-code-block";
 import { WealthShareBlock } from "@/components/wealth-share-block";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type Theme = "system" | "light" | "dark";
 
@@ -39,6 +40,7 @@ export function EditProfileModal({
 }) {
   const utils = trpc.useUtils();
   const router = useRouter();
+  const confirm = useConfirm();
   const meQuery = trpc.profiles.me.useQuery();
   const me = meQuery.data;
   const { setTheme } = useTheme();
@@ -103,21 +105,23 @@ export function EditProfileModal({
 
   /**
    * Two-step confirmation for account deletion. First click sets state
-   * to a "really?" red button; second click calls the mutation. Plus a
-   * native confirm() before that for the typed-confirmation cohort.
-   * Combined: hard to trigger by mistake, easy if you mean it.
+   * to a "really?" red button; second click opens a branded confirm
+   * modal. Combined: hard to trigger by mistake, easy if you mean it.
    */
   const [armDelete, setArmDelete] = useState(false);
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!armDelete) {
       setArmDelete(true);
       return;
     }
-    if (
-      !confirm(
-        "Delete your account? You'll lose access to all your groups. Your historical expenses remain visible to other group members but anonymised. This cannot be undone.",
-      )
-    ) {
+    const ok = await confirm({
+      title: "Delete your account?",
+      description:
+        "You'll lose access to all your groups. Your historical expenses remain visible to other group members but anonymised. This cannot be undone.",
+      confirmLabel: "Delete account",
+      destructive: true,
+    });
+    if (!ok) {
       setArmDelete(false);
       return;
     }

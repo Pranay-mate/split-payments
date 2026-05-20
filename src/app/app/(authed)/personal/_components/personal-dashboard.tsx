@@ -29,6 +29,7 @@ import { Scorecard } from "./scorecard";
 import { YearlyTrendCard } from "./yearly-trend-card";
 import { MonthlyReviewModal } from "@/components/monthly-review-modal";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const PersonalCharts = dynamic(
   () => import("./personal-charts").then((m) => m.PersonalCharts),
@@ -74,6 +75,7 @@ const TYPE_AVATAR: Record<EntryType, string> = {
 };
 
 export function PersonalDashboard() {
+  const confirm = useConfirm();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -529,7 +531,16 @@ export function PersonalDashboard() {
                           <button
                             type="button"
                             onClick={async () => {
-                              if (!confirm("Remove this entry?")) return;
+                              if (
+                                !(await confirm({
+                                  title: "Remove this entry?",
+                                  description:
+                                    "This personal entry will be removed from your monthly totals and scorecard inputs.",
+                                  confirmLabel: "Remove",
+                                  destructive: true,
+                                }))
+                              )
+                                return;
                               if (editingId === e.id) setEditingId(null);
                               try {
                                 const { queued } = await submitDelete({

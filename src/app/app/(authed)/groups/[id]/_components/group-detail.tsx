@@ -35,6 +35,7 @@ import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
 import { RecordPaymentModal } from "./record-payment-modal";
 import { disambiguateMembers } from "@/lib/disambiguate-names";
+import { useConfirm } from "@/components/confirm-dialog";
 import { ContributionBar } from "./contribution-bar";
 import { GroupSettings } from "./group-settings";
 import { InviteModal } from "./invite-modal";
@@ -66,6 +67,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingPayment, setRecordingPayment] = useState(false);
+  const confirm = useConfirm();
   const [commentingOn, setCommentingOn] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
@@ -669,7 +671,16 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       <button
                         type="button"
                         onClick={async () => {
-                          if (!confirm("Remove this expense?")) return;
+                          if (
+                            !(await confirm({
+                              title: "Remove this expense?",
+                              description:
+                                "Splits, comments, and edit history for this expense will be deleted. Balances update immediately.",
+                              confirmLabel: "Remove",
+                              destructive: true,
+                            }))
+                          )
+                            return;
                           if (editingId === e.id) setEditingId(null);
                           try {
                             const { queued } = await submitDelete({ id: e.id });

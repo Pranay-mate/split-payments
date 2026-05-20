@@ -13,6 +13,7 @@ import { OfflineIndicator } from "@/components/offline-indicator";
 import { TrpcProvider } from "@/lib/trpc/client";
 import { OfflineProvider } from "@/lib/offline/use-offline";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ConfirmProvider } from "@/components/confirm-dialog";
 import "./globals.css";
 
 const sans = Geist({ variable: "--font-sans", subsets: ["latin"] });
@@ -97,18 +98,20 @@ export default function RootLayout({
         <ThemeProvider>
           <TrpcProvider>
             <OfflineProvider>
-              <SiteHeader />
-              {children}
-              <SwUpdateBanner />
-              <JustUpdatedToast />
-              <OfflineIndicator />
-              <InstallPrompt />
-              <Toaster
-                position="bottom-center"
-                richColors
-                closeButton
-                toastOptions={{ classNames: { toast: "rounded-xl" } }}
-              />
+              <ConfirmProvider>
+                <SiteHeader />
+                {children}
+                <SwUpdateBanner />
+                <JustUpdatedToast />
+                <OfflineIndicator />
+                <InstallPrompt />
+                <Toaster
+                  position="bottom-center"
+                  richColors
+                  closeButton
+                  toastOptions={{ classNames: { toast: "rounded-xl" } }}
+                />
+              </ConfirmProvider>
             </OfflineProvider>
           </TrpcProvider>
         </ThemeProvider>

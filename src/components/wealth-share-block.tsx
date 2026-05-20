@@ -5,6 +5,7 @@ import { Check, Copy, Eye, EyeOff, Globe, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { InfoTip } from "@/components/info-tip";
+import { useConfirm } from "@/components/confirm-dialog";
 
 /**
  * Wealth-share opt-in panel. Slots into the profile editor.
@@ -21,6 +22,7 @@ import { InfoTip } from "@/components/info-tip";
  * which the EditProfileModal already runs.
  */
 export function WealthShareBlock() {
+  const confirm = useConfirm();
   const utils = trpc.useUtils();
   const meQuery = trpc.profiles.me.useQuery();
   const me = meQuery.data;
@@ -92,9 +94,17 @@ export function WealthShareBlock() {
         </div>
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             if (isEnabled) {
-              if (confirm("Disable wealth sharing? Your share URL will stop working.")) {
+              if (
+                await confirm({
+                  title: "Disable wealth sharing?",
+                  description:
+                    "Your share URL stops working immediately. Anyone you've sent the link to will see a 404.",
+                  confirmLabel: "Disable sharing",
+                  destructive: true,
+                })
+              ) {
                 disableMutation.mutate();
               }
             } else {
@@ -199,11 +209,15 @@ export function WealthShareBlock() {
           {/* Rotate token */}
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (
-                confirm(
-                  "Issue a new share URL? The old one stops working immediately.",
-                )
+                await confirm({
+                  title: "Issue a new share URL?",
+                  description:
+                    "The old one stops working immediately. Anyone with the old link will see a 404 — only people you send the new URL to can view.",
+                  confirmLabel: "Generate new URL",
+                  destructive: true,
+                })
               ) {
                 rotateMutation.mutate();
               }

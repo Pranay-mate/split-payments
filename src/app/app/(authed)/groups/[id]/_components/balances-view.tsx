@@ -14,6 +14,7 @@ import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
+import { useConfirm } from "@/components/confirm-dialog";
 import { InfoTip } from "@/components/info-tip";
 
 type SettleMode = "simplified" | "pairwise";
@@ -158,6 +159,7 @@ export function BalancesView({
   currentUserId: string | null;
 }) {
   const utils = trpc.useUtils();
+  const confirm = useConfirm();
   const userTz = useUserTimezone();
   const recordMutation = trpc.settlements.create.useMutation({
     onSuccess: () => {
@@ -318,7 +320,16 @@ export function BalancesView({
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!confirm("Undo this settlement?")) return;
+                    if (
+                      !(await confirm({
+                        title: "Undo this settlement?",
+                        description:
+                          "The payment record is removed and Suggested Payments will reopen for this pair.",
+                        confirmLabel: "Undo settlement",
+                        destructive: true,
+                      }))
+                    )
+                      return;
                     try {
                       const { queued } = await submitDelete({ id: r.id });
                       if (!queued) toast.success("Settlement removed");

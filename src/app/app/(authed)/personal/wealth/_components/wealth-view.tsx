@@ -23,6 +23,7 @@ import { formatINR } from "@/lib/format";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { NetWorthTrajectory } from "./net-worth-trajectory";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type HoldingType = "mutual_fund" | "fd" | "stock" | "gold" | "bond" | "other";
 
@@ -54,6 +55,7 @@ const TYPE_EMOJI: Record<HoldingType, string> = {
 };
 
 export function WealthView() {
+  const confirm = useConfirm();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const userTz = useUserTimezone();
@@ -362,11 +364,15 @@ export function WealthView() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={async () => {
                             if (
-                              confirm(
-                                `Delete "${h.name}"? This permanently removes it from your records.`,
-                              )
+                              await confirm({
+                                title: `Delete "${h.name}"?`,
+                                description:
+                                  "Permanently removes this holding from your net worth. This cannot be undone — archive instead if you might want it back.",
+                                confirmLabel: "Delete",
+                                destructive: true,
+                              })
                             ) {
                               deleteMutation.mutate({ id: h.id });
                             }
@@ -652,6 +658,7 @@ const DEBT_EMOJI: Record<DebtType, string> = {
 };
 
 function DebtsSection() {
+  const confirm = useConfirm();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -800,11 +807,15 @@ function DebtsSection() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          confirm(
-                            `Archive "${d.name}"? It stops counting toward net worth but isn't deleted.`,
-                          )
+                          await confirm({
+                            title: `Archive "${d.name}"?`,
+                            description:
+                              "Stops counting toward net worth but isn't deleted. Useful for closed/paid-off loans you want to remember.",
+                            confirmLabel: "Archive",
+                            destructive: true,
+                          })
                         ) {
                           archiveMutation.mutate({ id: d.id });
                         }
@@ -817,11 +828,15 @@ function DebtsSection() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         if (
-                          confirm(
-                            `Delete "${d.name}" permanently? This cannot be undone.`,
-                          )
+                          await confirm({
+                            title: `Delete "${d.name}"?`,
+                            description:
+                              "Permanently removes this debt from your records. Archive instead if you might want it back.",
+                            confirmLabel: "Delete",
+                            destructive: true,
+                          })
                         ) {
                           deleteMutation.mutate({ id: d.id });
                         }

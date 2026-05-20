@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { NotificationSettings } from "@/components/notification-settings";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type GroupForSettings = {
   id: string;
@@ -50,6 +51,7 @@ export function GroupSettings({
   meId: string | null;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(group.name);
   const [guestName, setGuestName] = useState("");
@@ -325,9 +327,15 @@ export function GroupSettings({
                         {!isSelf && (isGuest || isCreator) && (
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               if (
-                                confirm(`Remove ${m.displayName} from this group?`)
+                                await confirm({
+                                  title: `Remove ${m.displayName}?`,
+                                  description:
+                                    "They lose access to this group but their past expenses + splits stay intact.",
+                                  confirmLabel: "Remove",
+                                  destructive: true,
+                                })
                               ) {
                                 removeMemberMutation.mutate({
                                   groupId: group.id,
@@ -454,8 +462,16 @@ export function GroupSettings({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (confirm("Leave this group? You'll lose access to its expenses.")) {
+                    onClick={async () => {
+                      if (
+                        await confirm({
+                          title: "Leave this group?",
+                          description:
+                            "You'll lose access to its expenses, comments, and history. Other members continue using the group.",
+                          confirmLabel: "Leave group",
+                          destructive: true,
+                        })
+                      ) {
                         leaveMutation.mutate({ groupId: group.id });
                       }
                     }}
@@ -467,8 +483,16 @@ export function GroupSettings({
                   {isCreator && (
                     <button
                       type="button"
-                      onClick={() => {
-                        if (confirm(`Delete "${group.name}"? Everyone loses access. This cannot be undone.`)) {
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            title: `Delete "${group.name}"?`,
+                            description:
+                              "Everyone loses access. All expenses, splits, comments, and history are permanently removed. This cannot be undone.",
+                            confirmLabel: "Delete group",
+                            destructive: true,
+                          })
+                        ) {
                           deleteMutation.mutate({ id: group.id });
                         }
                       }}

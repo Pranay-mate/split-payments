@@ -18,6 +18,7 @@ import { CATEGORIES, CATEGORY_KEYS, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type EntryType = "income" | "expense" | "investment";
 
@@ -34,6 +35,7 @@ const TYPE_SIGN: Record<EntryType, string> = {
 };
 
 export function RecurrencesCard() {
+  const confirm = useConfirm();
   const utils = trpc.useUtils();
   const listQuery = trpc.personal.recurrences.list.useQuery();
   const [expanded, setExpanded] = useState(false);
@@ -201,11 +203,15 @@ export function RecurrencesCard() {
                             )}
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={async () => {
                                 if (
-                                  confirm(
-                                    "Delete this recurrence? Past auto-created entries will remain.",
-                                  )
+                                  await confirm({
+                                    title: "Delete this recurrence?",
+                                    description:
+                                      "Past auto-created entries stay in your records. Only the schedule stops.",
+                                    confirmLabel: "Delete schedule",
+                                    destructive: true,
+                                  })
                                 ) {
                                   deleteMutation.mutate({ id: r.id });
                                 }
