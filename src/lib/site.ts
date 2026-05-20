@@ -9,7 +9,7 @@ export const SITE = {
     "Split bills with friends and track your own money — free, offline-first, India-built.",
   description:
     "Free expense-splitting + personal finance app. Group splits with multi-currency, simplify-payments, and offline support, plus a personal tracker with a 5-pillar Financial Health Scorecard, goals, and anomaly alerts. India-first defaults.",
-  url: "https://easy-split-payments.vercel.app",
+  url: "https://easysplits.in",
   ogLocale: "en_IN",
   defaultCurrency: "INR",
   socials: {

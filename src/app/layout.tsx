@@ -61,7 +61,10 @@ export const metadata: Metadata = {
     description: SITE.description,
     images: ["/api/og/milestone?type=invite"],
   },
-  // GSC ownership verification for easy-split-payments.vercel.app.
+  // GSC ownership verification — originally added for easy-split-payments.vercel.app;
+  // still valid once we add easysplits.in to GSC since this meta-tag-based
+  // verification is per-property, but we'll need a new TXT verification on
+  // the apex easysplits.in Domain Property in GSC.
   // Next renders this as <meta name="google-site-verification"…>. Don't
   // remove — Google rechecks periodically and revoking the meta tag
   // unverifies the property (losing accumulated indexing history).

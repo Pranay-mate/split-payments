@@ -85,7 +85,7 @@ export function UserMenu() {
     const base =
       typeof window !== "undefined"
         ? window.location.origin
-        : "https://easy-split-payments.vercel.app";
+        : "https://easysplits.in";
     const url = firstName
       ? `${base}/?from=${encodeURIComponent(firstName)}`
       : base + "/";
