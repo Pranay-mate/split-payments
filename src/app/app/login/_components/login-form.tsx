@@ -1,21 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-/**
- * Login form.
- *
- * Magic-link / email sign-in is temporarily removed (2026-05-17) until
- * we wire up a verified sending domain in Resend. Until then the
- * sandbox sender only delivers to the developer's own inbox, which
- * meant real users could request a link, see "check your email", and
- * never receive anything. Better to hide the option than leave it
- * silently broken. The code lived at commits prior to this; bring it
- * back when the Resend domain is verified.
- */
 export function LoginForm({
   initialError,
   next,
@@ -23,7 +12,10 @@ export function LoginForm({
   initialError?: string;
   next?: string;
 }) {
+  const [email, setEmail] = useState("");
   const [busyGoogle, setBusyGoogle] = useState(false);
+  const [busyEmail, setBusyEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     if (initialError) toast.error(initialError);
@@ -51,12 +43,29 @@ export function LoginForm({
     // On success, browser navigates away to Google.
   };
 
+  const signInWithMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setBusyEmail(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: callbackUrl, shouldCreateUser: true },
+    });
+    setBusyEmail(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setEmailSent(true);
+    toast.success("Magic link sent — check your email.");
+  };
+
   return (
     <div className="space-y-4">
       <button
         type="button"
         onClick={signInWithGoogle}
-        disabled={busyGoogle}
+        disabled={busyGoogle || busyEmail}
         className="inline-flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
       >
         {busyGoogle ? (
@@ -67,9 +76,63 @@ export function LoginForm({
         Continue with Google
       </button>
 
-      <p className="text-center text-[11.5px] text-slate-500 dark:text-slate-400">
-        We use Google sign-in for now. Email sign-in is coming back soon.
-      </p>
+      <div className="relative my-2 flex items-center">
+        <span className="flex-1 border-t border-slate-200 dark:border-slate-700" />
+        <span className="px-3 text-xs uppercase tracking-wider text-slate-400">
+          or
+        </span>
+        <span className="flex-1 border-t border-slate-200 dark:border-slate-700" />
+      </div>
+
+      {emailSent ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm dark:border-emerald-900 dark:bg-emerald-950/40">
+          <p className="font-medium text-emerald-800 dark:text-emerald-300">
+            Magic link sent
+          </p>
+          <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+            Open the email on this device and tap the link to sign in.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setEmailSent(false);
+              setEmail("");
+            }}
+            className="mt-3 text-xs font-medium text-emerald-700 underline hover:text-emerald-900 dark:text-emerald-400"
+          >
+            Use a different email
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={signInWithMagicLink} className="space-y-3">
+          <label className="block">
+            <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+              Email
+            </span>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-900"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={busyGoogle || busyEmail || !email.trim()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:bg-slate-300 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 disabled:dark:bg-slate-700"
+          >
+            {busyEmail ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Mail className="h-4 w-4" aria-hidden />
+            )}
+            Send magic link
+          </button>
+        </form>
+      )}
     </div>
   );
 }
