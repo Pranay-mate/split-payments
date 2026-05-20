@@ -53,13 +53,20 @@ function NumField({
   value,
   onChange,
   prefix = "₹",
+  locked,
 }: {
   label: string;
   hint?: string;
   value: number | "";
   onChange: (v: number | "") => void;
   prefix?: string;
+  /** When set, the input is read-only and a small "auto-filled" banner
+   *  appears under it linking to the source of truth (e.g. /wealth).
+   *  Used by the Scorecard wizard to avoid double-entry of EMI /
+   *  investment balance once those are tracked on /wealth. */
+  locked?: { source: "wealth"; href: string; note: string } | null;
 }) {
+  const isLocked = !!locked;
   return (
     <label className="block">
       <span className="text-sm font-medium">{label}</span>
@@ -68,7 +75,13 @@ function NumField({
           {hint}
         </span>
       )}
-      <div className="mt-1.5 flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 dark:border-slate-700 dark:bg-slate-900">
+      <div
+        className={`mt-1.5 flex items-center gap-1 rounded-lg border px-2 ${
+          isLocked
+            ? "border-emerald-300 bg-emerald-50/40 dark:border-emerald-900/60 dark:bg-emerald-950/20"
+            : "border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900"
+        }`}
+      >
         <span className="text-sm font-semibold text-slate-500">{prefix}</span>
         <input
           type="number"
@@ -80,9 +93,23 @@ function NumField({
             onChange(e.target.value === "" ? "" : Number(e.target.value))
           }
           placeholder="0"
-          className="w-full bg-transparent py-2 text-base outline-none tabular-nums"
+          readOnly={isLocked}
+          className={`w-full bg-transparent py-2 text-base outline-none tabular-nums ${
+            isLocked ? "cursor-not-allowed text-slate-700 dark:text-slate-200" : ""
+          }`}
         />
       </div>
+      {locked && (
+        <span className="mt-1 flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+          🔒 {locked.note}{" "}
+          <a
+            href={locked.href}
+            className="font-medium underline-offset-2 hover:underline"
+          >
+            Edit on /wealth →
+          </a>
+        </span>
+      )}
     </label>
   );
 }
@@ -173,8 +200,23 @@ export function OnboardWizard() {
   const [hydrated, setHydrated] = useState(false);
 
   const profileQuery = trpc.personal.profile.get.useQuery();
+  // /wealth is the single source of truth for individual debts +
+  // holdings since v5.1 / v5.2. Pull those so we can auto-fill the EMI
+  // total + investment balance instead of asking the user to type them
+  // again (and likely diverge from the real data).
+  const debtsQuery = trpc.personal.debts.list.useQuery();
+  const holdingsQuery = trpc.personal.holdings.list.useQuery();
   const upsertMutation = trpc.personal.profile.upsert.useMutation();
   const utils = trpc.useUtils();
+
+  const autoEmi = (debtsQuery.data ?? [])
+    .filter((d) => !d.archivedAt)
+    .reduce((s, d) => s + d.emi, 0);
+  const autoInvestmentBalance = (holdingsQuery.data ?? [])
+    .filter((h) => !h.archivedAt)
+    .reduce((s, h) => s + h.currentValue, 0);
+  const hasAutoEmi = autoEmi > 0;
+  const hasAutoInvestment = autoInvestmentBalance > 0;
 
   // Prefill if a profile already exists. queueMicrotask defer so React 19's
   // set-state-in-effect lint stays quiet — intentional first-render hydration.
@@ -204,6 +246,21 @@ export function OnboardWizard() {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  // Once /wealth data arrives, overwrite the EMI + investment fields
+  // with the computed totals so the score uses the real numbers, not a
+  // stale manual entry. We only do this when /wealth actually has
+  // records — empty /wealth = let the user type freely.
+  useEffect(() => {
+    if (!hasAutoEmi && !hasAutoInvestment) return;
+    queueMicrotask(() => {
+      setForm((f) => ({
+        ...f,
+        ...(hasAutoEmi && { totalEmi: autoEmi }),
+        ...(hasAutoInvestment && { investmentBalance: autoInvestmentBalance }),
+      }));
+    });
+  }, [hasAutoEmi, hasAutoInvestment, autoEmi, autoInvestmentBalance]);
 
   // blankAsZero: "I have none of this" — common, valid answer.
   // blankAsNull: "I haven't told you yet" — score genuinely needs these.
@@ -246,7 +303,7 @@ export function OnboardWizard() {
   };
 
   return (
-    <main className="flex-1 pb-28 sm:pb-8">
+    <main className="flex-1 pb-44 sm:pb-8">
       <div className="mx-auto max-w-xl space-y-4 px-4 py-6 sm:px-6 sm:py-8">
         <button
           type="button"
@@ -365,6 +422,15 @@ export function OnboardWizard() {
             hint="Home loan + car + personal loan + credit-card EMI. Target: under 40% of income."
             value={form.totalEmi}
             onChange={(v) => set("totalEmi", v)}
+            locked={
+              hasAutoEmi
+                ? {
+                    source: "wealth",
+                    href: "/app/personal/wealth",
+                    note: "Auto-totalled from your Debts on /wealth.",
+                  }
+                : null
+            }
           />
           <Toggle
             label="Carrying a credit-card balance month-to-month?"
@@ -377,6 +443,15 @@ export function OnboardWizard() {
             hint="Mutual funds + stocks + PPF + EPF + NPS — anything earning long-term returns."
             value={form.investmentBalance}
             onChange={(v) => set("investmentBalance", v)}
+            locked={
+              hasAutoInvestment
+                ? {
+                    source: "wealth",
+                    href: "/app/personal/wealth",
+                    note: "Auto-totalled from your Holdings on /wealth.",
+                  }
+                : null
+            }
           />
           <NumField
             label="Monthly investment (SIP)"
@@ -404,8 +479,11 @@ export function OnboardWizard() {
         </div>
       </div>
 
-      {/* Sticky CTA on mobile — always reachable without scrolling */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95 sm:hidden">
+      {/* Sticky CTA on mobile — always reachable without scrolling.
+          Offset above the MobileBottomNav (Groups / Personal tabs) +
+          iOS safe-area; otherwise the Compute button hides behind the
+          tab bar at the bottom of the viewport. */}
+      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-30 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/95 sm:bottom-0 sm:hidden">
         <button
           type="button"
           onClick={submit}

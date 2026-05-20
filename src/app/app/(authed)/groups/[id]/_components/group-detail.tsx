@@ -34,6 +34,7 @@ import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { AddExpense } from "./add-expense";
 import { BalancesView } from "./balances-view";
 import { RecordPaymentModal } from "./record-payment-modal";
+import { disambiguateMembers } from "@/lib/disambiguate-names";
 import { ContributionBar } from "./contribution-bar";
 import { GroupSettings } from "./group-settings";
 import { InviteModal } from "./invite-modal";
@@ -177,7 +178,26 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   }
 
   const group = groupQuery.data;
-  const members = membersQuery.data ?? [];
+  const rawMembers = membersQuery.data ?? [];
+  // Disambiguate duplicated display names (e.g. a guest "Pranay Mate"
+  // added by hand + the real Pranay Mate joining via Google). Without
+  // this the split-picker / payer-dropdown / member list all render
+  // identical-looking chips for different people.
+  const members = (() => {
+    const labels = disambiguateMembers(
+      rawMembers.map((m) => ({
+        id: m.userId,
+        name: m.displayName,
+        isGuest: m.isGuest,
+      })),
+      meQuery.data?.id ?? null,
+    );
+    const byId = new Map(labels.map((l) => [l.id, l.name]));
+    return rawMembers.map((m) => ({
+      ...m,
+      displayName: byId.get(m.userId) ?? m.displayName,
+    }));
+  })();
   const expenses = expensesQuery.data ?? [];
   const isCreator = !!meQuery.data && group.createdBy === meQuery.data.id;
 

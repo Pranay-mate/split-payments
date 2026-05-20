@@ -864,17 +864,17 @@ export function AddExpense({
               key={idx}
               className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <input
                   value={it.description}
                   onChange={(e) =>
                     updateItem(idx, { description: e.target.value })
                   }
                   placeholder={`Item ${idx + 1}`}
-                  className="flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-950"
+                  className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-950"
                   aria-label={`Item ${idx + 1} description`}
                 />
-                <div className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 dark:border-slate-700 dark:bg-slate-950">
+                <div className="flex shrink-0 items-center gap-1 rounded-md border border-slate-300 bg-white px-1.5 dark:border-slate-700 dark:bg-slate-950">
                   <span className="text-xs text-slate-400">
                     {currency === "INR" ? "₹" : currency}
                   </span>
@@ -891,7 +891,7 @@ export function AddExpense({
                       })
                     }
                     placeholder="0"
-                    className="w-20 bg-transparent py-1.5 text-right text-sm outline-none tabular-nums"
+                    className="w-16 bg-transparent py-1.5 text-right text-sm outline-none tabular-nums"
                     aria-label={`Item ${idx + 1} amount`}
                   />
                 </div>
