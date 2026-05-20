@@ -94,6 +94,48 @@ export const profilesRouter = router({
     return { ...created, isAdmin: isAdmin(ctx.user.id) };
   }),
 
+  /**
+   * Attach a referrer name to the current user's profile. Idempotent +
+   * write-once: if `referred_from` is already set, we keep the old value
+   * (first invite wins — if user clicks Pranay's link, signs up, then
+   * later clicks Shraddha's link, Pranay still gets attribution).
+   *
+   * Called from the (authed) layout once after the user lands signed-in,
+   * passing the value captured in localStorage on the /?from=… landing.
+   */
+  attachReferrer: protectedProcedure
+    .input(
+      z.object({
+        // Same sanitiser shape as page.tsx — latin/devanagari/hebrew +
+        // common name punctuation, max 24 chars.
+        name: z.string().min(1).max(24),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [existing] = await db
+        .select({ referredFrom: profiles.referredFrom })
+        .from(profiles)
+        .where(eq(profiles.id, ctx.user.id))
+        .limit(1);
+      // Profile row may not exist if attachReferrer fires before me() —
+      // safe fallback is a no-op; the next attachReferrer call will set it.
+      if (!existing) return { ok: false as const, reason: "no-profile" };
+      // Already attributed — write-once, ignore.
+      if (existing.referredFrom) {
+        return { ok: false as const, reason: "already-set" };
+      }
+      const cleaned = input.name
+        .replace(/[^a-zA-Zऀ-ॿ֐-׿\s'-]/g, "")
+        .trim()
+        .slice(0, 24);
+      if (!cleaned) return { ok: false as const, reason: "empty-after-clean" };
+      await db
+        .update(profiles)
+        .set({ referredFrom: cleaned, updatedAt: new Date() })
+        .where(eq(profiles.id, ctx.user.id));
+      return { ok: true as const };
+    }),
+
   /** Update the current user's profile. All fields optional — only the
    *  ones the form actually changes are sent. */
   update: protectedProcedure

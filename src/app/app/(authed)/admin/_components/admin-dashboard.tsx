@@ -31,6 +31,7 @@ export function AdminDashboard() {
   const pulse = trpc.admin.pulse.useQuery(undefined, opts);
   const signups = trpc.admin.signupsByDay.useQuery(undefined, opts);
   const funnel = trpc.admin.funnel.useQuery(undefined, opts);
+  const referrers = trpc.admin.topReferrers.useQuery(undefined, opts);
   const feed = trpc.admin.feed.useQuery(undefined, { ...opts, staleTime: 30_000 });
 
   const p = pulse.data;
@@ -185,6 +186,59 @@ export function AdminDashboard() {
         </div>
         <div className="mt-3">
           <ActivationFunnel data={funnel.data} loading={funnel.isLoading} />
+        </div>
+      </section>
+
+      {/* Top referrers */}
+      <section
+        aria-label="Top referrers"
+        className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5"
+      >
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">Top referrers</h2>
+          <span className="text-[10.5px] text-slate-500 dark:text-slate-400">
+            Tracked via <code>?from=</code> on the homepage
+          </span>
+        </div>
+        <div className="mt-3">
+          {referrers.isLoading ? (
+            <div className="h-16 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-900" />
+          ) : referrers.data && referrers.data.referrers.length > 0 ? (
+            <>
+              <ul className="space-y-1.5">
+                {referrers.data.referrers.map((r, i) => (
+                  <li
+                    key={`${r.name}-${i}`}
+                    className="flex items-center justify-between gap-3 text-xs"
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-indigo-100 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                        {i + 1}
+                      </span>
+                      <span className="truncate font-medium">{r.name}</span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-slate-600 dark:text-slate-300">
+                      {r.count.toLocaleString("en-IN")}{" "}
+                      <span className="text-slate-400">
+                        {r.count === 1 ? "signup" : "signups"}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                + {referrers.data.coldSignups.toLocaleString("en-IN")} cold /
+                organic signups (no <code>?from=</code>)
+              </p>
+            </>
+          ) : (
+            <p className="py-4 text-center text-[12.5px] text-slate-500 dark:text-slate-400">
+              No attributed invites yet. Share a{" "}
+              <code>?from=&lt;your-name&gt;</code> link from the Share-with-
+              friends menu — they&apos;ll show up here once someone signs up
+              via it.
+            </p>
+          )}
         </div>
       </section>
 

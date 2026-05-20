@@ -4,6 +4,7 @@ import { UserMenu } from "@/components/user-menu";
 import { GroupSwitcher } from "@/components/group-switcher";
 import { TopNavTabs } from "@/components/top-nav-tabs";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { ReferralAttacher } from "@/components/referral-attacher";
 
 /**
  * Auth gate for everything under /app/(authed)/. Redirects to /app/login
@@ -37,6 +38,7 @@ export default async function AuthedLayout({
           last bit of page content isn't covered. */}
       <div className="pb-20 sm:pb-0">{children}</div>
       <MobileBottomNav />
+      <ReferralAttacher />
     </>
   );
 }

@@ -65,6 +65,11 @@ export const profiles = pgTable("profiles", {
    *  ISO 4217 code. The new-group form uses this as the prefilled value;
    *  user can still pick a different currency per group. */
   defaultCurrency: text("default_currency").notNull().default("INR"),
+  /** The `?from=<name>` value captured when the user first landed on
+   *  /?from=…  (a personalised friend-invite link). Set once at signup,
+   *  never overwritten. Powers the Top Referrers tile in the admin panel
+   *  so the founder can attribute organic invites vs cold landings. */
+  referredFrom: text("referred_from"),
   /** Random hex token enabling /wealth/[token] public share page.
    *  Null = sharing disabled (default). Regenerating the token revokes
    *  any old shared links. */

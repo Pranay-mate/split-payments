@@ -373,6 +373,38 @@ export const adminRouter = router({
   }),
 
   /**
+   * Top referrers — who invited the most signups via /?from=<name>.
+   * Counts profiles grouped by their referred_from value. Excludes
+   * NULL (organic / cold signups) so the tile shows only attributed
+   * invites; we still surface "cold" count alongside for context.
+   */
+  topReferrers: adminProcedure.query(async () => {
+    const attributed = await db
+      .select({
+        name: profiles.referredFrom,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(profiles)
+      .where(sql`${profiles.referredFrom} IS NOT NULL`)
+      .groupBy(profiles.referredFrom)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
+
+    const [coldRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(profiles)
+      .where(sql`${profiles.referredFrom} IS NULL`);
+
+    return {
+      referrers: attributed.map((r) => ({
+        name: r.name ?? "(unknown)",
+        count: r.count,
+      })),
+      coldSignups: coldRow?.count ?? 0,
+    };
+  }),
+
+  /**
    * Anonymised activity feed. Last N events with:
    *  - user_id truncated to 4-char prefix
    *  - amounts (if present in payload) bucketed, never exact

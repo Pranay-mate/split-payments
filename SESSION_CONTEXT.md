@@ -7,9 +7,9 @@
 > Canonical roadmap stays in `PLANNING.md` / `PLANNING.html`. This file only
 > captures *in-flight* state and decisions that aren't yet in those.
 
-**Last updated:** 2026-05-17
+**Last updated:** 2026-05-21
 **Branch:** `main` (no working branches — push directly)
-**Live:** https://easy-split-payments.vercel.app
+**Live:** https://easysplits.in  (`.vercel.app` 301-redirects to here)
 
 ---
 
@@ -36,29 +36,23 @@ First 5 priority URLs indexed (`/`, `/financial-health-india`,
 GSC daily-quota gated. Manual user action via Inspect URL → Request
 indexing. No code change.
 
-### 2. Resend SMTP — verify a real domain
-Currently using Resend's `onboarding@resend.dev` sandbox sender, which
-**only delivers to the email you signed up with**. Magic links to any
-other user are silently dropped at the Resend API layer.
-
-Fix:
-1. Buy a cheap domain (Cloudflare Registrar / Namecheap, ~₹500–₹1500/yr)
-2. Resend Dashboard → Domains → Add Domain → paste in registrar's DNS
-   (SPF + DKIM + DMARC, 3 records)
-3. Supabase Dashboard → Auth → SMTP Settings → change Sender email to
-   `noreply@<your-domain>.com`
-4. **Restore the magic-link UI** — login form was simplified to
-   Google-only on 2026-05-17 (commit `23a4d8c`) because the sandbox
-   sender made the email path silently fail. Run:
-
-   ```sh
-   git revert 23a4d8c
-   ```
-
-   That puts the email input + "Send magic link" button + email-sent
-   confirmation state back exactly as they were. Build, push, done.
-
-Without this you're production-blocked for anyone other than yourself.
+### 2. Resend SMTP + domain — ✅ DONE (2026-05-20/21)
+- Domain `easysplits.in` purchased (GoDaddy, ~₹99/yr first year)
+- DNS managed via Cloudflare (NS swapped from `domaincontrol.com` to
+  `emerson.ns.cloudflare.com` + `melissa.ns.cloudflare.com`)
+- Resend domain verified with SPF/DKIM/DMARC TXT + MX records
+- Defensive Cloudflare auto-added records (`*._domainkey` empty,
+  `easysplits.in` `v=spf1 -all`) deleted; replaced with proper root
+  SPF record
+- Custom branded email templates (magic link + signup confirm)
+- Supabase Sender = `noreply@easysplits.in`
+- Magic-link UI restored (revert of `23a4d8c` = commit `e2dc549`)
+- Domain set as Vercel primary; `.vercel.app` now 301-redirects to
+  `easysplits.in` for all paths
+- `SITE.url` migrated in code; all hardcoded fallbacks updated
+- GSC: new Domain Property `easysplits.in` verified, sitemap submitted,
+  9/10 priority URLs indexed (`/use-cases/group-dinner` discovered,
+  awaiting natural crawl)
 
 ### 3. Multi-device login — Supabase Sessions setting
 User reports logging in on browser logs them out on mobile + vice versa.
@@ -110,16 +104,17 @@ Nice-to-have for future deploys; not blocking.
 | Supabase project | `rnrwjocisbasoupjxeqo` (`https://rnrwjocisbasoupjxeqo.supabase.co`) |
 | Vercel project | `easy-split-payments` (`pranaymates-projects/split-payments-sxn4`) |
 | Vercel plan | **Pro** (300s function timeout) |
-| Live URL | https://easy-split-payments.vercel.app |
+| Live URL | https://easysplits.in (Vercel primary; `.vercel.app` 301-redirects) |
 | DB connection | Pooler `aws-0-ap-south-1.pooler.supabase.com:6543` (transaction mode), **not** direct host |
 | RLS | Disabled on all `public.*` tables — service-role connection |
 | Migrations | Auto-deployed via Supabase ↔ GitHub integration on push to `main`. Latest: `0003_personal_debts.sql` (applied 2026-05-17) |
 | Service worker | `v5` (skipWaiting-on-message + visibilitychange-based banner + 3min idle auto-apply) |
 | Cron | Vercel cron, pinned to `bom1`, daily 19:30 IST for reminder nudges + anomaly detection |
 | Encryption | AES-256-GCM, key in `PFT_ENCRYPTION_KEY` env (server-side only) |
-| Email SMTP | **Resend** (sandbox sender `onboarding@resend.dev` — needs a verified domain for production) |
+| Email SMTP | **Resend** with verified `easysplits.in` domain; sender = `noreply@easysplits.in`. Free tier: 100/day, 3000/mo |
 | Node | use nvm v20.20.2 — system Node is v9 and breaks all toolchains |
-| Tests | **315 passing** (260 at start of 2026-05-17 session, +55 new across amortise / bank-parsers / queue tests) |
+| Tests | **315 passing** |
+| Domain | easysplits.in (GoDaddy registrar, Cloudflare DNS, ~₹99 year-1 / ~₹899/yr renewal) |
 
 ---
 

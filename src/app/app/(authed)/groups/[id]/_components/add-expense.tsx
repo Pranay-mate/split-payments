@@ -947,7 +947,7 @@ export function AddExpense({
         type="button"
         onClick={handleSubmit}
         disabled={!valid || isPending}
-        className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition disabled:bg-slate-300 disabled:dark:bg-slate-700 sm:w-auto ${
+        className={`inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:bg-slate-300 disabled:opacity-70 disabled:dark:bg-slate-700 sm:w-auto ${
           isEditing
             ? "bg-indigo-600 hover:bg-indigo-500"
             : "bg-emerald-600 hover:bg-emerald-500"
@@ -960,6 +960,21 @@ export function AddExpense({
         )}
         {isEditing ? "Save changes" : "Add expense"}
       </button>
+      {/* Explain why the button is disabled — saves the user from
+          tapping a dead button and wondering what's wrong. */}
+      {!valid && !isPending && (
+        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+          {mode === "items"
+            ? itemsTotal <= 0
+              ? "Add at least one line item with an amount above ₹0."
+              : "Each item needs an amount and at least one sharer."
+            : numericAmount <= 0
+              ? "Enter an amount above ₹0."
+              : sharerIds.length === 0
+                ? "Pick at least one person to split with."
+                : "Fill in payer, amount, and sharers."}
+        </p>
+      )}
     </div>
   );
 }

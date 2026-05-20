@@ -5,6 +5,7 @@ import { SITE, SPLIT_FEATURES, PERSONAL_FEATURES } from "@/lib/site";
 import { organizationLd, softwareApplicationLd } from "@/lib/jsonld";
 import { LiveScorecardDemo } from "@/components/live-scorecard-demo";
 import { InstallFooterLink } from "@/components/install-footer-link";
+import { ReferralCapture } from "@/components/referral-capture";
 
 type SearchParams = Promise<{ from?: string | string[] }>;
 
@@ -58,6 +59,7 @@ export default async function HomePage({
   const fromName = cleanFromName(sp.from);
   return (
     <main className="flex-1">
+      <ReferralCapture />
       {fromName && (
         <div className="border-b border-indigo-100 bg-gradient-to-r from-indigo-50 via-violet-50 to-emerald-50 px-4 py-2.5 dark:border-indigo-900/50 dark:from-indigo-950/40 dark:via-violet-950/40 dark:to-emerald-950/40">
           <div className="mx-auto flex max-w-3xl items-center justify-center gap-2 text-center text-xs">
