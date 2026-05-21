@@ -7,7 +7,7 @@
 > Canonical roadmap stays in `PLANNING.md` / `PLANNING.html`. This file only
 > captures *in-flight* state and decisions that aren't yet in those.
 
-**Last updated:** 2026-05-21
+**Last updated:** 2026-05-21 (late session — force-update tier)
 **Branch:** `main` (no working branches — push directly)
 **Live:** https://easysplits.in  (`.vercel.app` 301-redirects to here)
 
@@ -15,10 +15,15 @@
 
 ## In-flight work
 
-_Nothing in flight._ The 2026-05-17 session shipped Phase 2.8 (Admin panel),
-Resend custom SMTP, mobile bottom nav, friend's batch (Record-payment +
-Goal editing + Homepage dual-CTA + Bank-statement CSV import v5.3 +
-EMI/Debts v5.2). See PLANNING.md → Milestone log for the full list.
+_Nothing in flight._ Today's late-session batch shipped the
+**force-update tier**: `APP_VERSION` (major.minor) as single source of
+truth; minor bumps → dismissible banner; major bumps → blocking
+`<ForceUpdateModal>` with 30s auto-reload countdown. Paired with
+**stale-while-revalidate** for static assets (no more manual
+`CACHE_VERSION` bumps for minor SW changes) and
+**visibilitychange/focus → registration.update()** (foregrounding the
+PWA now triggers an update check within seconds instead of waiting
+30 min). Currently on `APP_VERSION = "3.0"`.
 
 ---
 
@@ -88,11 +93,11 @@ Items marked `🟡 needs manual verify` across Phase 1/2 (PLANNING.md):
 - Itemized split end-to-end on a real group
 - CSV / PDF group export download
 
-### 7. Stale-while-revalidate SW (optional, ~15 min)
-Current SW caches `_next/static/*` cache-first, so every deploy that
-matters requires a manual CACHE_VERSION bump in `public/sw.js`. SWR
-strategy would background-update on every visit. ~10 lines change.
-Nice-to-have for future deploys; not blocking.
+### 7. Stale-while-revalidate SW — ✅ DONE (2026-05-21 late)
+Shipped in `346e289`. Static assets now SWR (serve cached + background
+refetch). Combined with `visibilitychange/focus → registration.update()`,
+new builds reach users within seconds of foregrounding the PWA without
+requiring a `CACHE_VERSION` bump per deploy.
 
 ---
 
@@ -108,13 +113,27 @@ Nice-to-have for future deploys; not blocking.
 | DB connection | Pooler `aws-0-ap-south-1.pooler.supabase.com:6543` (transaction mode), **not** direct host |
 | RLS | Disabled on all `public.*` tables — service-role connection |
 | Migrations | Auto-deployed via Supabase ↔ GitHub integration on push to `main`. Latest: `0003_personal_debts.sql` (applied 2026-05-17) |
-| Service worker | `v5` (skipWaiting-on-message + visibilitychange-based banner + 3min idle auto-apply) |
+| Service worker | `APP_VERSION = "3.0"` — major-bump = force modal, minor = banner, 2min idle auto-apply, SWR static assets, visibility-triggered update checks |
 | Cron | Vercel cron, pinned to `bom1`, daily 19:30 IST for reminder nudges + anomaly detection |
 | Encryption | AES-256-GCM, key in `PFT_ENCRYPTION_KEY` env (server-side only) |
 | Email SMTP | **Resend** with verified `easysplits.in` domain; sender = `noreply@easysplits.in`. Free tier: 100/day, 3000/mo |
 | Node | use nvm v20.20.2 — system Node is v9 and breaks all toolchains |
 | Tests | **315 passing** |
 | Domain | easysplits.in (GoDaddy registrar, Cloudflare DNS, ~₹99 year-1 / ~₹899/yr renewal) |
+
+---
+
+## Release workflow (post 2026-05-21)
+
+| Change type | Bump | Effect |
+|---|---|---|
+| Bug fix, small feature, copy tweak | leave `APP_VERSION`, any SW edit triggers byte-diff | Banner: "A new version is ready · Reload" |
+| Critical update (schema migrations the client can't handle, security fixes, broken core flows) | bump major in BOTH `public/sw.js` AND `src/lib/app-version.ts` (e.g. `3.0` → `4.0`) | Force modal: blocks app until reload, 30s auto-reload |
+| Documentation-only / semver bookkeeping | bump minor in both files (e.g. `3.0` → `3.1`) | Same as normal banner |
+
+**Rule of thumb for "do I force?":** if stale code is genuinely broken
+(can't recover by user action), force. Otherwise banner. Bumping major
+casually causes force-fatigue — every user gets the modal at once.
 
 ---
 
