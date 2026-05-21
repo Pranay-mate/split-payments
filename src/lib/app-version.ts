@@ -13,7 +13,7 @@
  * Service workers run in a separate JS context and can't import this
  * file — two constants, same value, bumped together.
  */
-export const APP_VERSION = "4.0";
+export const APP_VERSION = "5.0";
 
 export function parseMajor(version: string): number {
   const major = parseInt(version.split(".")[0] ?? "0", 10);

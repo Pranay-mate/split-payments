@@ -1,23 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { APP_VERSION, parseMajor } from "@/lib/app-version";
+import { parseMajor } from "@/lib/app-version";
 
 /**
  * Service-worker update detection with two release tiers.
  *
  * Watches for a new SW reaching the 'waiting' state — a fresh build is
- * downloaded and ready but not yet active. Once waiting, we ask the new
- * SW for its APP_VERSION via MessageChannel and compare majors:
+ * downloaded and ready but not yet active. Once waiting, we query
+ * BOTH the active SW and the waiting SW for their APP_VERSION via
+ * MessageChannel and compare majors:
  *
- *   - Same major (e.g. 1.0 → 1.1): normal release.
+ *   - Same major (e.g. active 1.0, waiting 1.1): normal release.
  *       Surface `updateAvailable` so <SwUpdateBanner /> can prompt. If
  *       the user goes idle for ≥2 min, silently auto-apply and set
  *       JUST_AUTO_UPDATED_KEY so the next page-load shows a toast.
- *   - New major (e.g. 1.x → 2.0): force release.
+ *   - New major (e.g. active 1.x, waiting 2.0): force release.
  *       Surface `forceUpdate` immediately. <ForceUpdateModal /> blocks
  *       the app until the user reloads (or the 30s countdown fires).
  *       No idle wait — force means force.
+ *
+ * Why compare *active SW* vs *waiting SW* (not the JS bundle's
+ * APP_VERSION vs waiting SW)? Because network-first navigation always
+ * loads the latest HTML+JS, so the bundle's APP_VERSION always equals
+ * the waiting SW's version on a kill+reopen — that comparison can
+ * never trigger force-update for users who close and reopen the PWA.
+ * The active SW lags the deploy until SKIP_WAITING fires; its version
+ * is the honest "what the user previously accepted" baseline.
  *
  * Polls for updates every 30 min so long-lived PWA tabs don't sit on a
  * stale SW forever. Additionally checks on visibilitychange/focus so
@@ -84,19 +93,38 @@ export function useSwUpdate(): SwUpdateState {
     let cancelled = false;
     let pollHandle: number | null = null;
     let idleCheckHandle: number | null = null;
-    const currentMajor = parseMajor(APP_VERSION);
 
     const markWaiting = async (sw: ServiceWorker | null) => {
       if (!sw || cancelled) return;
       // First-time install (no controller) — don't ever force a fresh
       // user into a force-reload modal on their very first encounter
       // with the app. They'll naturally pick up the new SW on next load.
-      if (!navigator.serviceWorker.controller) return;
+      const controller = navigator.serviceWorker.controller;
+      if (!controller) return;
       waitingRef.current = sw;
-      const newVersion = await querySwVersion(sw);
+      // Compare ACTIVE SW vs WAITING SW (not the JS bundle's
+      // APP_VERSION). On network-first navigations the JS bundle is
+      // always the latest, so comparing against it makes force-update
+      // unreachable for the kill+reopen path. The active SW reflects
+      // what the user last actually accepted, so its version is the
+      // honest "before" of the upgrade. Pre-1.0 SWs without a
+      // GET_VERSION handler time out → treat as major 0 (any 1.0+
+      // waiting SW correctly counts as a force).
+      const [activeVersion, waitingVersion] = await Promise.all([
+        querySwVersion(controller),
+        querySwVersion(sw),
+      ]);
       if (cancelled) return;
-      const newMajor = newVersion ? parseMajor(newVersion) : currentMajor;
-      if (newMajor > currentMajor) {
+      // If we can't determine the waiting SW's version, fall back to
+      // the dismissible banner — we'd rather under-fire force-update
+      // than blast users on a flaky query.
+      if (!waitingVersion) {
+        queueMicrotask(() => setUpdateAvailable(true));
+        return;
+      }
+      const activeMajor = activeVersion ? parseMajor(activeVersion) : 0;
+      const waitingMajor = parseMajor(waitingVersion);
+      if (waitingMajor > activeMajor) {
         queueMicrotask(() => setForceUpdate(true));
       } else {
         queueMicrotask(() => setUpdateAvailable(true));
