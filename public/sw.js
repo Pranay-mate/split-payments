@@ -2,19 +2,17 @@
  * EasySplits service worker.
  *
  * Strategy:
- *   - HTML navigations: network-first, fall back to cached version, then "/"
- *     (lets users at least see the home page if everything else fails)
- *   - Static assets / images: cache-first
- *   - Skip non-GET, cross-origin, and Vercel internals (_next/data uses
- *     fresh JSON; we want network-first there too)
+ *   - HTML navigations: network-first, fall back to cached version,
+ *     then "/" (so users at least see home if everything else fails)
+ *   - Static assets / images: stale-while-revalidate (serve cached +
+ *     background refetch, so the next visit gets fresh)
+ *   - Skip non-GET, cross-origin, and Vercel internals (_next/data
+ *     uses fresh JSON; we want network-first there too)
  *
- * Bumps CACHE_VERSION on every meaningful SW change to force old caches
- * to be evicted on next activation.
- */
-
-/**
- * APP_VERSION drives both cache-busting and the major-version force-update
- * check. Must stay in sync with APP_VERSION in src/lib/app-version.ts.
+ * APP_VERSION drives both cache-busting and the major-version
+ * force-update check. Must stay in sync with APP_VERSION in
+ * src/lib/app-version.ts (two constants because SW runs in a separate
+ * JS context and can't import the TS file).
  *
  * Bump rules:
  *   - Minor (1.0 → 1.1): normal release, banner shows.
