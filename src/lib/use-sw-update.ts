@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * fresh build is downloaded and ready but not yet active. Two paths
  * from there:
  *
- *   1. Silent auto-update: if the user has been idle for ≥5 minutes,
+ *   1. Silent auto-update: if the user has been idle for ≥2 minutes,
  *      we silently call applyUpdate() ourselves. A localStorage flag
  *      gets set right before reload so the next page-load can show a
  *      one-time "Updated" toast — keeps the user informed without
@@ -19,11 +19,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *      surprises mid-edit.
  *
  * Polls for updates every 30 min so long-lived PWA tabs don't sit on
- * a stale SW forever.
+ * a stale SW forever. Idle threshold tuned to 2 min (down from 5) so
+ * post-deploy rollout to active users completes faster.
  */
 
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+const IDLE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 const IDLE_CHECK_INTERVAL_MS = 60 * 1000; // re-check idle every 60s
 
 /** Flag set immediately before an auto-update reload. The new tab
