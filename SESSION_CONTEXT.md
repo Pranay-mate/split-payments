@@ -32,6 +32,47 @@ once detection was fixed in `3f86eb9`, version space was reset to
 
 ## Pending tasks
 
+### 0. ProductHunt launch — planning locked, assets pending
+
+**Tagline (locked, 56 chars):**
+> Track money + split bills. India-first, encrypted, free.
+
+**Launch date:** not targeted yet. Prefer Tue/Wed IST. Launch at 00:01 PT
+(= 12:31 PM IST) so the 24-hour PH window starts at the global "midnight"
+boundary — recency-weighted ranking penalises late starts.
+
+**Assets to capture:**
+- **Hero screenshot** (1270 × 760, PH spec): two iPhone Pro frames side by
+  side on indigo→violet→emerald gradient bg. Left = `/app/groups` with
+  realistic group (e.g. "Goa Trip — 4 members, you owe ₹1,200"). Right =
+  `/wealth` with populated scorecard (~78/100) + ₹4.2L net worth bar.
+  Tagline as footer caption.
+- **30-sec demo GIF** (six 5s beats):
+  1. 0–5s: Land on homepage, hover both CTAs
+  2. 5–10s: Create "Goa Trip" group, add 3 guests
+  3. 10–16s: Add "Hotel ₹8000" → equal split → balance bars
+  4. 16–22s: Bottom-nav to `/personal` → scorecard + net worth chart
+  5. 22–27s: Toggle airplane mode → add expense → "Queued offline" pill
+  6. 27–30s: End card with logo + "easysplits.in"
+  Record on Android Chrome PWA; export H.264 MP4; convert to GIF via
+  ezgif.com (24fps, < 3MB).
+
+**Description (paste into PH):** see draft in conversation history
+2026-05-22 — dual-product framing (Splitwise alternative + PFT), India-
+specific bullets, privacy-first bullets, offline-PWA bullets.
+
+**First comment (post within 60s of launch, critical for PH ranking):**
+see draft in conversation history 2026-05-22 — maker intro, two pride
+points (Indian-tuned scorecard + real encryption), two AMA questions to
+seed engagement.
+
+**Launch logistics:**
+- If self-karma < 500, ask a hunter with karma to hunt you.
+- Otherwise self-launch via "Submit". Both rank equally if engagement is
+  real.
+- First 4 hours matter most: rally Telegram/WhatsApp groups, send
+  personal asks (not blasts), respond to every comment fast.
+
 ### 1. GSC indexing — 5 URLs left
 First 5 priority URLs indexed (`/`, `/financial-health-india`,
 `/calculators/trip`, `/calculators/split-bill`, `/features`). Remaining:
