@@ -3,7 +3,7 @@
 > Phased roadmap with **per-task status**. Updated as we ship. PLANNING.html mirrors this — keep them in sync.
 
 **Last updated:** 2026-05-21 (Domain `easysplits.in` live as Vercel primary · Resend domain verified · magic links delivering · 14 native confirms replaced with branded ConfirmDialog · GSC sitemap submitted · `?from=` invite attribution tile in admin)
-**Live:** https://easy-split-payments.vercel.app · **GitHub:** https://github.com/Pranay-mate/split-payments
+**Live:** https://easysplits.in · **GitHub:** https://github.com/Pranay-mate/split-payments
 
 **Status legend:** ✅ done · 🟡 in progress · ⬜ not started · ⏸ blocked (waiting on something)
 

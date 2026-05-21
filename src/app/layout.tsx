@@ -62,13 +62,11 @@ export const metadata: Metadata = {
     description: SITE.description,
     images: ["/api/og/milestone?type=invite"],
   },
-  // GSC ownership verification — originally added for easy-split-payments.vercel.app;
-  // still valid once we add easysplits.in to GSC since this meta-tag-based
-  // verification is per-property, but we'll need a new TXT verification on
-  // the apex easysplits.in Domain Property in GSC.
-  // Next renders this as <meta name="google-site-verification"…>. Don't
-  // remove — Google rechecks periodically and revoking the meta tag
-  // unverifies the property (losing accumulated indexing history).
+  // GSC ownership verification — covers the legacy URL-property (the
+  // old .vercel.app URL, now 301-redirecting). The canonical Domain
+  // Property `easysplits.in` is verified via DNS TXT separately.
+  // Don't remove the meta tag: Google rechecks periodically and removing
+  // it unverifies the URL property (losing accumulated indexing history).
   verification: {
     google: "piqFkbWW4n4RAVn3kyzNkLSkTdqzA9iAAC1afe-lJZQ",
   },
