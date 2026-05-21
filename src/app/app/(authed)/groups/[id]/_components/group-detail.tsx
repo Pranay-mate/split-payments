@@ -848,6 +848,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               <div className="mt-4">
                 <GroupCharts
                   expenses={expenses.map((e) => ({
+                    id: e.id,
+                    description: e.description,
                     payerId: e.payerId,
                     convertedAmount: e.convertedAmount,
                     occurredAt: e.occurredAt,

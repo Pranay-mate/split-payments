@@ -2,15 +2,11 @@
 
 import { useMemo } from "react";
 import {
-  Area,
-  AreaChart,
   Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { formatINR } from "@/lib/format";
@@ -18,6 +14,8 @@ import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 
 type ExpenseRow = {
+  id: string;
+  description: string;
   payerId: string;
   convertedAmount: number;
   occurredAt: Date | string;
@@ -39,14 +37,6 @@ const PAYER_PALETTE = [
 
 function dayKey(d: Date | string): string {
   return new Date(d).toISOString().slice(0, 10);
-}
-
-function dayLabel(key: string, tz: string): string {
-  return formatDate(`${key}T00:00:00`, tz, "short");
-}
-
-function fullDayLabel(key: string, tz: string): string {
-  return formatDate(`${key}T00:00:00`, tz, "weekday-short");
 }
 
 export function GroupCharts({
@@ -100,27 +90,27 @@ export function GroupCharts({
 
   const topCategory = byCategory[0];
 
-  const byDay = useMemo(() => {
-    const buckets = new Map<string, number>();
-    for (const e of expenses) {
-      const key = dayKey(e.occurredAt);
-      buckets.set(key, (buckets.get(key) ?? 0) + e.convertedAmount);
-    }
-    const series = Array.from(buckets.entries())
-      .map(([key, total]) => ({
-        key,
-        label: dayLabel(key, userTz),
-        full: fullDayLabel(key, userTz),
-        total: Math.round(total * 100) / 100,
-      }))
-      .sort((a, b) => (a.key < b.key ? -1 : 1))
-      .slice(-14);
-    const peak = series.reduce<(typeof series)[number] | null>(
-      (best, cur) => (best === null || cur.total > best.total ? cur : best),
-      null,
-    );
-    return { series, peak };
-  }, [expenses, userTz]);
+  // Top 5 biggest expenses — what people actually want to know when
+  // they open the chart panel: "where did the money really go?". A
+  // daily-totals chart implied continuity, but expenses are discrete
+  // events; a sorted leaderboard is the honest read.
+  const topExpenses = useMemo(() => {
+    return [...expenses]
+      .sort((a, b) => b.convertedAmount - a.convertedAmount)
+      .slice(0, 5)
+      .map((e) => {
+        const cat = CATEGORIES[toCategoryKey(e.category ?? null)];
+        return {
+          id: e.id,
+          description: e.description?.trim() || "Untitled expense",
+          amount: Math.round(e.convertedAmount * 100) / 100,
+          category: cat,
+          payerName: memberById.get(e.payerId) ?? "Unknown",
+          occurredAt: e.occurredAt,
+          pct: totals.total > 0 ? e.convertedAmount / totals.total : 0,
+        };
+      });
+  }, [expenses, memberById, totals.total]);
 
   const byPayer = useMemo(() => {
     const buckets = new Map<string, number>();
@@ -269,72 +259,42 @@ export function GroupCharts({
         </div>
       </div>
 
-      {/* Daily trend — area chart with gradient + peak callout */}
+      {/* Biggest expenses — discrete leaderboard replacing the old
+          daily-trend area chart. Expenses are discrete events, not a
+          time series; the area chart implied continuity and gave a
+          high-resolution view of a low-signal question. Top-5 by
+          amount answers "where did the money really go" in one glance. */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:p-5">
-        <div className="flex items-baseline justify-between">
-          <h3 className="text-sm font-semibold tracking-tight">
-            Daily spend
-          </h3>
-          {byDay.peak && (
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              Peak: {byDay.peak.full} ·{" "}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">
-                {formatINR(byDay.peak.total, 0)}
-              </span>
-            </span>
-          )}
-        </div>
-        <div className="mt-3 h-[180px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={byDay.series}
-              margin={{ top: 5, right: 5, bottom: 0, left: 0 }}
-            >
-              <defs>
-                <linearGradient id="dailyFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.45} />
-                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "currentColor" }}
-                axisLine={false}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: "currentColor" }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => formatINR(Number(v), 0)}
-                width={48}
-              />
-              <Tooltip
-                formatter={(value) => formatINR(Number(value ?? 0), 0)}
-                labelFormatter={(label, payload) => {
-                  const p = payload?.[0]?.payload as
-                    | { full?: string }
-                    | undefined;
-                  return p?.full ?? String(label);
-                }}
-                contentStyle={tooltipStyle}
-                cursor={{ stroke: "#6366f1", strokeOpacity: 0.4, strokeWidth: 1 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="total"
-                stroke="#6366f1"
-                strokeWidth={2}
-                fill="url(#dailyFill)"
-                isAnimationActive
-                animationDuration={700}
-                dot={{ r: 3, fill: "#6366f1", stroke: "white", strokeWidth: 1.5 }}
-                activeDot={{ r: 5, fill: "#6366f1", stroke: "white", strokeWidth: 2 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        <h3 className="text-sm font-semibold tracking-tight">
+          Biggest expenses
+        </h3>
+        <ul className="mt-3 space-y-3">
+          {topExpenses.map((e) => (
+            <li key={e.id} className="space-y-1.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {e.description}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                    <span aria-hidden className="mr-1">{e.category.emoji}</span>
+                    {e.category.label} · {e.payerName} paid ·{" "}
+                    {formatDate(e.occurredAt, userTz, "short")}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                  {formatINR(e.amount, 0)}
+                </p>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                  className="h-full rounded-full transition-[width] duration-700"
+                  style={{ width: `${e.pct * 100}%`, background: e.category.hex }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Who's paying — custom HTML list. Recharts is overkill here and
