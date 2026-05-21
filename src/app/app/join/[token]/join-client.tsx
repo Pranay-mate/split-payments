@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2, AlertCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
+import { ReferralAttacher } from "@/components/referral-attacher";
 
 export function JoinClient({ token }: { token: string }) {
   const router = useRouter();
@@ -34,6 +35,10 @@ export function JoinClient({ token }: { token: string }) {
 
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16">
+      {/* /app/join/[token] lives outside the (authed) layout, so the
+          ReferralAttacher mounted there doesn't reach here. Mount one
+          inline so the WhatsApp ?from=<inviter> attribution lands. */}
+      <ReferralAttacher />
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
         {joinMutation.isError ? (
           <>

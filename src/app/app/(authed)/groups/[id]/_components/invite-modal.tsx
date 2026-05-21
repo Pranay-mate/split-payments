@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Copy, QrCode, Share2, X } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+import { trpc } from "@/lib/trpc/client";
 
 /**
  * Group invite modal. Renders a scannable QR plus the copy-link
@@ -27,16 +28,31 @@ export function InviteModal({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
 
   if (!open) return null;
+
+  // First name only (no surname) for the ?from= attribution — matches
+  // the homepage Share-with-friends sanitiser. We do not encode here
+  // beyond `encodeURIComponent`; the server's attachReferrer mutation
+  // re-sanitises identically on receipt, so a corrupted query string
+  // can't poison the data.
+  const firstName = (meQuery.data?.displayName ?? "")
+    .trim()
+    .split(/\s+/)[0]
+    ?.slice(0, 24)
+    ?? "";
 
   // Build the absolute URL at render time so SSR doesn't try (window
   // isn't available there). The modal only renders when `open` flips
   // true on a client interaction, so window is guaranteed to exist.
-  const url =
+  const base =
     typeof window !== "undefined"
-      ? `${window.location.origin}/app/join/${inviteToken}`
-      : `/app/join/${inviteToken}`;
+      ? window.location.origin
+      : "";
+  const url = firstName
+    ? `${base}/app/join/${inviteToken}?from=${encodeURIComponent(firstName)}`
+    : `${base}/app/join/${inviteToken}`;
 
   const copy = async () => {
     try {
@@ -57,7 +73,9 @@ export function InviteModal({
     try {
       await navigator.share({
         title: `Join "${groupName}" on EasySplits`,
-        text: `You're invited to "${groupName}" — split expenses without the drama.`,
+        text: firstName
+          ? `${firstName} invited you to "${groupName}" — split expenses without the drama.`
+          : `You're invited to "${groupName}" — split expenses without the drama.`,
         url,
       });
     } catch (err) {

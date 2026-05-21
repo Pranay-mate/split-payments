@@ -4,13 +4,23 @@ import { useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc/client";
 
 /**
- * After sign-in, read the `ref-from` value stashed by <ReferralCapture />
- * on the public homepage and tell the server who referred this user.
- * Server-side mutation is idempotent + write-once.
+ * After sign-in, attach the referrer to the current user's profile.
+ * Server-side mutation is idempotent + write-once (first invite wins).
  *
- * Mounts in the (authed) layout — fires exactly once per page-load if a
- * referrer is cached. Clears the cache on success so it doesn't keep
- * firing harmlessly on every navigation.
+ * Two sources, in priority order:
+ *   1. localStorage `ref-from` — written by <ReferralCapture /> on the
+ *      public homepage when `?from=` was in the URL pre-signin.
+ *   2. URL `?from=<inviter>` — direct path used by group invite links
+ *      (`/app/join/<token>?from=<inviter>`), so a WhatsApp invitee can
+ *      be attributed even though they never hit the homepage.
+ *
+ * Mounted in the (authed) layout AND inline on the join page — fires
+ * exactly once per page-load if a referrer is found. Clears localStorage
+ * on success so it doesn't keep firing harmlessly on every navigation.
+ *
+ * Sanitiser kept inline (matching ReferralCapture + server) — three
+ * occurrences is the threshold for extraction; deferring until a fourth
+ * lands.
  */
 export function ReferralAttacher() {
   const firedRef = useRef(false);
@@ -19,7 +29,18 @@ export function ReferralAttacher() {
   useEffect(() => {
     if (firedRef.current) return;
     if (typeof window === "undefined") return;
-    const name = window.localStorage.getItem("ref-from");
+    let name = window.localStorage.getItem("ref-from");
+    if (!name) {
+      // Fallback: WhatsApp group-invite path lands users straight on
+      // `/app/join/<token>?from=<inviter>` post-signin, bypassing the
+      // homepage capture step. Read `?from=` directly here.
+      const raw = new URLSearchParams(window.location.search).get("from");
+      const cleaned = (raw ?? "")
+        .replace(/[^a-zA-Zऀ-ॿ֐-׿\s'-]/g, "")
+        .trim()
+        .slice(0, 24);
+      if (cleaned) name = cleaned;
+    }
     if (!name) return;
     firedRef.current = true;
     attachMutation.mutate(
