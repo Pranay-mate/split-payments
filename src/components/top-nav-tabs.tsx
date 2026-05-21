@@ -36,7 +36,7 @@ export function TopNavTabs() {
       </Link>
       <Link
         href="/app/personal"
-        aria-label="Personal"
+        aria-label="Personal finance"
         aria-current={onPersonal ? "page" : undefined}
         className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
           onPersonal
@@ -45,7 +45,7 @@ export function TopNavTabs() {
         }`}
       >
         <Wallet className="h-3.5 w-3.5" aria-hidden />
-        <span className="hidden sm:inline">Personal</span>
+        <span className="hidden sm:inline">Personal finance</span>
       </Link>
     </nav>
   );
