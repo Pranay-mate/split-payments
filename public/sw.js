@@ -20,7 +20,7 @@
  *   - Minor (1.0 → 1.1): normal release, banner shows.
  *   - Major (1.x → 2.0): force release, modal blocks app until reload.
  */
-const APP_VERSION = "2.0";
+const APP_VERSION = "3.0";
 const RUNTIME_CACHE = `easysplits-runtime-v${APP_VERSION}`;
 
 self.addEventListener("install", () => {
