@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { sanitiseReferrerName } from "@/lib/referral-name";
 
 /**
  * Capture `?from=<name>` from the homepage URL into localStorage so we
@@ -19,15 +20,9 @@ import { useEffect } from "react";
 export function ReferralCapture() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const raw = params.get("from");
-    if (!raw) return;
-    // Same sanitiser as the homepage banner — letters across latin /
-    // devanagari / hebrew, plus apostrophes + hyphens. 24-char cap.
-    const cleaned = raw
-      .replace(/[^a-zA-Zऀ-ॿ֐-׿\s'-]/g, "")
-      .trim()
-      .slice(0, 24);
+    const cleaned = sanitiseReferrerName(
+      new URLSearchParams(window.location.search).get("from"),
+    );
     if (!cleaned) return;
     if (window.localStorage.getItem("ref-from")) return; // first-write-wins
     try {

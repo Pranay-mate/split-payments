@@ -22,6 +22,7 @@ import {
   settlements,
 } from "@/lib/db/schema";
 import { decryptAmount, decryptValue } from "@/lib/encryption";
+import { sanitiseReferrerName } from "@/lib/referral-name";
 import { isAdmin } from "@/server/admin-auth";
 import {
   looksLikeEmailPrefix,
@@ -106,8 +107,9 @@ export const profilesRouter = router({
   attachReferrer: protectedProcedure
     .input(
       z.object({
-        // Same sanitiser shape as page.tsx — latin/devanagari/hebrew +
-        // common name punctuation, max 24 chars.
+        // Server-side defence — client should have already sanitised
+        // via sanitiseReferrerName, but Zod gates obvious junk before
+        // we hit the canonicalisation pass below.
         name: z.string().min(1).max(24),
       }),
     )
@@ -124,10 +126,7 @@ export const profilesRouter = router({
       if (existing.referredFrom) {
         return { ok: false as const, reason: "already-set" };
       }
-      const cleaned = input.name
-        .replace(/[^a-zA-Zऀ-ॿ֐-׿\s'-]/g, "")
-        .trim()
-        .slice(0, 24);
+      const cleaned = sanitiseReferrerName(input.name);
       if (!cleaned) return { ok: false as const, reason: "empty-after-clean" };
       await db
         .update(profiles)

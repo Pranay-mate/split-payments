@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { sanitiseReferrerName } from "@/lib/referral-name";
 
 /**
  * After sign-in, attach the referrer to the current user's profile.
@@ -18,9 +19,10 @@ import { trpc } from "@/lib/trpc/client";
  * exactly once per page-load if a referrer is found. Clears localStorage
  * on success so it doesn't keep firing harmlessly on every navigation.
  *
- * Sanitiser kept inline (matching ReferralCapture + server) — three
- * occurrences is the threshold for extraction; deferring until a fourth
- * lands.
+ * Sanitiser shared with ReferralCapture and the server's attachReferrer
+ * mutation via `@/lib/referral-name` so the three callers stay in lockstep
+ * — a corrupted query string can't poison the data because every layer
+ * converges on the same canonical form.
  */
 export function ReferralAttacher() {
   const firedRef = useRef(false);
@@ -34,12 +36,10 @@ export function ReferralAttacher() {
       // Fallback: WhatsApp group-invite path lands users straight on
       // `/app/join/<token>?from=<inviter>` post-signin, bypassing the
       // homepage capture step. Read `?from=` directly here.
-      const raw = new URLSearchParams(window.location.search).get("from");
-      const cleaned = (raw ?? "")
-        .replace(/[^a-zA-Zऀ-ॿ֐-׿\s'-]/g, "")
-        .trim()
-        .slice(0, 24);
-      if (cleaned) name = cleaned;
+      const fromUrl = sanitiseReferrerName(
+        new URLSearchParams(window.location.search).get("from"),
+      );
+      if (fromUrl) name = fromUrl;
     }
     if (!name) return;
     firedRef.current = true;
