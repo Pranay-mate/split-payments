@@ -20,7 +20,9 @@ import { APP_VERSION, parseMajor } from "@/lib/app-version";
  *       No idle wait — force means force.
  *
  * Polls for updates every 30 min so long-lived PWA tabs don't sit on a
- * stale SW forever.
+ * stale SW forever. Additionally checks on visibilitychange/focus so
+ * foregrounding the PWA picks up new builds within seconds instead of
+ * waiting out the poll window.
  */
 
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
@@ -143,11 +145,22 @@ export function useSwUpdate(): SwUpdateState {
       // controllerchange handler will trigger the actual reload.
     }, IDLE_CHECK_INTERVAL_MS);
 
+    // Captured here so visibilitychange/focus handlers can call update()
+    // even before the IIFE below has finished its async work.
+    let cachedRegistration: ServiceWorkerRegistration | null = null;
+    const triggerUpdateCheck = () => {
+      if (!cachedRegistration || cancelled) return;
+      cachedRegistration.update().catch(() => {
+        // Silent — network failures here aren't user-facing.
+      });
+    };
+
     void (async () => {
       try {
         const registration =
           await navigator.serviceWorker.getRegistration("/sw.js");
         if (!registration || cancelled) return;
+        cachedRegistration = registration;
 
         if (registration.waiting && navigator.serviceWorker.controller) {
           void markWaiting(registration.waiting);
@@ -160,15 +173,27 @@ export function useSwUpdate(): SwUpdateState {
           if (installing) trackInstalling(registration, installing);
         });
 
-        pollHandle = window.setInterval(() => {
-          registration.update().catch(() => {
-            // Silent — network failures here aren't user-facing.
-          });
-        }, POLL_INTERVAL_MS);
+        pollHandle = window.setInterval(triggerUpdateCheck, POLL_INTERVAL_MS);
       } catch {
         // SW API not available or blocked — feature simply stays off.
       }
     })();
+
+    // Foregrounding the PWA (or refocusing the tab) is a perfect moment
+    // to check for updates — the user just came back, they're about to
+    // engage, and any waiting SW we can surface now is one they won't
+    // hit mid-action later. Both events fire; we throttle to avoid a
+    // burst when the browser fires visibilitychange + focus together.
+    let lastUpdateCheckMs = 0;
+    const onMaybeForeground = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastUpdateCheckMs < 5_000) return;
+      lastUpdateCheckMs = now;
+      triggerUpdateCheck();
+    };
+    document.addEventListener("visibilitychange", onMaybeForeground);
+    window.addEventListener("focus", onMaybeForeground);
 
     const onControllerChange = () => {
       if (reloadingRef.current) return;
@@ -187,6 +212,8 @@ export function useSwUpdate(): SwUpdateState {
       document.removeEventListener("pointerdown", touch);
       document.removeEventListener("keydown", touch);
       document.removeEventListener("touchstart", touch);
+      document.removeEventListener("visibilitychange", onMaybeForeground);
+      window.removeEventListener("focus", onMaybeForeground);
       navigator.serviceWorker.removeEventListener(
         "controllerchange",
         onControllerChange,

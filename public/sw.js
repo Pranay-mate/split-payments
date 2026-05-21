@@ -187,21 +187,36 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets / images: cache-first.
+  // Static assets / images: stale-while-revalidate.
+  //
+  // Serve from cache immediately (fast paint), AND fire the network
+  // request in parallel — when it lands, the cache is updated so the
+  // NEXT visit gets the fresh version. Removes the need to bump
+  // CACHE_VERSION on every static-asset change just to evict stale
+  // chunks. For hashed Next.js chunks the URL itself changes per build
+  // so there's no cache collision — SWR just smooths out the rare
+  // same-URL refresh (e.g. /icon.png, /manifest.webmanifest).
   event.respondWith(
     (async () => {
       const cached = await caches.match(request);
-      if (cached) return cached;
-      try {
-        const networkRes = await fetch(request);
-        if (shouldCache(networkRes)) {
-          const cache = await caches.open(RUNTIME_CACHE);
-          cache.put(request, networkRes.clone());
-        }
-        return networkRes;
-      } catch {
-        return new Response("", { status: 504 });
+      const networkFetch = fetch(request)
+        .then(async (networkRes) => {
+          if (shouldCache(networkRes)) {
+            const cache = await caches.open(RUNTIME_CACHE);
+            cache.put(request, networkRes.clone());
+          }
+          return networkRes;
+        })
+        .catch(() => null);
+      if (cached) {
+        // event.waitUntil keeps the SW alive long enough for the
+        // background put() to land, without blocking the response.
+        event.waitUntil(networkFetch);
+        return cached;
       }
+      const networkRes = await networkFetch;
+      if (networkRes) return networkRes;
+      return new Response("", { status: 504 });
     })(),
   );
 });
