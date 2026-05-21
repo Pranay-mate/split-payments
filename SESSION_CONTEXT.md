@@ -23,7 +23,10 @@ truth; minor bumps → dismissible banner; major bumps → blocking
 `CACHE_VERSION` bumps for minor SW changes) and
 **visibilitychange/focus → registration.update()** (foregrounding the
 PWA now triggers an update check within seconds instead of waiting
-30 min). Currently on `APP_VERSION = "3.0"`.
+30 min). Currently reset to `APP_VERSION = "1.0"` as the clean baseline after
+the test-bump churn (2.0 → 3.0 → 4.0 → 5.0 while debugging detection;
+once detection was fixed in `3f86eb9`, version space was reset to
+1.0 for production use).
 
 ---
 
@@ -113,7 +116,7 @@ requiring a `CACHE_VERSION` bump per deploy.
 | DB connection | Pooler `aws-0-ap-south-1.pooler.supabase.com:6543` (transaction mode), **not** direct host |
 | RLS | Disabled on all `public.*` tables — service-role connection |
 | Migrations | Auto-deployed via Supabase ↔ GitHub integration on push to `main`. Latest: `0003_personal_debts.sql` (applied 2026-05-17) |
-| Service worker | `APP_VERSION = "3.0"` — major-bump = force modal, minor = banner, 2min idle auto-apply, SWR static assets, visibility-triggered update checks |
+| Service worker | `APP_VERSION = "1.0"` (baseline after detection-fix reset) — major-bump = force modal, minor = banner, 2min idle auto-apply, SWR static assets, visibility-triggered update checks. Detection compares active SW major vs waiting SW major (not bundle's APP_VERSION). |
 | Cron | Vercel cron, pinned to `bom1`, daily 19:30 IST for reminder nudges + anomaly detection |
 | Encryption | AES-256-GCM, key in `PFT_ENCRYPTION_KEY` env (server-side only) |
 | Email SMTP | **Resend** with verified `easysplits.in` domain; sender = `noreply@easysplits.in`. Free tier: 100/day, 3000/mo |
