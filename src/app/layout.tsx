@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { SITE } from "@/lib/site";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { SwUpdateBanner } from "@/components/sw-update-banner";
+import { ForceUpdateModal } from "@/components/force-update-modal";
 import { JustUpdatedToast } from "@/components/just-updated-toast";
 import { SiteHeader } from "@/components/site-header";
 import { InstallPrompt } from "@/components/install-prompt";
@@ -105,6 +106,7 @@ export default function RootLayout({
                 <SiteHeader />
                 {children}
                 <SwUpdateBanner />
+                <ForceUpdateModal />
                 <JustUpdatedToast />
                 <OfflineIndicator />
                 <InstallPrompt />

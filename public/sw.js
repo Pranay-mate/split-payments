@@ -12,8 +12,16 @@
  * to be evicted on next activation.
  */
 
-const CACHE_VERSION = "v6";
-const RUNTIME_CACHE = `easysplits-runtime-${CACHE_VERSION}`;
+/**
+ * APP_VERSION drives both cache-busting and the major-version force-update
+ * check. Must stay in sync with APP_VERSION in src/lib/app-version.ts.
+ *
+ * Bump rules:
+ *   - Minor (1.0 → 1.1): normal release, banner shows.
+ *   - Major (1.x → 2.0): force release, modal blocks app until reload.
+ */
+const APP_VERSION = "1.0";
+const RUNTIME_CACHE = `easysplits-runtime-v${APP_VERSION}`;
 
 self.addEventListener("install", () => {
   // Don't auto-skipWaiting. We want the new SW to sit in 'waiting'
@@ -30,6 +38,13 @@ self.addEventListener("message", (event) => {
   // and the page then reloads to pick up the new assets.
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+  // Client asks "what version are you?" via MessageChannel — we reply
+  // with our APP_VERSION so the page can compare majors and decide
+  // whether to show the normal banner or the force-update modal.
+  if (event.data && event.data.type === "GET_VERSION") {
+    event.ports[0]?.postMessage({ version: APP_VERSION });
   }
 });
 

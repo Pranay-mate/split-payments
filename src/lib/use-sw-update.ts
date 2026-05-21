@@ -1,46 +1,74 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { APP_VERSION, parseMajor } from "@/lib/app-version";
 
 /**
- * Service-worker update detection with idle auto-apply.
+ * Service-worker update detection with two release tiers.
  *
- * Watches for a new SW reaching the 'waiting' state — that means a
- * fresh build is downloaded and ready but not yet active. Two paths
- * from there:
+ * Watches for a new SW reaching the 'waiting' state — a fresh build is
+ * downloaded and ready but not yet active. Once waiting, we ask the new
+ * SW for its APP_VERSION via MessageChannel and compare majors:
  *
- *   1. Silent auto-update: if the user has been idle for ≥2 minutes,
- *      we silently call applyUpdate() ourselves. A localStorage flag
- *      gets set right before reload so the next page-load can show a
- *      one-time "Updated" toast — keeps the user informed without
- *      interrupting them.
- *   2. Active user: surface `updateAvailable` so <SwUpdateBanner />
- *      can prompt them. They click Reload when they're ready, no
- *      surprises mid-edit.
+ *   - Same major (e.g. 1.0 → 1.1): normal release.
+ *       Surface `updateAvailable` so <SwUpdateBanner /> can prompt. If
+ *       the user goes idle for ≥2 min, silently auto-apply and set
+ *       JUST_AUTO_UPDATED_KEY so the next page-load shows a toast.
+ *   - New major (e.g. 1.x → 2.0): force release.
+ *       Surface `forceUpdate` immediately. <ForceUpdateModal /> blocks
+ *       the app until the user reloads (or the 30s countdown fires).
+ *       No idle wait — force means force.
  *
- * Polls for updates every 30 min so long-lived PWA tabs don't sit on
- * a stale SW forever. Idle threshold tuned to 2 min (down from 5) so
- * post-deploy rollout to active users completes faster.
+ * Polls for updates every 30 min so long-lived PWA tabs don't sit on a
+ * stale SW forever.
  */
 
 const POLL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const IDLE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 const IDLE_CHECK_INTERVAL_MS = 60 * 1000; // re-check idle every 60s
+const VERSION_QUERY_TIMEOUT_MS = 1500;
 
 /** Flag set immediately before an auto-update reload. The new tab
  *  reads + clears it, then shows a one-time "✨ Updated" toast. */
 export const JUST_AUTO_UPDATED_KEY = "easysplits.just-auto-updated";
 
 export type SwUpdateState = {
-  /** True when a new SW is in 'waiting' AND we haven't auto-applied
-   *  yet. Drives the in-app banner. */
+  /** True when a new SW is waiting AND its major matches the current
+   *  major. Drives the dismissible in-app banner. */
   updateAvailable: boolean;
+  /** True when a new SW is waiting AND its major is higher than the
+   *  current. Drives the blocking force-update modal. Mutually
+   *  exclusive with `updateAvailable`. */
+  forceUpdate: boolean;
   /** Trigger SKIP_WAITING + page reload. No-op if nothing to apply. */
   applyUpdate: () => void;
 };
 
+/** Ask a waiting SW what version it is, via a one-shot MessageChannel.
+ *  Returns null on timeout or any error — caller treats null as
+ *  "same major" (safer default than triggering force-update). */
+function querySwVersion(sw: ServiceWorker): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (v: string | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(v);
+    };
+    try {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (e) => finish(e.data?.version ?? null);
+      sw.postMessage({ type: "GET_VERSION" }, [channel.port2]);
+      window.setTimeout(() => finish(null), VERSION_QUERY_TIMEOUT_MS);
+    } catch {
+      finish(null);
+    }
+  });
+}
+
 export function useSwUpdate(): SwUpdateState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(false);
   const waitingRef = useRef<ServiceWorker | null>(null);
   const reloadingRef = useRef(false);
   const lastInteractionRef = useRef<number>(0);
@@ -54,11 +82,23 @@ export function useSwUpdate(): SwUpdateState {
     let cancelled = false;
     let pollHandle: number | null = null;
     let idleCheckHandle: number | null = null;
+    const currentMajor = parseMajor(APP_VERSION);
 
-    const markWaiting = (sw: ServiceWorker | null) => {
+    const markWaiting = async (sw: ServiceWorker | null) => {
       if (!sw || cancelled) return;
+      // First-time install (no controller) — don't ever force a fresh
+      // user into a force-reload modal on their very first encounter
+      // with the app. They'll naturally pick up the new SW on next load.
+      if (!navigator.serviceWorker.controller) return;
       waitingRef.current = sw;
-      queueMicrotask(() => setUpdateAvailable(true));
+      const newVersion = await querySwVersion(sw);
+      if (cancelled) return;
+      const newMajor = newVersion ? parseMajor(newVersion) : currentMajor;
+      if (newMajor > currentMajor) {
+        queueMicrotask(() => setForceUpdate(true));
+      } else {
+        queueMicrotask(() => setUpdateAvailable(true));
+      }
     };
 
     const trackInstalling = (
@@ -67,7 +107,7 @@ export function useSwUpdate(): SwUpdateState {
     ) => {
       sw.addEventListener("statechange", () => {
         if (sw.state === "installed" && navigator.serviceWorker.controller) {
-          markWaiting(sw);
+          void markWaiting(sw);
         }
       });
       void registration;
@@ -82,12 +122,14 @@ export function useSwUpdate(): SwUpdateState {
     document.addEventListener("keydown", touch, { passive: true });
     document.addEventListener("touchstart", touch, { passive: true });
 
-    // Silent-apply path: every minute, check if an update is waiting
-    // AND the user is idle. If both true, swap in the new SW without
-    // bothering them. Flag in localStorage so we can toast post-reload.
+    // Silent-apply path: every minute, check if a (non-force) update is
+    // waiting AND the user is idle. If both true, swap in the new SW
+    // without bothering them. Force-updates skip this path — they
+    // trigger the modal immediately via markWaiting.
     idleCheckHandle = window.setInterval(() => {
       if (!waitingRef.current) return;
       if (reloadingRef.current) return;
+      if (forceUpdate) return;
       const idleFor = Date.now() - lastInteractionRef.current;
       if (idleFor < IDLE_THRESHOLD_MS) return;
       try {
@@ -108,7 +150,7 @@ export function useSwUpdate(): SwUpdateState {
         if (!registration || cancelled) return;
 
         if (registration.waiting && navigator.serviceWorker.controller) {
-          markWaiting(registration.waiting);
+          void markWaiting(registration.waiting);
         }
         if (registration.installing) {
           trackInstalling(registration, registration.installing);
@@ -150,7 +192,7 @@ export function useSwUpdate(): SwUpdateState {
         onControllerChange,
       );
     };
-  }, []);
+  }, [forceUpdate]);
 
   const applyUpdate = useCallback(() => {
     const sw = waitingRef.current;
@@ -161,5 +203,5 @@ export function useSwUpdate(): SwUpdateState {
     sw.postMessage({ type: "SKIP_WAITING" });
   }, []);
 
-  return { updateAvailable, applyUpdate };
+  return { updateAvailable, forceUpdate, applyUpdate };
 }
