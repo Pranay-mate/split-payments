@@ -207,7 +207,7 @@ function HeroPortrait() {
           "linear-gradient(160deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
         color: "white",
         fontFamily: FONT_STACK,
-        padding: 64,
+        padding: 48,
       }}
     >
       {/* Brand row — same shape as landscape but larger */}
@@ -253,8 +253,8 @@ function HeroPortrait() {
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          gap: 28,
-          marginTop: 40,
+          gap: 24,
+          marginTop: 28,
         }}
       >
         <GroupsPanel />
@@ -268,7 +268,7 @@ function HeroPortrait() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          marginTop: 36,
+          marginTop: 24,
         }}
       >
         <div
@@ -471,6 +471,12 @@ function PanelShell({
         borderRadius: 28,
         padding: 26,
         gap: 16,
+        // Spread content through the panel's full height. In landscape
+        // the panel is already nearly content-full so this is a no-op;
+        // in portrait it eliminates ~290px of dead space below the
+        // last row by distributing the surplus between children
+        // instead of pooling it at the bottom.
+        justifyContent: "space-between",
       }}
     >
       <div
