@@ -32,6 +32,18 @@ once detection was fixed in `3f86eb9`, version space was reset to
 
 ## Pending tasks
 
+### Deferred (blocked on ProductHunt launch)
+
+**Rupeeful port of Small Savings panel (#144)** — blocked by #135. After
+ProductHunt + at least one quarterly rate update on EasySplits, port
+`src/lib/small-savings-rates.ts` + `src/components/small-savings-panel.tsx`
+to the Rupeeful repo as a public, SEO-indexed page. Real value is
+acquisition (rank for "PPF rate 2026", "post office RD rate"), not
+duplicate utility. Add JSON-LD FAQ rich-snippet markup, adapt to
+Rupeeful's design system, footer-link to easysplits.in. Treat as a
+small sprint — also build out Bank FD rates / NPS / ELSS pages so it's
+a real SEO asset, not a one-off.
+
 ### 0. ProductHunt launch — planning locked, assets pending
 
 **Tagline (locked, 56 chars):**
