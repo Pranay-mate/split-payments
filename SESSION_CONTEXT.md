@@ -53,12 +53,16 @@ a real SEO asset, not a one-off.
 (= 12:31 PM IST) so the 24-hour PH window starts at the global "midnight"
 boundary — recency-weighted ranking penalises late starts.
 
-**Assets to capture:**
-- **Hero screenshot** (1270 × 760, PH spec): two iPhone Pro frames side by
-  side on indigo→violet→emerald gradient bg. Left = `/app/groups` with
-  realistic group (e.g. "Goa Trip — 4 members, you owe ₹1,200"). Right =
-  `/wealth` with populated scorecard (~78/100) + ₹4.2L net worth bar.
-  Tagline as footer caption.
+**Assets:**
+- **Hero image — ✅ DONE.** Server-rendered programmatically via
+  `next/og` ImageResponse at `/api/og/launch` (1270 × 760, exact PH
+  spec). Fetch with `curl https://easysplits.in/api/og/launch -o
+  easysplits-ph-hero.png`. Confirmed rendering on 2026-05-23 after a
+  Satori-safe rewrite in `ce17c04` — strip variation-selector emojis,
+  outer container at `"100%"` not numeric px, every text-div explicit
+  `display: flex`, em-string `letterSpacing` values, fallback is a
+  second `ImageResponse` (degraded brand-only card) instead of a 500
+  Response. Same constraints apply to any future OG-image changes.
 - **30-sec demo GIF** (six 5s beats):
   1. 0–5s: Land on homepage, hover both CTAs
   2. 5–10s: Create "Goa Trip" group, add 3 guests
