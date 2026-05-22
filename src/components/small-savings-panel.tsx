@@ -38,6 +38,11 @@ const FILTERS: { key: FilterKey; label: string; match: (s: SmallSavingsScheme) =
 ];
 
 export function SmallSavingsPanel() {
+  // Collapsed by default — this is reference info, not a primary user
+  // task. A 12-row table eating /wealth real estate when most visits
+  // don't care about it is bad signal-to-noise. Tap the header to
+  // unfold; filter state survives across collapse/expand cycles.
+  const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<FilterKey>("all");
 
   const sorted = useMemo(
@@ -70,20 +75,38 @@ export function SmallSavingsPanel() {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-      <header className="flex items-start justify-between gap-3">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls="small-savings-body"
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900 dark:text-slate-50">
             <Landmark className="h-4 w-4 text-indigo-500" aria-hidden />
             Small Savings rates
           </h2>
           <p className="mt-0.5 text-[11.5px] text-slate-500 dark:text-slate-400">
-            Post Office &amp; Govt of India schemes · current quarter
+            {sorted.length} Post Office &amp; Govt schemes · tap to{" "}
+            {expanded ? "collapse" : "view"}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-          Up to {sorted[0]?.ratePct.toFixed(1) ?? "—"}%
-        </span>
-      </header>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            Up to {sorted[0]?.ratePct.toFixed(1) ?? "—"}%
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 text-slate-400 transition-transform ${
+              expanded ? "rotate-180" : ""
+            }`}
+            aria-hidden
+          />
+        </div>
+      </button>
+
+      {!expanded ? null : (
+      <div id="small-savings-body">
 
       {/* Filter chips — horizontally scrollable on mobile so we don't
           force a 2-row wrap. Active chip uses indigo to match the brand
@@ -146,6 +169,8 @@ export function SmallSavingsPanel() {
           Verify on indiapost.gov.in →
         </a>
       </footer>
+      </div>
+      )}
     </section>
   );
 }
