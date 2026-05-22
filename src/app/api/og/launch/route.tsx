@@ -3,19 +3,23 @@
  *
  * Renders the two product pillars side-by-side as stylised mobile-screen
  * panels: Groups (left, indigo) showing a trip-style expense breakdown,
- * and Wealth (right, emerald) showing the scorecard + net-worth. The
- * locked tagline sits below.
+ * and Personal finance (right, emerald) showing the scorecard + net-worth.
+ * Locked tagline below.
  *
- * Use cases:
- *   - PH submission hero image
- *   - Twitter/X launch announcement card
- *   - WhatsApp / LinkedIn launch posts
- *
- * Same Satori constraints as src/app/api/og/milestone/route.tsx:
+ * Same Satori constraints as src/app/api/og/milestone/route.tsx — they
+ * matter and they are not optional:
  *   - Node runtime (edge fonts choke on some Unicode)
- *   - Every div with >1 child has explicit `display: flex`
- *   - No backdrop-filter, box-shadow, animations, percent dimensions
- *   - Numeric absolute pixel sizes (Satori dislikes some CSS units)
+ *   - Outer container uses string "100%" sizing; ImageResponse options
+ *     define the actual pixel dimensions
+ *   - Every div with multiple children OR a single text child has an
+ *     explicit `display: flex` — missing this silently fails the whole
+ *     render
+ *   - No backdrop-filter, box-shadow, animations
+ *   - `letterSpacing` must be a string ("-0.04em"), not a number
+ *   - Avoid emoji with variation selectors (U+FE0F) — they trip Satori's
+ *     emoji renderer on Node. Plain text labels everywhere.
+ *   - All dynamic-number text wrapped in String(...) so React doesn't
+ *     pass numeric children that Satori doesn't know how to layout
  */
 
 import { ImageResponse } from "next/og";
@@ -25,23 +29,33 @@ export const runtime = "nodejs";
 
 const WIDTH = 1270;
 const HEIGHT = 760;
-const TAGLINE = "Track money + split bills.";
-const TAGLINE_SUB = "India-first · encrypted · free";
-const URL_LABEL = "easysplits.in";
+
+const FONT_STACK =
+  "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+const CACHE_HEADERS = {
+  "Cache-Control":
+    "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
+};
 
 export async function GET() {
   try {
     return new ImageResponse(<Hero />, {
       width: WIDTH,
       height: HEIGHT,
-      headers: {
-        "Cache-Control":
-          "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
-      },
+      headers: CACHE_HEADERS,
     });
   } catch (err) {
     console.error("OG launch hero render failed", err);
-    return new Response("hero render failed", { status: 500 });
+    // Last-resort fallback — solid-gradient card with the brand only.
+    // Avoids returning a 500 (which Vercel surfaces as
+    // FUNCTION_INVOCATION_FAILED to the user); a degraded image still
+    // works as a share card.
+    return new ImageResponse(<Fallback />, {
+      width: WIDTH,
+      height: HEIGHT,
+      headers: CACHE_HEADERS,
+    });
   }
 }
 
@@ -49,14 +63,14 @@ function Hero() {
   return (
     <div
       style={{
-        width: WIDTH,
-        height: HEIGHT,
+        width: "100%",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         background:
           "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
         color: "white",
-        fontFamily: "system-ui, -apple-system, sans-serif",
+        fontFamily: FONT_STACK,
         padding: 56,
       }}
     >
@@ -80,23 +94,24 @@ function Hero() {
             color: "#6366f1",
             fontSize: 30,
             fontWeight: 800,
-            letterSpacing: -1,
+            letterSpacing: "-0.02em",
           }}
         >
           ₹
         </div>
         <div
           style={{
+            display: "flex",
             fontSize: 30,
             fontWeight: 700,
-            letterSpacing: -0.5,
+            letterSpacing: "-0.02em",
           }}
         >
           EasySplits
         </div>
       </div>
 
-      {/* Two phone panels */}
+      {/* Two product panels */}
       <div
         style={{
           display: "flex",
@@ -120,25 +135,28 @@ function Hero() {
       >
         <div
           style={{
+            display: "flex",
             fontSize: 44,
             fontWeight: 800,
-            letterSpacing: -1.5,
+            letterSpacing: "-0.03em",
           }}
         >
-          {TAGLINE}
+          Track money + split bills.
         </div>
         <div
           style={{
+            display: "flex",
             fontSize: 22,
             fontWeight: 500,
             marginTop: 6,
             opacity: 0.92,
           }}
         >
-          {TAGLINE_SUB}
+          India-first · encrypted · free
         </div>
         <div
           style={{
+            display: "flex",
             fontSize: 18,
             fontWeight: 600,
             marginTop: 12,
@@ -147,10 +165,139 @@ function Hero() {
             borderRadius: 999,
           }}
         >
-          {URL_LABEL}
+          easysplits.in
         </div>
       </div>
     </div>
+  );
+}
+
+function GroupsPanel() {
+  return (
+    <PanelShell accent="#6366f1" label="GROUPS">
+      <div
+        style={{
+          display: "flex",
+          fontSize: 30,
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        Goa Trip · 4 friends
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 16,
+          color: "#64748b",
+          marginTop: -4,
+        }}
+      >
+        Settled in 3 transfers
+      </div>
+
+      <ExpenseRow title="Hotel · 3 nights" amount="₹12,400" share={1.0} />
+      <ExpenseRow title="Scooter rental" amount="₹3,200" share={0.26} />
+      <ExpenseRow title="Dinner at Britto's" amount="₹2,800" share={0.23} />
+
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          marginTop: 6,
+        }}
+      >
+        <Pill tone="amber" label="You owe" value="₹1,200" />
+        <Pill tone="emerald" label="You're owed" value="₹500" />
+      </div>
+    </PanelShell>
+  );
+}
+
+function WealthPanel() {
+  return (
+    <PanelShell accent="#10b981" label="PERSONAL FINANCE">
+      <div
+        style={{
+          display: "flex",
+          fontSize: 30,
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        Net worth · ₹4.2 L
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 16,
+          color: "#64748b",
+          marginTop: -4,
+        }}
+      >
+        +₹18,200 this month
+      </div>
+
+      {/* Scorecard pill */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          padding: 14,
+          borderRadius: 18,
+          background: "linear-gradient(135deg, #ecfdf5, #f0fdf4)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 64,
+            height: 64,
+            borderRadius: 999,
+            background: "linear-gradient(135deg, #10b981, #059669)",
+            color: "white",
+            fontSize: 26,
+            fontWeight: 800,
+          }}
+        >
+          {String(78)}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#065f46",
+            }}
+          >
+            Financial Health
+          </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 14,
+              color: "#047857",
+              marginTop: 2,
+            }}
+          >
+            Solid foundations · 4-month streak
+          </div>
+        </div>
+      </div>
+
+      <PillarRow label="Emergency" pct={0.85} hex="#10b981" />
+      <PillarRow label="Insurance" pct={0.7} hex="#6366f1" />
+      <PillarRow label="Investing" pct={0.6} hex="#8b5cf6" />
+    </PanelShell>
   );
 }
 
@@ -176,7 +323,6 @@ function PanelShell({
         gap: 16,
       }}
     >
-      {/* Tiny header strip */}
       <div
         style={{
           display: "flex",
@@ -195,11 +341,11 @@ function PanelShell({
         />
         <div
           style={{
+            display: "flex",
             fontSize: 16,
-            fontWeight: 600,
+            fontWeight: 700,
             color: "#475569",
-            letterSpacing: 0.5,
-            textTransform: "uppercase",
+            letterSpacing: "0.1em",
           }}
         >
           {label}
@@ -210,171 +356,14 @@ function PanelShell({
   );
 }
 
-function GroupsPanel() {
-  return (
-    <PanelShell accent="#6366f1" label="Groups">
-      <div
-        style={{
-          fontSize: 30,
-          fontWeight: 800,
-          letterSpacing: -0.8,
-        }}
-      >
-        🏖️ Goa Trip · 4
-      </div>
-      <div
-        style={{
-          fontSize: 16,
-          color: "#64748b",
-          marginTop: -4,
-        }}
-      >
-        Settled in 3 transfers
-      </div>
-
-      {/* Expense rows */}
-      <ExpenseRow
-        emoji="🏨"
-        title="Hotel · 3 nights"
-        amount="₹12,400"
-        share={1.0}
-        accent="#6366f1"
-      />
-      <ExpenseRow
-        emoji="🛵"
-        title="Scooter rental"
-        amount="₹3,200"
-        share={0.26}
-        accent="#6366f1"
-      />
-      <ExpenseRow
-        emoji="🍽️"
-        title="Britto's dinner"
-        amount="₹2,800"
-        share={0.23}
-        accent="#6366f1"
-      />
-
-      {/* Balance pills */}
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          marginTop: 6,
-        }}
-      >
-        <Pill
-          tone="amber"
-          label="You owe"
-          value="₹1,200"
-        />
-        <Pill
-          tone="emerald"
-          label="You're owed"
-          value="₹500"
-        />
-      </div>
-    </PanelShell>
-  );
-}
-
-function WealthPanel() {
-  return (
-    <PanelShell accent="#10b981" label="Personal finance">
-      <div
-        style={{
-          fontSize: 30,
-          fontWeight: 800,
-          letterSpacing: -0.8,
-        }}
-      >
-        Net worth · ₹4.2 L
-      </div>
-      <div
-        style={{
-          fontSize: 16,
-          color: "#64748b",
-          marginTop: -4,
-        }}
-      >
-        +₹18,200 this month
-      </div>
-
-      {/* Scorecard */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          padding: 14,
-          borderRadius: 18,
-          background: "linear-gradient(135deg, #ecfdf5, #f0fdf4)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 64,
-            height: 64,
-            borderRadius: 999,
-            background:
-              "linear-gradient(135deg, #10b981, #059669)",
-            color: "white",
-            fontSize: 26,
-            fontWeight: 800,
-          }}
-        >
-          78
-        </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: "#065f46",
-            }}
-          >
-            Financial Health
-          </div>
-          <div
-            style={{
-              fontSize: 14,
-              color: "#047857",
-              marginTop: 2,
-            }}
-          >
-            Solid foundations · 🔥 4-month streak
-          </div>
-        </div>
-      </div>
-
-      {/* Pillar bars */}
-      <PillarRow label="Emergency" pct={0.85} hex="#10b981" />
-      <PillarRow label="Insurance" pct={0.7} hex="#6366f1" />
-      <PillarRow label="Investing" pct={0.6} hex="#8b5cf6" />
-    </PanelShell>
-  );
-}
-
 function ExpenseRow({
-  emoji,
   title,
   amount,
   share,
-  accent,
 }: {
-  emoji: string;
   title: string;
   amount: string;
   share: number;
-  accent: string;
 }) {
   return (
     <div
@@ -394,17 +383,16 @@ function ExpenseRow({
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: 10,
             fontSize: 16,
+            fontWeight: 600,
             color: "#0f172a",
           }}
         >
-          <div style={{ fontSize: 22 }}>{emoji}</div>
-          <div style={{ fontWeight: 600 }}>{title}</div>
+          {title}
         </div>
         <div
           style={{
+            display: "flex",
             fontSize: 16,
             fontWeight: 700,
             color: "#0f172a",
@@ -424,8 +412,8 @@ function ExpenseRow({
         <div
           style={{
             display: "flex",
-            width: Math.max(8, share * 360),
-            background: accent,
+            width: Math.max(8, Math.round(share * 360)),
+            background: "#6366f1",
             borderRadius: 999,
           }}
         />
@@ -443,6 +431,7 @@ function PillarRow({
   pct: number;
   hex: string;
 }) {
+  const pctText = String(Math.round(pct * 100));
   return (
     <div
       style={{
@@ -457,12 +446,25 @@ function PillarRow({
           alignItems: "center",
           justifyContent: "space-between",
           fontSize: 14,
-          color: "#475569",
         }}
       >
-        <div style={{ fontWeight: 600 }}>{label}</div>
-        <div style={{ fontWeight: 700, color: "#0f172a" }}>
-          {Math.round(pct * 100)}/100
+        <div
+          style={{
+            display: "flex",
+            fontWeight: 600,
+            color: "#475569",
+          }}
+        >
+          {label}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontWeight: 700,
+            color: "#0f172a",
+          }}
+        >
+          {pctText}/100
         </div>
       </div>
       <div
@@ -476,7 +478,7 @@ function PillarRow({
         <div
           style={{
             display: "flex",
-            width: Math.max(8, pct * 360),
+            width: Math.max(8, Math.round(pct * 360)),
             background: hex,
             borderRadius: 999,
           }}
@@ -511,8 +513,78 @@ function Pill({
         color: palette.fg,
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 800 }}>{value}</div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 15,
+          fontWeight: 800,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function Fallback() {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background:
+          "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
+        color: "white",
+        fontFamily: FONT_STACK,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          fontSize: 96,
+          fontWeight: 800,
+          letterSpacing: "-0.03em",
+        }}
+      >
+        EasySplits
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 32,
+          fontWeight: 500,
+          marginTop: 16,
+          opacity: 0.92,
+        }}
+      >
+        Track money + split bills · India-first
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: 22,
+          fontWeight: 600,
+          marginTop: 32,
+          background: "rgba(255,255,255,0.18)",
+          padding: "8px 20px",
+          borderRadius: 999,
+        }}
+      >
+        easysplits.in
+      </div>
     </div>
   );
 }
