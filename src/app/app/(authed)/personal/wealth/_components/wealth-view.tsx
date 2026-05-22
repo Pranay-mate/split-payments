@@ -24,6 +24,7 @@ import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { NetWorthTrajectory } from "./net-worth-trajectory";
 import { useConfirm } from "@/components/confirm-dialog";
+import { SmallSavingsPanel } from "@/components/small-savings-panel";
 
 type HoldingType = "mutual_fund" | "fd" | "stock" | "gold" | "bond" | "other";
 
@@ -392,6 +393,8 @@ export function WealthView() {
         </section>
 
         <DebtsSection />
+
+        <SmallSavingsPanel />
       </div>
     </main>
   );

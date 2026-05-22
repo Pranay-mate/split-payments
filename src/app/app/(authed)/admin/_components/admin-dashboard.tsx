@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc/client";
 import { KpiTile } from "./kpi-tile";
 import { ActivationFunnel } from "./activation-funnel";
 import { ActivityFeed } from "./activity-feed";
+import { SmallSavingsUpdateNudge } from "./small-savings-update-nudge";
 
 const SignupsChart = dynamic(
   () => import("./signups-chart").then((m) => m.SignupsChart),
@@ -92,6 +93,8 @@ export function AdminDashboard() {
           decrypt them here.
         </p>
       </div>
+
+      <SmallSavingsUpdateNudge />
 
       {/* KPI grid */}
       <section
