@@ -23,12 +23,10 @@
  */
 
 import { ImageResponse } from "next/og";
+import type { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const WIDTH = 1270;
-const HEIGHT = 760;
 
 const FONT_STACK =
   "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -38,13 +36,31 @@ const CACHE_HEADERS = {
     "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
 };
 
-export async function GET() {
+/**
+ * Output formats. `landscape` is the PH default (1270×760). `portrait`
+ * is 1080×1920 for vertical share channels — Instagram Story, Reels,
+ * WhatsApp Status. Same content in both, layout adapted to the aspect.
+ */
+type Format = "landscape" | "portrait";
+
+const FORMAT_DIMENSIONS: Record<Format, { width: number; height: number }> = {
+  landscape: { width: 1270, height: 760 },
+  portrait: { width: 1080, height: 1920 },
+};
+
+function parseFormat(req: NextRequest): Format {
+  const raw = new URL(req.url).searchParams.get("format");
+  return raw === "portrait" ? "portrait" : "landscape";
+}
+
+export async function GET(req: NextRequest) {
+  const format = parseFormat(req);
+  const { width, height } = FORMAT_DIMENSIONS[format];
   try {
-    return new ImageResponse(<Hero />, {
-      width: WIDTH,
-      height: HEIGHT,
-      headers: CACHE_HEADERS,
-    });
+    return new ImageResponse(
+      format === "portrait" ? <HeroPortrait /> : <Hero />,
+      { width, height, headers: CACHE_HEADERS },
+    );
   } catch (err) {
     console.error("OG launch hero render failed", err);
     // Last-resort fallback — solid-gradient card with the brand only.
@@ -52,8 +68,8 @@ export async function GET() {
     // FUNCTION_INVOCATION_FAILED to the user); a degraded image still
     // works as a share card.
     return new ImageResponse(<Fallback />, {
-      width: WIDTH,
-      height: HEIGHT,
+      width,
+      height,
       headers: CACHE_HEADERS,
     });
   }
@@ -162,6 +178,140 @@ function Hero() {
             marginTop: 12,
             background: "rgba(255,255,255,0.18)",
             padding: "6px 16px",
+            borderRadius: 999,
+          }}
+        >
+          easysplits.in
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Portrait variant (1080×1920) for Instagram Story, Reels, WhatsApp
+ * Status. Same content as Hero(), stacked vertically instead of
+ * side-by-side. Tagline gets larger because we have ~3× more vertical
+ * room — and because vertical scrolling viewers read top→bottom in
+ * larger eye sweeps.
+ */
+function HeroPortrait() {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        background:
+          "linear-gradient(160deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
+        color: "white",
+        fontFamily: FONT_STACK,
+        padding: 64,
+      }}
+    >
+      {/* Brand row — same shape as landscape but larger */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 68,
+            height: 68,
+            borderRadius: 18,
+            background: "white",
+            color: "#6366f1",
+            fontSize: 40,
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          ₹
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 42,
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          EasySplits
+        </div>
+      </div>
+
+      {/* Two stacked panels — flex column instead of row */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+          gap: 28,
+          marginTop: 40,
+        }}
+      >
+        <GroupsPanel />
+        <WealthPanel />
+      </div>
+
+      {/* Tagline — larger fonts since portrait reads top-to-bottom in
+          larger sweeps and we have vertical room to spend */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          marginTop: 36,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            fontSize: 56,
+            fontWeight: 800,
+            letterSpacing: "-0.03em",
+            textAlign: "center",
+          }}
+        >
+          Track money +
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 56,
+            fontWeight: 800,
+            letterSpacing: "-0.03em",
+            marginTop: -8,
+          }}
+        >
+          split bills.
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 28,
+            fontWeight: 500,
+            marginTop: 14,
+            opacity: 0.92,
+          }}
+        >
+          India-first · encrypted · free
+        </div>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 22,
+            fontWeight: 600,
+            marginTop: 20,
+            background: "rgba(255,255,255,0.18)",
+            padding: "10px 22px",
             borderRadius: 999,
           }}
         >
