@@ -56,6 +56,10 @@ export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) 
   const groupsQuery = trpc.groups.list.useQuery(undefined, {
     initialData: initialGroups as GroupRow[],
     staleTime: 30_000,
+    // Refetch when the user comes back to the tab — a friend who added
+    // an expense or settled up shouldn't leave you staring at stale
+    // balances after you switch back from Slack/WhatsApp.
+    refetchOnWindowFocus: true,
   });
 
   const { active, archived, all } = useMemo(() => {

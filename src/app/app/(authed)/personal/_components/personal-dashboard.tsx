@@ -153,11 +153,18 @@ export function PersonalDashboard() {
   const entries = listQuery.data ?? [];
   const topCats = topCatsQuery.data ?? [];
 
-  // Always include the current month even if it has no entries yet, so the
-  // user can switch back to "this month" after browsing history.
+  // Always offer the trailing 12 months plus the current one, even if
+  // they have no entries yet — users backfilling past months (e.g.
+  // "January 2026, six months in") need to pick the month *before*
+  // there's any data in it. Server-known months are unioned in so any
+  // older history beyond 12 months stays reachable.
   const months = useMemo(() => {
     const set = new Set(monthsQuery.data ?? []);
-    set.add(monthKeyForDate(new Date()));
+    const today = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      set.add(monthKeyForDate(d));
+    }
     return Array.from(set).sort().reverse();
   }, [monthsQuery.data]);
 
@@ -256,25 +263,29 @@ export function PersonalDashboard() {
               "—"
             )}
           </p>
+          {/* Sub-stats are intentionally flat — earlier they had blurred
+              white-tinted backgrounds that read as tappable tiles, but
+              tapping does nothing. Plain text columns make it obvious
+              this is just an at-a-glance breakdown. */}
           <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-            <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/90">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/80">
                 <ArrowDown className="h-3 w-3" aria-hidden /> In
               </p>
               <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
                 {summary ? formatINR(summary.income, 0) : "—"}
               </p>
             </div>
-            <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/90">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/80">
                 <ArrowUp className="h-3 w-3" aria-hidden /> Out
               </p>
               <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
                 {summary ? formatINR(summary.expenses + summary.investments, 0) : "—"}
               </p>
             </div>
-            <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
-              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/90">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/80">
                 <Wallet className="h-3 w-3" aria-hidden /> Saved
               </p>
               <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
