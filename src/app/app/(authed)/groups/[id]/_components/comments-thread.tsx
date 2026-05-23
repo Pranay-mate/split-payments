@@ -15,6 +15,7 @@ import { trpc } from "@/lib/trpc/client";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const HISTORY_LABELS: Record<string, string> = {
   "expense.added": "added this expense",
@@ -52,6 +53,7 @@ export function CommentsThread({
   const [draft, setDraft] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const userTz = useUserTimezone();
+  const confirm = useConfirm();
 
   const listQuery = trpc.comments.listByExpense.useQuery({ expenseId });
   const historyQuery = trpc.events.listByExpense.useQuery(
@@ -213,6 +215,14 @@ export function CommentsThread({
                 <button
                   type="button"
                   onClick={async () => {
+                    const ok = await confirm({
+                      title: "Delete this comment?",
+                      description:
+                        "This cannot be undone. The comment + its history event will be removed.",
+                      confirmLabel: "Delete",
+                      destructive: true,
+                    });
+                    if (!ok) return;
                     try {
                       await submitDelete({ id: c.id });
                     } catch (err) {
@@ -222,10 +232,16 @@ export function CommentsThread({
                     }
                   }}
                   disabled={deleteMutation.isPending}
-                  className="opacity-0 transition group-hover:opacity-100"
+                  // Always visible — earlier `opacity-0 group-hover:
+                  // opacity-100` made the button invisible on mobile
+                  // (no hover state on touch devices), so users
+                  // couldn't delete their own comments at all on
+                  // phones. Low-opacity slate icon + rose hover keeps
+                  // it discoverable without being shouty.
+                  className="shrink-0 self-start p-0.5 transition"
                   aria-label="Delete comment"
                 >
-                  <Trash2 className="h-3 w-3 text-slate-400 hover:text-rose-500" />
+                  <Trash2 className="h-3.5 w-3.5 text-slate-400 hover:text-rose-500" />
                 </button>
               )}
             </li>
