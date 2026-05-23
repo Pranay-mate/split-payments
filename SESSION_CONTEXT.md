@@ -172,7 +172,7 @@ requiring a `CACHE_VERSION` bump per deploy.
 | Live URL | https://easysplits.in (Vercel primary; `.vercel.app` 301-redirects) |
 | DB connection | Pooler `aws-0-ap-south-1.pooler.supabase.com:6543` (transaction mode), **not** direct host |
 | RLS | Disabled on all `public.*` tables — service-role connection |
-| Migrations | Auto-deployed via Supabase ↔ GitHub integration on push to `main`. Latest: `0003_personal_debts.sql` (applied 2026-05-17) |
+| Migrations | **Manual only** — Supabase ↔ GitHub auto-deploy is a Pro-tier feature; this project is on free tier. After committing any `supabase/migrations/000N_*.sql`, paste the SQL into the project's SQL editor at https://supabase.com/dashboard/project/rnrwjocisbasoupjxeqo/sql/new and Run. Latest applied: `0005_profiles_onboarded.sql` (manual, 2026-05-23). |
 | Service worker | `APP_VERSION = "1.0"` (baseline after detection-fix reset) — major-bump = force modal, minor = banner, 2min idle auto-apply, SWR static assets, visibility-triggered update checks. Detection compares active SW major vs waiting SW major (not bundle's APP_VERSION). |
 | Cron | Vercel cron, pinned to `bom1`, daily 19:30 IST for reminder nudges + anomaly detection |
 | Encryption | AES-256-GCM, key in `PFT_ENCRYPTION_KEY` env (server-side only) |
