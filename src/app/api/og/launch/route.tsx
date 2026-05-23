@@ -203,11 +203,15 @@ function HeroPortrait() {
         height: "100%",
         display: "flex",
         flexDirection: "column",
+        // Distribute brand / panels / tagline through the 1920px
+        // height. Each is content-height; the surplus distributes
+        // between them rather than inflating any single child.
+        justifyContent: "space-between",
         background:
           "linear-gradient(160deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
         color: "white",
         fontFamily: FONT_STACK,
-        padding: 48,
+        padding: 56,
       }}
     >
       {/* Brand row — same shape as landscape but larger */}
@@ -247,28 +251,30 @@ function HeroPortrait() {
         </div>
       </div>
 
-      {/* Two stacked panels — flex column instead of row */}
+      {/* Two stacked panels — content-height so the surplus vertical
+          space accrues to the parent's `justifyContent: space-between`
+          (i.e. distributes between brand and tagline), not inside the
+          panels themselves. */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
-          flex: 1,
           gap: 24,
-          marginTop: 28,
         }}
       >
-        <GroupsPanel />
-        <WealthPanel />
+        <GroupsPanel stretch={false} />
+        <WealthPanel stretch={false} />
       </div>
 
       {/* Tagline — larger fonts since portrait reads top-to-bottom in
-          larger sweeps and we have vertical room to spend */}
+          larger sweeps and we have vertical room to spend. No marginTop
+          here — the outer justifyContent: space-between sets the gap
+          to brand and panels automatically. */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          marginTop: 24,
         }}
       >
         <div
@@ -322,9 +328,9 @@ function HeroPortrait() {
   );
 }
 
-function GroupsPanel() {
+function GroupsPanel({ stretch = true }: { stretch?: boolean } = {}) {
   return (
-    <PanelShell accent="#6366f1" label="GROUPS">
+    <PanelShell accent="#6366f1" label="GROUPS" stretch={stretch}>
       <div
         style={{
           display: "flex",
@@ -364,9 +370,9 @@ function GroupsPanel() {
   );
 }
 
-function WealthPanel() {
+function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
   return (
-    <PanelShell accent="#10b981" label="PERSONAL FINANCE">
+    <PanelShell accent="#10b981" label="PERSONAL FINANCE" stretch={stretch}>
       <div
         style={{
           display: "flex",
@@ -454,10 +460,16 @@ function WealthPanel() {
 function PanelShell({
   accent,
   label,
+  stretch = true,
   children,
 }: {
   accent: string;
   label: string;
+  /** Landscape stretches each panel to fill half the row (`flex: 1`).
+   *  Portrait wants content-height panels so the surplus vertical
+   *  space distributes around the panels (via the outer container's
+   *  justifyContent), not inside them as fake row-gap. */
+  stretch?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -465,18 +477,12 @@ function PanelShell({
       style={{
         display: "flex",
         flexDirection: "column",
-        flex: 1,
+        flex: stretch ? 1 : "0 0 auto",
         background: "white",
         color: "#0f172a",
         borderRadius: 28,
         padding: 26,
         gap: 16,
-        // Spread content through the panel's full height. In landscape
-        // the panel is already nearly content-full so this is a no-op;
-        // in portrait it eliminates ~290px of dead space below the
-        // last row by distributing the surplus between children
-        // instead of pooling it at the bottom.
-        justifyContent: "space-between",
       }}
     >
       <div
