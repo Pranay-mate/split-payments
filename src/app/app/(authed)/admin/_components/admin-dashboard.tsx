@@ -1,12 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { AlertCircle, Lock } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { KpiTile } from "./kpi-tile";
 import { ActivationFunnel } from "./activation-funnel";
 import { ActivityFeed } from "./activity-feed";
 import { SmallSavingsUpdateNudge } from "./small-savings-update-nudge";
+import { LaunchPulse } from "./launch-pulse";
 
 const SignupsChart = dynamic(
   () => import("./signups-chart").then((m) => m.SignupsChart),
@@ -42,6 +44,12 @@ export function AdminDashboard() {
     funnel.error?.message ??
     feed.error?.message ??
     null;
+
+  // Launch-day pulse opt-in: visit /app/admin?launch=1 during the
+  // ProductHunt launch window to surface the live signups tile.
+  // Dormant by default so the panel stays calm on regular days.
+  const searchParams = useSearchParams();
+  const launchMode = searchParams?.get("launch") === "1";
 
   return (
     <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
@@ -95,6 +103,8 @@ export function AdminDashboard() {
       </div>
 
       <SmallSavingsUpdateNudge />
+
+      {launchMode && <LaunchPulse />}
 
       {/* KPI grid */}
       <section

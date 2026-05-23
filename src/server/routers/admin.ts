@@ -378,6 +378,124 @@ export const adminRouter = router({
    * NULL (organic / cold signups) so the tile shows only attributed
    * invites; we still surface "cold" count alongside for context.
    */
+  /**
+   * Real-time launch-day pulse. Signups bucketed by 5-minute windows
+   * across a configurable lookback (default 6h, max 48h). Useful on
+   * ProductHunt / Twitter launch day to watch traffic shape live.
+   *
+   * Returns:
+   *   - buckets: ordered ascending, each with bucketAt, count, and
+   *     top-3 referrers within the bucket
+   *   - summary: total signups in window, top-5 referrers overall in
+   *     the window, peak bucket (highest single 5-min spike)
+   *
+   * Gated to admin only; opt-in via `?launch=1` URL param on the
+   * client, so this query doesn't run on every admin page-load when
+   * we're not in a launch window.
+   */
+  launchPulse: adminProcedure
+    .input(
+      z
+        .object({
+          hours: z.number().int().min(1).max(48).default(6),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      const hours = input?.hours ?? 6;
+      const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+      // 5-minute bucketing in Postgres. date_trunc gives minute-level
+      // truncation; the floor(minute/5)*5 collapses to 5-min windows.
+      const rows = await db
+        .select({
+          bucketAt: sql<Date>`
+            date_trunc('hour', ${profiles.createdAt})
+            + interval '5 min' * floor(extract(minute from ${profiles.createdAt}) / 5)
+          `,
+          referrer: profiles.referredFrom,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(profiles)
+        .where(gte(profiles.createdAt, since))
+        .groupBy(
+          sql`date_trunc('hour', ${profiles.createdAt})
+              + interval '5 min' * floor(extract(minute from ${profiles.createdAt}) / 5)`,
+          profiles.referredFrom,
+        );
+
+      // Roll up rows → one entry per 5-min bucket with referrer
+      // breakdown. Done in JS (rather than SQL) because nesting +
+      // top-N-per-group is awkward in Postgres without window funcs.
+      const byBucket = new Map<
+        string,
+        {
+          bucketAt: Date;
+          count: number;
+          byReferrer: Map<string, number>;
+        }
+      >();
+      for (const row of rows) {
+        const ts = new Date(row.bucketAt).getTime();
+        const key = String(ts);
+        if (!byBucket.has(key)) {
+          byBucket.set(key, {
+            bucketAt: new Date(ts),
+            count: 0,
+            byReferrer: new Map(),
+          });
+        }
+        const entry = byBucket.get(key)!;
+        entry.count += row.count;
+        const refName = row.referrer ?? "(direct)";
+        entry.byReferrer.set(
+          refName,
+          (entry.byReferrer.get(refName) ?? 0) + row.count,
+        );
+      }
+
+      const buckets = Array.from(byBucket.values())
+        .sort((a, b) => a.bucketAt.getTime() - b.bucketAt.getTime())
+        .map((b) => ({
+          bucketAt: b.bucketAt,
+          count: b.count,
+          topReferrers: Array.from(b.byReferrer.entries())
+            .sort((a, c) => c[1] - a[1])
+            .slice(0, 3)
+            .map(([name, n]) => ({ name, count: n })),
+        }));
+
+      // Overall window summary
+      const totalSignups = buckets.reduce((s, b) => s + b.count, 0);
+      const peakBucket = buckets.reduce<(typeof buckets)[number] | null>(
+        (best, cur) => (best === null || cur.count > best.count ? cur : best),
+        null,
+      );
+      const referrerTotals = new Map<string, number>();
+      for (const row of rows) {
+        const refName = row.referrer ?? "(direct)";
+        referrerTotals.set(
+          refName,
+          (referrerTotals.get(refName) ?? 0) + row.count,
+        );
+      }
+      const topReferrersOverall = Array.from(referrerTotals.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+
+      return {
+        windowHours: hours,
+        sinceIso: since.toISOString(),
+        totalSignups,
+        peakBucket: peakBucket
+          ? { bucketAt: peakBucket.bucketAt, count: peakBucket.count }
+          : null,
+        topReferrers: topReferrersOverall,
+        buckets,
+      };
+    }),
+
   topReferrers: adminProcedure.query(async () => {
     const attributed = await db
       .select({
