@@ -9,7 +9,8 @@ import {
   type Expense as TripExpense,
   type TripSummary,
 } from "@/lib/calculators/trip-split";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
+import { useGroupCurrency } from "@/lib/group-currency-context";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
@@ -53,6 +54,7 @@ function BalancesHeader({
   recorded: RecordedSettlement[];
   groupName: string;
 }) {
+  const currency = useGroupCurrency();
   const settled = recorded.reduce((s, r) => s + r.amount, 0);
   const remaining = summary.balances.reduce(
     (s, b) => s + Math.max(0, b.amount),
@@ -127,9 +129,9 @@ function BalancesHeader({
               />
             </>
           ) : settled === 0 ? (
-            `${formatINR(remaining, 0)} to settle across the group`
+            `${formatCurrency(remaining, currency, 0)} to settle across the group`
           ) : (
-            `${formatINR(settled, 0)} settled · ${formatINR(remaining, 0)} to go`
+            `${formatCurrency(settled, currency, 0)} settled · ${formatCurrency(remaining, currency, 0)} to go`
           )}
         </p>
       </div>
@@ -158,6 +160,7 @@ export function BalancesView({
   /** Drives the "Just my balances" auto-default + filter on pairwise. */
   currentUserId: string | null;
 }) {
+  const currency = useGroupCurrency();
   const utils = trpc.useUtils();
   const confirm = useConfirm();
   const userTz = useUserTimezone();
@@ -251,9 +254,9 @@ export function BalancesView({
                       }`}
                     >
                       {isOwed
-                        ? `+${formatINR(abs, 0)} · gets`
+                        ? `+${formatCurrency(abs, currency, 0)} · gets`
                         : owes
-                          ? `−${formatINR(abs, 0)} · owes`
+                          ? `−${formatCurrency(abs, currency, 0)} · owes`
                           : "settled"}
                     </span>
                   </div>
@@ -312,7 +315,7 @@ export function BalancesView({
                     </span>
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    {formatINR(r.amount, 0)}
+                    {formatCurrency(r.amount, currency, 0)}
                     {r.note ? ` · ${r.note}` : ""} ·{" "}
                     {formatDate(r.occurredAt, userTz, "short")}
                   </p>
@@ -390,6 +393,7 @@ function SuggestedPayments({
   tripExpenses: TripExpense[];
   currentUserId: string | null;
 }) {
+  const currency = useGroupCurrency();
   const [mode, setMode] = useState<SettleMode>("simplified");
   // Pairwise lists can balloon in big groups (N² potential pairs).
   // Default to "Just my balances" the moment we detect a large group
@@ -532,7 +536,7 @@ function SuggestedPayments({
                   <span className="font-medium">{toName}</span>
                 </span>
                 <span className="font-semibold tabular-nums">
-                  {formatINR(s.amount, 0)}
+                  {formatCurrency(s.amount, currency, 0)}
                 </span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -624,10 +628,11 @@ function WhyExpander({
   toBreakdown: ReturnType<typeof personBreakdown>;
   amount: number;
 }) {
+  const currency = useGroupCurrency();
   return (
     <div className="mt-3 space-y-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-[12px] dark:border-slate-800 dark:bg-slate-800/40">
       <p className="text-[11px] text-slate-500 dark:text-slate-400">
-        How {formatINR(amount, 0)} was derived — each person&apos;s net
+        How {formatCurrency(amount, currency, 0)} was derived — each person&apos;s net
         balance from the expense ledger:
       </p>
 
@@ -643,9 +648,9 @@ function WhyExpander({
       />
 
       <p className="border-t border-slate-200 pt-2 text-[11px] text-slate-600 dark:border-slate-700 dark:text-slate-300">
-        {fromName}&apos;s {formatINR(Math.abs(fromBreakdown.net), 0)} debt
-        cancels with {toName}&apos;s {formatINR(toBreakdown.net, 0)} surplus
-        through this {formatINR(amount, 0)} transfer.
+        {fromName}&apos;s {formatCurrency(Math.abs(fromBreakdown.net), currency, 0)} debt
+        cancels with {toName}&apos;s {formatCurrency(toBreakdown.net, currency, 0)} surplus
+        through this {formatCurrency(amount, currency, 0)} transfer.
       </p>
     </div>
   );
@@ -660,10 +665,11 @@ function PersonBreakdownBlock({
   breakdown: ReturnType<typeof personBreakdown>;
   role: "debtor" | "creditor";
 }) {
+  const currency = useGroupCurrency();
   const netLabel =
     role === "debtor"
-      ? `owes ${formatINR(Math.abs(breakdown.net), 0)}`
-      : `is owed ${formatINR(breakdown.net, 0)}`;
+      ? `owes ${formatCurrency(Math.abs(breakdown.net), currency, 0)}`
+      : `is owed ${formatCurrency(breakdown.net, currency, 0)}`;
   const tone =
     role === "debtor"
       ? "text-rose-700 dark:text-rose-400"
@@ -676,17 +682,17 @@ function PersonBreakdownBlock({
       <ul className="mt-1 space-y-0.5 text-[11px] text-slate-600 dark:text-slate-300">
         <li className="flex justify-between gap-2 tabular-nums">
           <span>Paid out</span>
-          <span>{formatINR(breakdown.paid, 0)}</span>
+          <span>{formatCurrency(breakdown.paid, currency, 0)}</span>
         </li>
         <li className="flex justify-between gap-2 tabular-nums">
           <span>Share of expenses</span>
-          <span>{formatINR(breakdown.share, 0)}</span>
+          <span>{formatCurrency(breakdown.share, currency, 0)}</span>
         </li>
         <li className="flex justify-between gap-2 border-t border-slate-200 pt-0.5 font-semibold tabular-nums dark:border-slate-700">
           <span>Net</span>
           <span className={tone}>
             {breakdown.net >= 0 ? "+" : "−"}
-            {formatINR(Math.abs(breakdown.net), 0)}
+            {formatCurrency(Math.abs(breakdown.net), currency, 0)}
           </span>
         </li>
       </ul>
@@ -707,7 +713,7 @@ function PersonBreakdownBlock({
                 </span>
                 <span>
                   {c.net >= 0 ? "+" : "−"}
-                  {formatINR(Math.abs(c.net), 0)}
+                  {formatCurrency(Math.abs(c.net), currency, 0)}
                 </span>
               </li>
             ))}

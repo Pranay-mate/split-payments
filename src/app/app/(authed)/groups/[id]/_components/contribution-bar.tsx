@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
+import { useGroupCurrency } from "@/lib/group-currency-context";
 
 const PALETTE = [
   "#6366f1", // indigo
@@ -35,6 +36,7 @@ export function ContributionBar({
   expenses: Expense[];
   members: Member[];
 }) {
+  const currency = useGroupCurrency();
   /**
    * Beyond ~6 colored segments the stacked bar turns into visual mush
    * (and the legend below wraps to 3+ lines). Cap to the top 6 named
@@ -89,7 +91,7 @@ export function ContributionBar({
           Who paid
         </h2>
         <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
-          {formatINR(total, 0)} total
+          {formatCurrency(total, currency, 0)} total
         </span>
       </div>
       <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -98,7 +100,7 @@ export function ContributionBar({
             key={s.id}
             className="transition-[width] duration-700"
             style={{ width: `${s.pct * 100}%`, background: s.color }}
-            title={`${s.name}: ${formatINR(s.total, 0)} (${Math.round(s.pct * 100)}%)`}
+            title={`${s.name}: ${formatCurrency(s.total, currency, 0)} (${Math.round(s.pct * 100)}%)`}
             aria-label={`${s.name} ${Math.round(s.pct * 100)} percent`}
           />
         ))}

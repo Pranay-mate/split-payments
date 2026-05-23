@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { markFirstActionDone } from "@/lib/use-install-prompt";
 import { equalSplits, type SplitMode } from "@/lib/calculators/trip-split";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { COMMON_CURRENCIES, getRate } from "@/lib/fx";
 import {
   CATEGORIES,
@@ -589,7 +589,7 @@ export function AddExpense({
       {currency !== primaryCurrency && numericForFx > 0 && (
         <p className="-mt-1 text-xs text-slate-500 dark:text-slate-400">
           {livePreview
-            ? `≈ ${formatINR(livePreview.converted, 0)} ${primaryCurrency} (1 ${currency} = ${livePreview.rate.toFixed(2)} ${primaryCurrency})`
+            ? `≈ ${formatCurrency(livePreview.converted, primaryCurrency, 0)} (1 ${currency} = ${livePreview.rate.toFixed(2)} ${primaryCurrency})`
             : `Fetching ${currency} → ${primaryCurrency} rate…`}
         </p>
       )}
@@ -827,11 +827,11 @@ export function AddExpense({
 
             <div className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-xs dark:bg-slate-800">
               <span className="text-slate-600 dark:text-slate-300">
-                {formatINR(exactTotal, 2)} of {formatINR(numericAmount, 2)}
+                {formatCurrency(exactTotal, currency, 2)} of {formatCurrency(numericAmount, currency, 2)}
                 {Math.abs(exactDelta) > EPSILON && (
                   <span className="ml-2 font-medium text-rose-600 dark:text-rose-400">
                     ({exactDelta > 0 ? "+" : "−"}
-                    {formatINR(Math.abs(exactDelta), 2)} off)
+                    {formatCurrency(Math.abs(exactDelta), currency, 2)} off)
                   </span>
                 )}
               </span>
@@ -855,7 +855,7 @@ export function AddExpense({
             Line items
           </span>
           <span className="text-xs tabular-nums text-slate-600 dark:text-slate-300">
-            Total: {formatINR(itemsTotal, 0)}
+            Total: {formatCurrency(itemsTotal, currency, 0)}
           </span>
         </div>
         <ul className="mt-2 space-y-3">

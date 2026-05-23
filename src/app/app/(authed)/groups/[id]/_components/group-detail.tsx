@@ -27,7 +27,8 @@ import {
   type Expense as TripExpense,
   type Person,
 } from "@/lib/calculators/trip-split";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
+import { GroupCurrencyProvider } from "@/lib/group-currency-context";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
@@ -277,6 +278,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   })();
 
   return (
+    <GroupCurrencyProvider currency={group.primaryCurrency}>
     <main className="flex-1">
       <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
         <Link
@@ -342,7 +344,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 Total spent
               </p>
               <p className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
-                {formatINR(summary?.totalSpent ?? 0, 0)}
+                {formatCurrency(summary?.totalSpent ?? 0, group.primaryCurrency, 0)}
               </p>
             </div>
             <div className="pl-5 sm:pl-6">
@@ -557,7 +559,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     >
                       <span>{item.label}</span>
                       <span className="tabular-nums text-slate-500 dark:text-slate-400">
-                        {formatINR(item.total, 0)} · {item.count}{" "}
+                        {formatCurrency(item.total, group.primaryCurrency, 0)} · {item.count}{" "}
                         {item.count === 1 ? "expense" : "expenses"}
                       </span>
                     </li>
@@ -612,8 +614,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                         {payerName} paid{" "}
                         {showOriginal
-                          ? `${e.amount.toFixed(0)} ${e.currency} (≈ ${formatINR(e.convertedAmount, 0)})`
-                          : formatINR(e.convertedAmount, 0)}{" "}
+                          ? `${e.amount.toFixed(0)} ${e.currency} (≈ ${formatCurrency(e.convertedAmount, group.primaryCurrency, 0)})`
+                          : formatCurrency(e.convertedAmount, group.primaryCurrency, 0)}{" "}
                         ·{" "}
                         {(() => {
                           const itemCount =
@@ -962,6 +964,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         onClose={() => setRecordingPayment(false)}
       />
     </main>
+    </GroupCurrencyProvider>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { Loader2, Pencil, Plus, Trash2, X, History } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { formatDate } from "@/lib/format-date";
@@ -55,7 +55,7 @@ function formatField(
 ): string {
   if (value === null || value === undefined || value === "") return "—";
   if (field === "amount" && typeof value === "number") {
-    return currency === "INR" ? formatINR(value, 2) : `${value} ${currency}`;
+    return formatCurrency(value, currency, 2);
   }
   if (field === "category" && typeof value === "string") {
     const meta = CATEGORIES[toCategoryKey(value)];

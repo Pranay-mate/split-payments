@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 
 const COMMON_CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD", "JPY"] as const;
 
@@ -241,12 +241,12 @@ function GroupCard({ group: g }: { group: GroupRow }) {
       ? {
           bar: "bg-rose-500",
           text: "text-rose-700 dark:text-rose-400",
-          label: `You owe ${formatINR(Math.abs(g.myNetBalance), 0)}`,
+          label: `You owe ${formatCurrency(Math.abs(g.myNetBalance), g.primaryCurrency, 0)}`,
         }
       : {
           bar: "bg-emerald-500",
           text: "text-emerald-700 dark:text-emerald-400",
-          label: `You're owed ${formatINR(g.myNetBalance, 0)}`,
+          label: `You're owed ${formatCurrency(g.myNetBalance, g.primaryCurrency, 0)}`,
         };
 
   return (

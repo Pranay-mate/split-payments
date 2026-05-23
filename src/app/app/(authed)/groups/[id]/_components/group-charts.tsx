@@ -9,7 +9,8 @@ import {
   Tooltip,
 } from "recharts";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
+import { useGroupCurrency } from "@/lib/group-currency-context";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 
@@ -47,6 +48,7 @@ export function GroupCharts({
   members: Member[];
 }) {
   const userTz = useUserTimezone();
+  const currency = useGroupCurrency();
   const memberById = useMemo(() => {
     const m = new Map<string, string>();
     for (const member of members) m.set(member.id, member.name);
@@ -145,7 +147,7 @@ export function GroupCharts({
           Total spent
         </p>
         <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight sm:text-4xl">
-          {formatINR(totals.total, 0)}
+          {formatCurrency(totals.total, currency, 0)}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
           <div className="min-w-0 rounded-lg bg-white/15 px-2 py-2 backdrop-blur sm:px-3">
@@ -169,7 +171,7 @@ export function GroupCharts({
               Daily avg
             </p>
             <p className="mt-0.5 truncate text-sm font-semibold tabular-nums sm:text-base">
-              {formatINR(totals.dailyAvg, 0)}
+              {formatCurrency(totals.dailyAvg, currency, 0)}
             </p>
           </div>
         </div>
@@ -210,7 +212,7 @@ export function GroupCharts({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value) => formatINR(Number(value ?? 0), 0)}
+                  formatter={(value) => formatCurrency(Number(value ?? 0), currency, 0)}
                   contentStyle={tooltipStyle}
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
                 />
@@ -241,7 +243,7 @@ export function GroupCharts({
                     <span className="truncate">{d.label}</span>
                   </span>
                   <span className="shrink-0 tabular-nums text-slate-600 dark:text-slate-300">
-                    {formatINR(d.total, 0)}{" "}
+                    {formatCurrency(d.total, currency, 0)}{" "}
                     <span className="text-[11px] text-slate-400">
                       · {Math.round(d.pct * 100)}%
                     </span>
@@ -283,7 +285,7 @@ export function GroupCharts({
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
-                  {formatINR(e.amount, 0)}
+                  {formatCurrency(e.amount, currency, 0)}
                 </p>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -327,7 +329,7 @@ export function GroupCharts({
                     </span>
                   </span>
                   <span className="shrink-0 text-sm tabular-nums text-slate-700 dark:text-slate-200">
-                    {formatINR(p.total, 0)}{" "}
+                    {formatCurrency(p.total, currency, 0)}{" "}
                     <span className="text-[11px] text-slate-400">
                       · {Math.round(p.pct * 100)}%
                     </span>

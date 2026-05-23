@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Repeat } from "lucide-react";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
-import { formatINR } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 
 type Expense = {
   description: string;
@@ -138,13 +138,13 @@ export function SubscriptionAudit({
         {detected.length === 1 ? "expense" : "expenses"} that repeat across
         2+ months. About{" "}
         <strong className="tabular-nums text-slate-700 dark:text-slate-200">
-          {formatINR(monthlyTotal, 0)}
+          {formatCurrency(monthlyTotal, primaryCurrency, 0)}
         </strong>{" "}
         / month ·{" "}
         <strong className="tabular-nums text-slate-700 dark:text-slate-200">
-          {formatINR(annualTotal, 0)}
+          {formatCurrency(annualTotal, primaryCurrency, 0)}
         </strong>{" "}
-        / year in {primaryCurrency}.
+        / year.
       </p>
       <ul className="mt-4 space-y-2">
         {detected.map((d) => {
@@ -172,7 +172,7 @@ export function SubscriptionAudit({
               </div>
               <span className="shrink-0 text-right">
                 <span className="tabular-nums text-sm font-semibold">
-                  {formatINR(d.monthlyAmount, 0)}
+                  {formatCurrency(d.monthlyAmount, primaryCurrency, 0)}
                 </span>
                 <span className="block text-[10px] uppercase tracking-wider text-slate-400">
                   / month
