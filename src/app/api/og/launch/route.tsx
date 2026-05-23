@@ -203,10 +203,14 @@ function HeroPortrait() {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        // Distribute brand / panels / tagline through the 1920px
-        // height. Each is content-height; the surplus distributes
-        // between them rather than inflating any single child.
-        justifyContent: "space-between",
+        // Pack brand / panels / tagline as a centered stack with tight
+        // 80px gaps between sections. Surplus vertical space now sits
+        // as ambient gradient at the top + bottom of the image rather
+        // than as 340px voids between sections — the gradient padding
+        // reads as deliberate framing; an internal void reads as a
+        // broken layout.
+        justifyContent: "center",
+        gap: 80,
         background:
           "linear-gradient(160deg, #6366f1 0%, #8b5cf6 50%, #10b981 100%)",
         color: "white",
