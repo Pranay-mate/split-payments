@@ -33,8 +33,10 @@ export const dynamic = "force-dynamic";
 
 const WIDTH = 800;
 const HEIGHT = 600;
-/** Per-frame display time, in centiseconds (GIF spec unit). 400 = 4 sec. */
-const FRAME_DELAY_CS = 400;
+/** Per-frame display time in MILLISECONDS. gifenc converts to the
+ *  GIF-spec centiseconds internally — passing 400 here gave us 0.4s
+ *  per frame (whole loop ran in 2.4s). 4000 = 4 sec/frame, 24s loop. */
+const FRAME_DELAY_MS = 4000;
 
 const FONT_STACK =
   "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -77,7 +79,7 @@ export async function GET() {
       const indexed = applyPalette(rgba, palette);
       gif.writeFrame(indexed, WIDTH, HEIGHT, {
         palette,
-        delay: FRAME_DELAY_CS,
+        delay: FRAME_DELAY_MS,
       });
     }
     gif.finish();

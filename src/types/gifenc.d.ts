@@ -9,7 +9,8 @@ declare module "gifenc" {
 
   export interface FrameOptions {
     palette?: Palette;
-    /** Frame display time in centiseconds (1 = 10ms). 400 = 4 seconds. */
+    /** Frame display time in milliseconds. gifenc converts to the
+     *  GIF-spec centiseconds internally. 4000 = 4 seconds. */
     delay?: number;
     /** 0 = no disposal, 1 = leave in place, 2 = restore to background. */
     dispose?: number;
