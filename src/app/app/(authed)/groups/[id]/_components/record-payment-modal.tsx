@@ -151,7 +151,7 @@ export function RecordPaymentModal({
               >
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.id === currentUserId ? `${m.name} (you)` : m.name}
+                    {m.name}
                   </option>
                 ))}
               </select>
@@ -171,7 +171,7 @@ export function RecordPaymentModal({
                     value={m.id}
                     disabled={m.id === fromUserId}
                   >
-                    {m.id === currentUserId ? `${m.name} (you)` : m.name}
+                    {m.name}
                   </option>
                 ))}
               </select>

@@ -882,7 +882,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </div>
           <ul className="mt-3 flex flex-wrap gap-1.5">
             {members.map((m) => {
-              const isSelf = m.userId === meQuery.data?.id;
               const isGuest = m.isGuest;
               return (
                 <li
@@ -903,10 +902,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                   >
                     {m.displayName.slice(0, 1).toUpperCase()}
                   </span>
-                  <span>
-                    {m.displayName}
-                    {isSelf ? " (you)" : ""}
-                  </span>
+                  <span>{m.displayName}</span>
                   {isGuest && (
                     <span className="rounded-full bg-amber-200/70 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
                       guest

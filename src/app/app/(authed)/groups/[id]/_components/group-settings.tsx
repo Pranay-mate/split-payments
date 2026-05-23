@@ -300,7 +300,6 @@ export function GroupSettings({
                         </span>
                         <span className="min-w-0 flex-1 truncate">
                           {m.displayName}
-                          {isSelf ? " (you)" : ""}
                           {isGuest && (
                             <span className="ml-1.5 rounded-full bg-amber-200/70 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
                               guest
