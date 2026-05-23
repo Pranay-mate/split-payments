@@ -46,11 +46,31 @@ function round2(n: number): number {
 /**
  * Builds equal-split shares for a given amount across sharer IDs. Used by the
  * form when the user picks "Equal" split, and by tests as a convenient helper.
+ *
+ * Distributes the rounding residual in paisa across the first N sharers so
+ * splits always sum to exactly `amount`. Earlier naive `round2(amount / n)`
+ * produced 4999.98 for ₹5000 ÷ 6, failing the form's sum-to-amount validation
+ * and bricking common bills like a ₹100 ÷ 3 dinner.
+ *
+ * Algorithm: work in paisa (integer) to dodge floats.
+ *   totalPaisa = round(amount * 100)
+ *   per       = floor(totalPaisa / n)
+ *   residual  = totalPaisa - per * n     // 0..n-1 paisa
+ *   first `residual` sharers get per + 1 paisa, the rest get per
+ * Examples (paisa, then rupees):
+ *   ₹5000 ÷ 6 → 500000 / 6 → 83333 (×4) + 83334 (×2) → 833.33×4 + 833.34×2 = 5000
+ *   ₹100  ÷ 3 →  10000 / 3 →  3333 (×2) +  3334 (×1) →  33.33×2 +  33.34×1 = 100
  */
 export function equalSplits(amount: number, sharerIds: string[]): Split[] {
-  if (sharerIds.length === 0) return [];
-  const per = round2(amount / sharerIds.length);
-  return sharerIds.map((id) => ({ personId: id, amount: per }));
+  const n = sharerIds.length;
+  if (n === 0) return [];
+  const totalPaisa = Math.round(amount * 100);
+  const perPaisa = Math.floor(totalPaisa / n);
+  const residualPaisa = totalPaisa - perPaisa * n;
+  return sharerIds.map((id, i) => ({
+    personId: id,
+    amount: round2((perPaisa + (i < residualPaisa ? 1 : 0)) / 100),
+  }));
 }
 
 /**

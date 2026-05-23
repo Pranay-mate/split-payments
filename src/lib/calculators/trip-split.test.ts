@@ -59,13 +59,36 @@ describe("equalSplits", () => {
   it("divides amount across sharers and rounds to 2 decimals", () => {
     const splits = equalSplits(100, ["a", "b", "c"]);
     expect(splits).toHaveLength(3);
-    for (const s of splits) {
-      expect(s.amount).toBeCloseTo(33.33, 2);
-    }
+    // Paisa-residual distribution: first sharer gets +1 paisa to make
+    // sums match. So a=33.34, b=33.33, c=33.33.
+    expect(splits[0].amount).toBeCloseTo(33.34, 2);
+    expect(splits[1].amount).toBeCloseTo(33.33, 2);
+    expect(splits[2].amount).toBeCloseTo(33.33, 2);
   });
 
   it("returns empty array for empty sharerIds", () => {
     expect(equalSplits(100, [])).toEqual([]);
+  });
+
+  it("sums to exact amount for any non-divisible total (5000 / 6)", () => {
+    const splits = equalSplits(5000, ["a", "b", "c", "d", "e", "f"]);
+    const total = splits.reduce((s, x) => s + x.amount, 0);
+    // The earlier naive impl produced 4999.98 here and tripped the
+    // form validation. Residual must distribute to land on 5000.00.
+    expect(total).toBeCloseTo(5000, 2);
+  });
+
+  it("never produces negative residual at last positions", () => {
+    // 999 / 4 = 249.75 exactly → no residual. Every sharer should
+    // get exactly 249.75, no off-by-one.
+    const splits = equalSplits(999, ["a", "b", "c", "d"]);
+    for (const s of splits) expect(s.amount).toBeCloseTo(249.75, 2);
+  });
+
+  it("handles single-sharer (full amount goes to that one)", () => {
+    expect(equalSplits(123.45, ["a"])).toEqual([
+      { personId: "a", amount: 123.45 },
+    ]);
   });
 });
 
