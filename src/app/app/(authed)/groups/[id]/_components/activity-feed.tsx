@@ -104,9 +104,13 @@ function relativeTime(date: Date, tz: string): string {
 export function ActivityFeed({
   groupId,
   memberById,
+  embedded = false,
 }: {
   groupId: string;
   memberById: Map<string, { id: string; name: string }>;
+  /** When true, render content only — caller is providing its own
+   *  section + heading (e.g. inside a collapsible). */
+  embedded?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<
@@ -131,12 +135,8 @@ export function ActivityFeed({
   // them — keeps small groups uncluttered.
   const showFilters = rawItems.length >= 8;
 
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-        <Activity className="h-4 w-4 text-violet-500" aria-hidden />
-        Activity
-      </h2>
+  const body = (
+    <>
       {showFilters && (
         <div className="mt-2 -mx-1 flex flex-wrap gap-1">
           {(
@@ -231,6 +231,17 @@ export function ActivityFeed({
         )}
         </>
       )}
+    </>
+  );
+
+  if (embedded) return body;
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+      <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+        <Activity className="h-4 w-4 text-violet-500" aria-hidden />
+        Activity
+      </h2>
+      {body}
     </section>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
+  Activity,
   ArrowLeft,
   ArrowLeftRight,
   BarChart3,
@@ -73,6 +74,13 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [viewMode, setViewMode] = useState<"recent" | "byDay">("recent");
   const [showCharts, setShowCharts] = useState(false);
+  // Secondary sections collapsed by default — the main page was reading
+  // too dense, so contribution share / activity log / member roster
+  // now wait for a deliberate tap. Balances + Expenses (the headline
+  // answers) stay open.
+  const [showContrib, setShowContrib] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [historyForExpense, setHistoryForExpense] = useState<string | null>(null);
@@ -378,13 +386,38 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           />
         )}
 
-        <ContributionBar
-          expenses={expenses.map((e) => ({
-            payerId: e.payerId,
-            convertedAmount: e.convertedAmount,
-          }))}
-          members={members.map((m) => ({ id: m.userId, name: m.displayName }))}
-        />
+        {expenses.length > 0 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+            <button
+              type="button"
+              onClick={() => setShowContrib((v) => !v)}
+              aria-expanded={showContrib}
+              className="flex w-full items-center justify-between"
+            >
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Who paid
+              </h2>
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition ${showContrib ? "rotate-180" : ""}`}
+                aria-hidden
+              />
+            </button>
+            {showContrib && (
+              <div className="mt-3">
+                <ContributionBar
+                  expenses={expenses.map((e) => ({
+                    payerId: e.payerId,
+                    convertedAmount: e.convertedAmount,
+                  }))}
+                  members={members.map((m) => ({
+                    id: m.userId,
+                    name: m.displayName,
+                  }))}
+                />
+              </div>
+            )}
+          </section>
+        )}
 
         <SubscriptionAudit
           expenses={expenses.map((e) => ({
@@ -868,20 +901,64 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           </section>
         )}
 
-        <ActivityFeed groupId={groupId} memberById={memberById} />
+        {showActivity ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <button
+              type="button"
+              onClick={() => setShowActivity(false)}
+              aria-expanded
+              className="flex w-full items-center justify-between"
+            >
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <Activity className="h-4 w-4 text-violet-500" aria-hidden />
+                Activity
+              </h2>
+              <ChevronDown className="h-4 w-4 rotate-180 text-slate-400" aria-hidden />
+            </button>
+            <div className="mt-3">
+              <ActivityFeed groupId={groupId} memberById={memberById} embedded />
+            </div>
+          </section>
+        ) : (
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+            <button
+              type="button"
+              onClick={() => setShowActivity(true)}
+              aria-expanded={false}
+              className="flex w-full items-center justify-between"
+            >
+              <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+                <Activity className="h-4 w-4 text-violet-500" aria-hidden />
+                Activity
+              </h2>
+              <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden />
+            </button>
+          </section>
+        )}
 
         {/* Members — read-only chips. Add/remove/claim controls live in
             Settings (header) since they're admin-mode actions. */}
         <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-          <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setShowMembers((v) => !v)}
+            aria-expanded={showMembers}
+            className="flex w-full items-center justify-between gap-3"
+          >
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <Users className="h-4 w-4 text-indigo-500" aria-hidden />
               Members
             </h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               {members.length}
+              <ChevronDown
+                className={`h-4 w-4 text-slate-400 transition ${showMembers ? "rotate-180" : ""}`}
+                aria-hidden
+              />
             </span>
-          </div>
+          </button>
+          {showMembers && (
+          <>
           <ul className="mt-3 flex flex-wrap gap-1.5">
             {members.map((m) => {
               const isGuest = m.isGuest;
@@ -918,6 +995,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             Add or remove members from{" "}
             <strong className="font-semibold">Settings</strong> in the header.
           </p>
+          </>
+          )}
         </section>
       </div>
 

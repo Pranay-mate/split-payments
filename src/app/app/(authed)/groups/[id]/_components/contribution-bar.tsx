@@ -84,17 +84,14 @@ export function ContributionBar({
 
   const total = segments.reduce((s, x) => s + x.total, 0);
 
+  // Returns the bar + legend only. The outer section/h2 lives at the
+  // call-site so the parent can wrap it in a collapsible.
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Who paid
-        </h2>
-        <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
-          {formatCurrency(total, currency, 0)} total
-        </span>
-      </div>
-      <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+    <div>
+      <p className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+        {formatCurrency(total, currency, 0)} total
+      </p>
+      <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
         {segments.map((s) => (
           <div
             key={s.id}
@@ -120,6 +117,6 @@ export function ContributionBar({
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   );
 }

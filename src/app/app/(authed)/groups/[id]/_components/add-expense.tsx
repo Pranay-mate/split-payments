@@ -672,7 +672,7 @@ export function AddExpense({
                       : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                   }`}
                 >
-                  {opt === "equal" ? "Equal" : opt === "exact" ? "Exact ₹" : "Itemized"}
+                  {opt === "equal" ? "Equal" : opt === "exact" ? "Exact" : "Itemized"}
                 </button>
               );
             })}
@@ -966,10 +966,10 @@ export function AddExpense({
         <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
           {mode === "items"
             ? itemsTotal <= 0
-              ? "Add at least one line item with an amount above ₹0."
+              ? "Add at least one line item with an amount above 0."
               : "Each item needs an amount and at least one sharer."
             : numericAmount <= 0
-              ? "Enter an amount above ₹0."
+              ? "Enter an amount above 0."
               : sharerIds.length === 0
                 ? "Pick at least one person to split with."
                 : "Fill in payer, amount, and sharers."}
