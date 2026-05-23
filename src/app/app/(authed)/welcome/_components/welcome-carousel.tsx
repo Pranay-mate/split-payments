@@ -77,11 +77,18 @@ export function WelcomeCarousel() {
   const utils = trpc.useUtils();
 
   const finish = useCallback(() => {
-    // Fire-and-forget — server is idempotent and the redirect doesn't
-    // wait. Invalidate so the OnboardingGate's next profiles.me read
-    // sees onboardedAt non-null and stops redirecting.
+    // Optimistic cache update FIRST, then mutate + navigate. Without
+    // this, the redirect fires before the server returns, the
+    // OnboardingGate on /app/groups reads the stale (null) profile
+    // from cache, and redirects right back to /app/welcome — making
+    // both Skip and Get-started feel broken.
+    const now = new Date();
+    utils.profiles.me.setData(undefined, (prev) =>
+      prev ? { ...prev, onboardedAt: now } : prev,
+    );
     markOnboarded.mutate(undefined, {
       onSettled: () => {
+        // Confirm the server-side state once the round-trip completes.
         utils.profiles.me.invalidate();
       },
     });
