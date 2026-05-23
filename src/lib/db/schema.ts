@@ -70,6 +70,12 @@ export const profiles = pgTable("profiles", {
    *  never overwritten. Powers the Top Referrers tile in the admin panel
    *  so the founder can attribute organic invites vs cold landings. */
   referredFrom: text("referred_from"),
+  /** Set to NOW() when the user finishes (or skips) the first-login
+   *  welcome carousel at /app/welcome. Null = haven't seen the
+   *  carousel yet, so any (authed) page redirects them there. The
+   *  0005 migration backfills NOW() for all existing users so we
+   *  don't blast veterans with the carousel on next visit. */
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   /** Random hex token enabling /wealth/[token] public share page.
    *  Null = sharing disabled (default). Regenerating the token revokes
    *  any old shared links. */

@@ -135,6 +135,20 @@ export const profilesRouter = router({
       return { ok: true as const };
     }),
 
+  /**
+   * Mark the welcome carousel as completed (or skipped). Idempotent —
+   * if onboarded_at is already set, no-op. Called from /app/welcome
+   * both on "Get started" and "Skip"; the user's intent is the same
+   * either way ("don't show me this again").
+   */
+  markOnboarded: protectedProcedure.mutation(async ({ ctx }) => {
+    await db
+      .update(profiles)
+      .set({ onboardedAt: new Date(), updatedAt: new Date() })
+      .where(eq(profiles.id, ctx.user.id));
+    return { ok: true as const };
+  }),
+
   /** Update the current user's profile. All fields optional — only the
    *  ones the form actually changes are sent. */
   update: protectedProcedure
