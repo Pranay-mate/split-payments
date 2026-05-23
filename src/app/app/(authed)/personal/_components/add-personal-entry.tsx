@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Mic, MicOff, Plus, X } from "lucide-react";
+import { ChevronDown, Loader2, Mic, MicOff, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { COMMON_CURRENCIES } from "@/lib/fx";
@@ -91,6 +91,10 @@ export function AddPersonalEntry({
   const [recurrenceDay, setRecurrenceDay] = useState<number>(
     new Date().getDate(),
   );
+  // Progressive disclosure — category, date, and the "make recurring"
+  // checkbox hide behind a summary chip until the user taps to edit.
+  // Open by default when editing an existing entry.
+  const [showDetails, setShowDetails] = useState<boolean>(Boolean(editing));
 
   // Auto-detect category from description (same heuristics as group expenses).
   // Skips once the user has clicked a chip — explicit picks win.
@@ -419,6 +423,33 @@ export function AddPersonalEntry({
         </div>
       </div>
 
+      {!showDetails ? (
+        <button
+          type="button"
+          onClick={() => setShowDetails(true)}
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/20"
+        >
+          <span className="min-w-0 flex-1 truncate">
+            <span aria-hidden>{CATEGORIES[category].emoji}</span>{" "}
+            {CATEGORIES[category].label}
+            {" · "}
+            {occurredAt === new Date().toISOString().slice(0, 10)
+              ? "Today"
+              : new Date(`${occurredAt}T00:00:00`).toLocaleDateString(
+                  undefined,
+                  { day: "numeric", month: "short" },
+                )}
+          </span>
+          <span className="shrink-0 text-[10px] uppercase tracking-wider text-slate-400">
+            Edit
+          </span>
+          <ChevronDown
+            className="h-3.5 w-3.5 shrink-0 text-slate-400"
+            aria-hidden
+          />
+        </button>
+      ) : (
+      <>
       <div>
         <div className="flex items-baseline justify-between">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -513,6 +544,8 @@ export function AddPersonalEntry({
             </label>
           )}
         </div>
+      )}
+      </>
       )}
 
       <button

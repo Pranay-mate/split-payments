@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Mic, MicOff, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, Loader2, Mic, MicOff, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { markFirstActionDone } from "@/lib/use-install-prompt";
@@ -147,6 +147,12 @@ export function AddExpense({
   const [mode, setMode] = useState<"single" | "items">(
     editing?.items && editing.items.length > 0 ? "items" : "single",
   );
+  // Progressive disclosure — Splitwise-style. The form opens showing
+  // only description + amount; everything else (category, payer, split
+  // mode, sharers, items) hides behind a "Paid by you · Equal · Other"
+  // summary tile that the user taps to edit. When editing an existing
+  // expense, default open so they can see what's about to change.
+  const [showDetails, setShowDetails] = useState<boolean>(Boolean(editing));
   const [items, setItems] = useState<ItemDraft[]>(
     editing?.items && editing.items.length > 0
       ? editing.items.map((it) => ({
@@ -594,6 +600,44 @@ export function AddExpense({
         </p>
       )}
 
+      {/* Progressive disclosure: collapsed by default for new expenses,
+          open by default when editing (the user came here to change
+          something — show them what they're working with). */}
+      {!showDetails ? (
+        <button
+          type="button"
+          onClick={() => setShowDetails(true)}
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/20"
+        >
+          <span className="min-w-0 flex-1 truncate">
+            Paid by{" "}
+            <strong className="font-semibold">
+              {members.find((m) => m.id === payerId)?.name ?? "you"}
+            </strong>
+            {" · "}
+            {mode === "items"
+              ? `${items.length} item${items.length === 1 ? "" : "s"}`
+              : `${splitMode === "equal" ? "Equal" : "Exact"} split`}
+            {" · "}
+            <span aria-hidden>{CATEGORIES[category].emoji}</span>{" "}
+            {CATEGORIES[category].label}
+            {mode !== "items" && (
+              <>
+                {" · "}
+                {sharerIds.length}/{members.length}
+              </>
+            )}
+          </span>
+          <span className="shrink-0 text-[10px] uppercase tracking-wider text-slate-400">
+            Edit
+          </span>
+          <ChevronDown
+            className="h-3.5 w-3.5 shrink-0 text-slate-400"
+            aria-hidden
+          />
+        </button>
+      ) : (
+      <>
       <div>
         <div className="flex items-baseline justify-between">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -941,6 +985,8 @@ export function AddExpense({
           <Plus className="h-3.5 w-3.5" aria-hidden /> Add item
         </button>
       </div>
+      )}
+      </>
       )}
 
       <button
