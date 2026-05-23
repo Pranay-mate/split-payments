@@ -49,9 +49,9 @@ a real SEO asset, not a one-off.
 **Tagline (locked, 56 chars):**
 > Track money + split bills. India-first, encrypted, free.
 
-**Launch date:** not targeted yet. Prefer Tue/Wed IST. Launch at 00:01 PT
-(= 12:31 PM IST) so the 24-hour PH window starts at the global "midnight"
-boundary — recency-weighted ranking penalises late starts.
+**Launch date:** **Tue 2026-06-02 at 12:31 PM IST** (= 00:01 PT). Locked
+on 2026-05-23. 10-day prep window — gallery polish + soft-launch DM
+outreach + Twitter/LinkedIn warm-up posts.
 
 **Assets:**
 - **Hero image — ✅ DONE.** Server-rendered programmatically via
