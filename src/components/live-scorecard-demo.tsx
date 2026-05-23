@@ -28,9 +28,9 @@ type Persona = {
 
 const PERSONAS: Persona[] = [
   {
-    key: "junior",
-    label: "Junior dev · ₹8L CTC",
-    hint: "1-2yrs in, no SIP yet, rents in Bangalore",
+    key: "early",
+    label: "Early career · ₹8L",
+    hint: "1–2 yrs in, no SIP yet, rents",
     inputs: {
       age: 24,
       retirementAge: 60,
@@ -49,8 +49,8 @@ const PERSONAS: Persona[] = [
   },
   {
     key: "mid",
-    label: "Mid-career · ₹24L CTC",
-    hint: "5yrs in, SIP runner, 1 EMI, married",
+    label: "Mid-career · ₹24L",
+    hint: "5 yrs in, SIP runner, 1 EMI, married",
     inputs: {
       age: 30,
       retirementAge: 60,
@@ -65,6 +65,74 @@ const PERSONAS: Persona[] = [
       totalEmi: 35000,
       investmentBalance: 1500000,
       monthlyInvestment: 30000,
+    },
+  },
+  {
+    key: "senior",
+    label: "Senior pro · ₹50L",
+    hint: "40s, 2 kids, home + car EMIs, big SIP",
+    inputs: {
+      age: 40,
+      retirementAge: 60,
+      isFreelancer: false,
+      hasDependents: true,
+      hasCcCarryover: false,
+      monthlyIncome: 400000,
+      monthlyExpenses: 250000,
+      liquidSavings: 1500000,
+      termCoverAmount: 30000000,
+      healthCoverAmount: 2000000,
+      totalEmi: 80000,
+      investmentBalance: 5000000,
+      monthlyInvestment: 50000,
+    },
+  },
+  {
+    key: "business",
+    label: "Business owner",
+    hint: "Own venture, lumpy income, no PF",
+    inputs: {
+      age: 35,
+      retirementAge: 60,
+      isFreelancer: false,
+      hasDependents: true,
+      hasCcCarryover: false,
+      // Average of lumpy income; real entrepreneurs swing wildly
+      // month-to-month but score is based on rolling averages anyway.
+      monthlyIncome: 250000,
+      monthlyExpenses: 150000,
+      // Business owners need a bigger personal liquid buffer because
+      // there's no salary cushion if a quarter goes sideways.
+      liquidSavings: 1000000,
+      termCoverAmount: 10000000,
+      healthCoverAmount: 1000000,
+      totalEmi: 40000,
+      investmentBalance: 2000000,
+      monthlyInvestment: 25000,
+    },
+  },
+  {
+    key: "govt",
+    label: "Govt employee · pension",
+    hint: "Pension safety, conservative investing",
+    inputs: {
+      age: 35,
+      retirementAge: 60,
+      isFreelancer: false,
+      hasDependents: true,
+      hasCcCarryover: false,
+      monthlyIncome: 85000,
+      monthlyExpenses: 65000,
+      // Lower liquid savings is fine — pension + state-paid health
+      // changes the emergency-fund + insurance math significantly.
+      liquidSavings: 400000,
+      termCoverAmount: 10000000,
+      // Most govt employees have CGHS / state health cover too.
+      healthCoverAmount: 1000000,
+      totalEmi: 15000,
+      // Traditional bias toward LIC / NSC / PPF over equity SIP.
+      investmentBalance: 800000,
+      monthlyInvestment: 15000,
     },
   },
   {
@@ -150,7 +218,7 @@ export function LiveScorecardDemo() {
             <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
               Persona
             </p>
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {PERSONAS.map((p) => (
                 <button
                   key={p.key}
