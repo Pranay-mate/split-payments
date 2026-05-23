@@ -260,10 +260,19 @@ function GroupCard({ group: g }: { group: GroupRow }) {
           className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`}
         />
 
+        {/* Stretched-link pattern — invisible <Link> covers the entire
+            card so any tap (including the right-side arrow / blank area
+            beyond the visible Link target) navigates. Visible content
+            below sits in normal flow; interactive children (Unarchive
+            button) opt out via `relative z-10`. Fixes a mobile UX bug
+            where the right ~30% of the card was unclickable. */}
         <Link
           href={`/app/groups/${g.id}`}
-          className="flex min-w-0 flex-1 items-center gap-3"
-        >
+          aria-label={`Open ${g.name}`}
+          className="absolute inset-0 z-0"
+        />
+
+        <div className="pointer-events-none flex min-w-0 flex-1 items-center gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-500 text-xs font-semibold text-white">
             {g.name.slice(0, 2).toUpperCase()}
           </span>
@@ -283,17 +292,18 @@ function GroupCard({ group: g }: { group: GroupRow }) {
               )}
             </p>
           </div>
-        </Link>
+        </div>
 
         {isArchived ? (
           <button
             type="button"
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               unarchiveMutation.mutate({ id: g.id });
             }}
             disabled={unarchiveMutation.isPending}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="relative z-10 inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             title="Restore this group to the active list"
           >
             <ArchiveRestore className="h-3 w-3" aria-hidden />
@@ -301,7 +311,7 @@ function GroupCard({ group: g }: { group: GroupRow }) {
           </button>
         ) : (
           <ArrowRight
-            className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-slate-700 dark:group-hover:text-slate-200"
+            className="pointer-events-none h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-slate-700 dark:group-hover:text-slate-200"
             aria-hidden
           />
         )}
