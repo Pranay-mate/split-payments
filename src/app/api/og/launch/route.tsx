@@ -266,8 +266,8 @@ function HeroPortrait() {
           gap: 24,
         }}
       >
-        <GroupsPanel stretch={false} />
-        <WealthPanel stretch={false} />
+        <GroupsPanel stretch={false} scale={1.3} />
+        <WealthPanel stretch={false} scale={1.3} />
       </div>
 
       {/* Tagline — larger fonts since portrait reads top-to-bottom in
@@ -332,13 +332,15 @@ function HeroPortrait() {
   );
 }
 
-function GroupsPanel({ stretch = true }: { stretch?: boolean } = {}) {
+type PanelProps = { stretch?: boolean; scale?: number };
+
+function GroupsPanel({ stretch = true, scale = 1 }: PanelProps = {}) {
   return (
-    <PanelShell accent="#6366f1" label="GROUPS" stretch={stretch}>
+    <PanelShell accent="#6366f1" label="GROUPS" stretch={stretch} scale={scale}>
       <div
         style={{
           display: "flex",
-          fontSize: 30,
+          fontSize: 30 * scale,
           fontWeight: 800,
           letterSpacing: "-0.02em",
         }}
@@ -348,7 +350,7 @@ function GroupsPanel({ stretch = true }: { stretch?: boolean } = {}) {
       <div
         style={{
           display: "flex",
-          fontSize: 16,
+          fontSize: 16 * scale,
           color: "#64748b",
           marginTop: -4,
         }}
@@ -356,9 +358,9 @@ function GroupsPanel({ stretch = true }: { stretch?: boolean } = {}) {
         Settled in 3 transfers
       </div>
 
-      <ExpenseRow title="Hotel · 3 nights" amount="₹12,400" share={1.0} />
-      <ExpenseRow title="Scooter rental" amount="₹3,200" share={0.26} />
-      <ExpenseRow title="Dinner at Britto's" amount="₹2,800" share={0.23} />
+      <ExpenseRow title="Hotel · 3 nights" amount="₹12,400" share={1.0} scale={scale} />
+      <ExpenseRow title="Scooter rental" amount="₹3,200" share={0.26} scale={scale} />
+      <ExpenseRow title="Dinner at Britto's" amount="₹2,800" share={0.23} scale={scale} />
 
       <div
         style={{
@@ -367,20 +369,20 @@ function GroupsPanel({ stretch = true }: { stretch?: boolean } = {}) {
           marginTop: 6,
         }}
       >
-        <Pill tone="amber" label="You owe" value="₹1,200" />
-        <Pill tone="emerald" label="You're owed" value="₹500" />
+        <Pill tone="amber" label="You owe" value="₹1,200" scale={scale} />
+        <Pill tone="emerald" label="You're owed" value="₹500" scale={scale} />
       </div>
     </PanelShell>
   );
 }
 
-function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
+function WealthPanel({ stretch = true, scale = 1 }: PanelProps = {}) {
   return (
-    <PanelShell accent="#10b981" label="PERSONAL FINANCE" stretch={stretch}>
+    <PanelShell accent="#10b981" label="PERSONAL FINANCE" stretch={stretch} scale={scale}>
       <div
         style={{
           display: "flex",
-          fontSize: 30,
+          fontSize: 30 * scale,
           fontWeight: 800,
           letterSpacing: "-0.02em",
         }}
@@ -390,7 +392,7 @@ function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
       <div
         style={{
           display: "flex",
-          fontSize: 16,
+          fontSize: 16 * scale,
           color: "#64748b",
           marginTop: -4,
         }}
@@ -403,8 +405,8 @@ function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 16,
-          padding: 14,
+          gap: 16 * scale,
+          padding: 14 * scale,
           borderRadius: 18,
           background: "linear-gradient(135deg, #ecfdf5, #f0fdf4)",
         }}
@@ -414,12 +416,12 @@ function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 64,
-            height: 64,
+            width: 64 * scale,
+            height: 64 * scale,
             borderRadius: 999,
             background: "linear-gradient(135deg, #10b981, #059669)",
             color: "white",
-            fontSize: 26,
+            fontSize: 26 * scale,
             fontWeight: 800,
           }}
         >
@@ -434,7 +436,7 @@ function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
           <div
             style={{
               display: "flex",
-              fontSize: 18,
+              fontSize: 18 * scale,
               fontWeight: 700,
               color: "#065f46",
             }}
@@ -444,7 +446,7 @@ function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
           <div
             style={{
               display: "flex",
-              fontSize: 14,
+              fontSize: 14 * scale,
               color: "#047857",
               marginTop: 2,
             }}
@@ -454,9 +456,9 @@ function WealthPanel({ stretch = true }: { stretch?: boolean } = {}) {
         </div>
       </div>
 
-      <PillarRow label="Emergency" pct={0.85} hex="#10b981" />
-      <PillarRow label="Insurance" pct={0.7} hex="#6366f1" />
-      <PillarRow label="Investing" pct={0.6} hex="#8b5cf6" />
+      <PillarRow label="Emergency" pct={0.85} hex="#10b981" scale={scale} />
+      <PillarRow label="Insurance" pct={0.7} hex="#6366f1" scale={scale} />
+      <PillarRow label="Investing" pct={0.6} hex="#8b5cf6" scale={scale} />
     </PanelShell>
   );
 }
@@ -465,6 +467,7 @@ function PanelShell({
   accent,
   label,
   stretch = true,
+  scale = 1,
   children,
 }: {
   accent: string;
@@ -474,6 +477,12 @@ function PanelShell({
    *  space distributes around the panels (via the outer container's
    *  justifyContent), not inside them as fake row-gap. */
   stretch?: boolean;
+  /** Multiplier for all type + spacing sizes. 1 = landscape default;
+   *  portrait uses ~1.3 to compensate for the image being viewed at
+   *  ~36% scale on mobile (1080px image fit to ~390px phone width).
+   *  Without this multiplier, body copy renders at sub-pixel sizes in
+   *  IG Story / WhatsApp Status previews and reads as illegible. */
+  scale?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -485,8 +494,8 @@ function PanelShell({
         background: "white",
         color: "#0f172a",
         borderRadius: 28,
-        padding: 26,
-        gap: 16,
+        padding: 26 * scale,
+        gap: 16 * scale,
       }}
     >
       <div
@@ -499,8 +508,8 @@ function PanelShell({
         <div
           style={{
             display: "flex",
-            width: 10,
-            height: 10,
+            width: 10 * scale,
+            height: 10 * scale,
             borderRadius: 999,
             background: accent,
           }}
@@ -508,7 +517,7 @@ function PanelShell({
         <div
           style={{
             display: "flex",
-            fontSize: 16,
+            fontSize: 16 * scale,
             fontWeight: 700,
             color: "#475569",
             letterSpacing: "0.1em",
@@ -526,17 +535,19 @@ function ExpenseRow({
   title,
   amount,
   share,
+  scale = 1,
 }: {
   title: string;
   amount: string;
   share: number;
+  scale?: number;
 }) {
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: 6 * scale,
       }}
     >
       <div
@@ -549,7 +560,7 @@ function ExpenseRow({
         <div
           style={{
             display: "flex",
-            fontSize: 16,
+            fontSize: 16 * scale,
             fontWeight: 600,
             color: "#0f172a",
           }}
@@ -559,7 +570,7 @@ function ExpenseRow({
         <div
           style={{
             display: "flex",
-            fontSize: 16,
+            fontSize: 16 * scale,
             fontWeight: 700,
             color: "#0f172a",
           }}
@@ -570,7 +581,7 @@ function ExpenseRow({
       <div
         style={{
           display: "flex",
-          height: 6,
+          height: 6 * scale,
           background: "#f1f5f9",
           borderRadius: 999,
         }}
@@ -578,7 +589,7 @@ function ExpenseRow({
         <div
           style={{
             display: "flex",
-            width: Math.max(8, Math.round(share * 360)),
+            width: Math.max(8, Math.round(share * 360 * scale)),
             background: "#6366f1",
             borderRadius: 999,
           }}
@@ -592,10 +603,12 @@ function PillarRow({
   label,
   pct,
   hex,
+  scale = 1,
 }: {
   label: string;
   pct: number;
   hex: string;
+  scale?: number;
 }) {
   const pctText = String(Math.round(pct * 100));
   return (
@@ -603,7 +616,7 @@ function PillarRow({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 4,
+        gap: 4 * scale,
       }}
     >
       <div
@@ -611,7 +624,7 @@ function PillarRow({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          fontSize: 14,
+          fontSize: 14 * scale,
         }}
       >
         <div
@@ -636,7 +649,7 @@ function PillarRow({
       <div
         style={{
           display: "flex",
-          height: 6,
+          height: 6 * scale,
           background: "#f1f5f9",
           borderRadius: 999,
         }}
@@ -644,7 +657,7 @@ function PillarRow({
         <div
           style={{
             display: "flex",
-            width: Math.max(8, Math.round(pct * 360)),
+            width: Math.max(8, Math.round(pct * 360 * scale)),
             background: hex,
             borderRadius: 999,
           }}
@@ -658,10 +671,12 @@ function Pill({
   tone,
   label,
   value,
+  scale = 1,
 }: {
   tone: "amber" | "emerald";
   label: string;
   value: string;
+  scale?: number;
 }) {
   const palette =
     tone === "amber"
@@ -672,8 +687,8 @@ function Pill({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 8,
-        padding: "8px 14px",
+        gap: 8 * scale,
+        padding: `${8 * scale}px ${14 * scale}px`,
         borderRadius: 999,
         background: palette.bg,
         color: palette.fg,
@@ -682,7 +697,7 @@ function Pill({
       <div
         style={{
           display: "flex",
-          fontSize: 13,
+          fontSize: 13 * scale,
           fontWeight: 600,
         }}
       >
@@ -691,7 +706,7 @@ function Pill({
       <div
         style={{
           display: "flex",
-          fontSize: 15,
+          fontSize: 15 * scale,
           fontWeight: 800,
         }}
       >
