@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ImportFlow } from "./_components/import-flow";
 
 export const metadata: Metadata = {
-  title: "Import from bank · EasySplits",
+  title: "Import from bank",
   robots: { index: false, follow: false },
 };
 

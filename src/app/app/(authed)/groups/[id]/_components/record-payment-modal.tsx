@@ -298,6 +298,18 @@ export function RecordPaymentModal({
             )}
             Record payment
           </button>
+          {/* Explain why submit is disabled — matches AddExpense
+              behavior so the user never taps a dead button without
+              knowing what to fix. */}
+          {!valid && !createMutation.isPending && (
+            <p className="-mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {numericAmount <= 0
+                ? "Enter an amount above 0."
+                : fromUserId === toUserId
+                  ? "From and To must be different."
+                  : "Pick the people sending and receiving the payment."}
+            </p>
+          )}
 
           <p className="text-center text-[10.5px] text-slate-500 dark:text-slate-400">
             Settlements are visible in the group&apos;s activity feed and

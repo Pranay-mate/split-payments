@@ -264,11 +264,11 @@ export function BalancesView({
               return (
                 <li key={b.personId} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="font-medium">
+                    <span className="min-w-0 truncate font-medium">
                       {memberById.get(b.personId)?.name ?? "?"}
                     </span>
                     <span
-                      className={`tabular-nums text-xs font-semibold ${
+                      className={`shrink-0 tabular-nums text-xs font-semibold ${
                         isOwed
                           ? "text-emerald-700 dark:text-emerald-400"
                           : owes
@@ -704,8 +704,8 @@ function WhyExpander({
   return (
     <div className="mt-3 space-y-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-[12px] dark:border-slate-800 dark:bg-slate-800/40">
       <p className="text-[11px] text-slate-500 dark:text-slate-400">
-        How {formatCurrency(amount, currency, 0)} was derived — each person&apos;s net
-        balance from the expense ledger:
+        How {formatCurrency(amount, currency, 0)}{" "}was derived — each
+        person&apos;s net balance from the expense ledger:
       </p>
 
       <PersonBreakdownBlock
@@ -738,10 +738,15 @@ function PersonBreakdownBlock({
   role: "debtor" | "creditor";
 }) {
   const currency = useGroupCurrency();
+  // The label words ("owes" / "is owed") already convey direction,
+  // so render the magnitude only — Math.abs on both sides. Previously
+  // the creditor side passed the raw net, which could read as "is
+  // owed −₹1,148.45" when a degenerate pairwise calc produced a
+  // negative-but-still-creditor net.
   const netLabel =
     role === "debtor"
       ? `owes ${formatCurrency(Math.abs(breakdown.net), currency, 0)}`
-      : `is owed ${formatCurrency(breakdown.net, currency, 0)}`;
+      : `is owed ${formatCurrency(Math.abs(breakdown.net), currency, 0)}`;
   const tone =
     role === "debtor"
       ? "text-rose-700 dark:text-rose-400"

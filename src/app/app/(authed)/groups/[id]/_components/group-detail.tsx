@@ -621,7 +621,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       <button
                         type="button"
                         onClick={() => setHistoryForExpense(e.id)}
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg sm:h-8 sm:w-8 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                         aria-label="Show edit history"
                         title="History"
                       >
@@ -633,7 +633,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                           setCommentingOn((id) => (id === e.id ? null : e.id))
                         }
                         aria-pressed={commentingOn === e.id}
-                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg sm:h-8 sm:w-8 transition ${
                           commentingOn === e.id
                             ? "bg-violet-500 text-white"
                             : "text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
@@ -649,7 +649,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                           setEditingId(e.id);
                         }}
                         aria-pressed={editingId === e.id}
-                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg sm:h-8 sm:w-8 transition ${
                           editingId === e.id
                             ? "bg-indigo-500 text-white"
                             : "text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
@@ -682,7 +682,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                           }
                         }}
                         disabled={deleteMutation.isPending}
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg sm:h-8 sm:w-8 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                         aria-label="Remove expense"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />

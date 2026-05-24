@@ -24,8 +24,11 @@ export async function generateMetadata({
   try {
     const caller = await getServerCaller();
     const group = await caller.groups.byId({ id });
+    // Root layout title.template appends " · EasySplits" — we only
+    // contribute the group name, otherwise tabs read "Goa trip ·
+    // EasySplits · EasySplits".
     return {
-      title: group?.name ? `${group.name} · EasySplits` : "Group",
+      title: group?.name ?? "Group",
       robots: { index: false, follow: false },
     };
   } catch {
