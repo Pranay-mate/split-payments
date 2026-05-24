@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArchiveRestore,
   ArrowRight,
@@ -9,6 +10,7 @@ import {
   Loader2,
   Plus,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
@@ -50,9 +52,14 @@ const TEMPLATES = [
 ] as const;
 
 export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) {
+  const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [initialName, setInitialName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  // Group picker for the global "Add expense" FAB. When opened with
+  // exactly one active group we skip the sheet and navigate straight
+  // through — the picker would be wasted ceremony for solo users.
+  const [pickingGroup, setPickingGroup] = useState(false);
   const groupsQuery = trpc.groups.list.useQuery(undefined, {
     initialData: initialGroups as GroupRow[],
     staleTime: 30_000,
@@ -208,6 +215,123 @@ export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) 
           </div>
         )
       )}
+
+      {/* Floating Add Expense — global entry point on the groups list.
+          Tap → if exactly one active group, jump straight to its
+          AddExpense form (?add=1). Otherwise open a picker sorted by
+          recent activity so the user can route quickly. */}
+      {active.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            if (active.length === 1) {
+              router.push(`/app/groups/${active[0].id}?add=1`);
+              return;
+            }
+            setPickingGroup(true);
+          }}
+          aria-label="Add expense"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-5 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition-transform duration-150 hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
+        >
+          <Plus className="h-5 w-5" aria-hidden />
+          <span className="hidden sm:inline">Add expense</span>
+        </button>
+      )}
+
+      {pickingGroup && (
+        <GroupPickerSheet
+          groups={active}
+          onClose={() => setPickingGroup(false)}
+          onPick={(id) => {
+            setPickingGroup(false);
+            router.push(`/app/groups/${id}?add=1`);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Bottom sheet that asks "which group?" before sending the user to
+ * AddExpense. Rendered only when there are 2+ active groups; the FAB
+ * skips this entirely for single-group users. Rows show the user's
+ * current net balance so they can pick by context, not just by name.
+ */
+function GroupPickerSheet({
+  groups,
+  onClose,
+  onPick,
+}: {
+  groups: GroupRow[];
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/70 backdrop-blur-sm sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Pick a group"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-h-[80vh] w-full max-w-md overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800 sm:px-6">
+          <div>
+            <p className="text-[10.5px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+              Add expense
+            </p>
+            <h2 className="mt-0.5 text-base font-semibold tracking-tight">
+              Which group?
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+        <ul className="max-h-[60vh] overflow-y-auto px-2 py-2">
+          {groups.map((g) => {
+            const settled = Math.abs(g.myNetBalance) < EPSILON;
+            const owes = !settled && g.myNetBalance < 0;
+            const balanceLabel = settled
+              ? "Settled"
+              : owes
+                ? `You owe ${formatCurrency(Math.abs(g.myNetBalance), g.primaryCurrency, 0)}`
+                : `You're owed ${formatCurrency(g.myNetBalance, g.primaryCurrency, 0)}`;
+            const tone = settled
+              ? "text-slate-500 dark:text-slate-400"
+              : owes
+                ? "text-rose-700 dark:text-rose-400"
+                : "text-emerald-700 dark:text-emerald-400";
+            return (
+              <li key={g.id}>
+                <button
+                  type="button"
+                  onClick={() => onPick(g.id)}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{g.name}</p>
+                    <p className={`mt-0.5 text-xs ${tone}`}>{balanceLabel}</p>
+                  </div>
+                  <ArrowRight
+                    className="h-4 w-4 shrink-0 text-slate-400"
+                    aria-hidden
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }

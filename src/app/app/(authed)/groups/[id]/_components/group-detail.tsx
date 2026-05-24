@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Activity,
   ArrowLeft,
@@ -66,7 +67,12 @@ const GroupCharts = dynamic(
 const PAGE_SIZE = 5;
 
 export function GroupDetail({ groupId }: { groupId: string }) {
-  const [adding, setAdding] = useState(false);
+  const searchParams = useSearchParams();
+  // ?add=1 deep-links the form open — the groups-list FAB lands users
+  // here in "ready to log an expense" mode, skipping the extra tap on
+  // the in-page FAB. Single-use latch via useState init so navigating
+  // away + back doesn't keep re-opening.
+  const [adding, setAdding] = useState(() => searchParams?.get("add") === "1");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingPayment, setRecordingPayment] = useState(false);
   const confirm = useConfirm();
