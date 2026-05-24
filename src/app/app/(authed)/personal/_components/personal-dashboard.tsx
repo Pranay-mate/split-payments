@@ -195,19 +195,21 @@ export function PersonalDashboard() {
     <main className="flex-1">
       <MonthlyReviewModal />
       <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-32 sm:px-6 sm:pt-8 sm:pb-12">
-        {/* Heading + month picker */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        {/* Heading + month picker. The long "Your salary is your secret"
+            blurb that used to live here moved to a small chip on the
+            hero KPI card — kept the trust signal, reclaimed ~80px of
+            vertical space on every visit. */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
               Personal finance
             </h1>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              <span aria-hidden className="mr-1">
-                🔐
-              </span>
-              Your salary is your secret. We encrypt every amount before
-              storing — our database only ever sees scrambled text.
-            </p>
+            <span
+              title="Every amount is encrypted before it touches our database — only the scrambled text is ever stored."
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+            >
+              <span aria-hidden>🔐</span> Encrypted
+            </span>
           </div>
           <select
             value={month}
