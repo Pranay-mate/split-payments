@@ -72,6 +72,24 @@ function BalancesHeader({
     );
   }
 
+  // Until someone records a payment, "0% settled" reads as if the
+  // expense didn't even register. Skip the progress ring entirely
+  // when settled === 0 — the headline below already conveys the
+  // outstanding amount. Ring re-appears once the first settlement is
+  // logged, at which point a progress story actually exists.
+  if (settled === 0) {
+    return (
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Balances
+        </h2>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+          {formatCurrency(remaining, currency, 0)} to settle across the group
+        </p>
+      </div>
+    );
+  }
+
   const size = 56;
   const stroke = 6;
   const r = (size - stroke) / 2;

@@ -29,15 +29,23 @@ export function formatCurrency(
   fractionDigits = 2,
 ): string {
   if (!Number.isFinite(amount)) return "—";
+  // For INR we honour the caller's fractionDigits — call sites often pass
+  // 0 because the app is India-default and rupee amounts are typically
+  // whole. For non-INR we force at least 2 decimals: $5 ÷ 2 = $2.50,
+  // not $3, and rounding to whole units on USD/EUR misleads users on the
+  // amount they actually owe. JPY (zero-decimal currency) is the
+  // exception but it's not in our common list yet.
+  const isINR = (currency || "INR").toUpperCase() === "INR";
+  const effectiveDigits = isINR ? fractionDigits : Math.max(2, fractionDigits);
   try {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: currency || "INR",
-      minimumFractionDigits: fractionDigits,
-      maximumFractionDigits: fractionDigits,
+      minimumFractionDigits: effectiveDigits,
+      maximumFractionDigits: effectiveDigits,
     }).format(amount);
   } catch {
-    return `${formatNumber(amount, fractionDigits)} ${currency}`;
+    return `${formatNumber(amount, effectiveDigits)} ${currency}`;
   }
 }
 
