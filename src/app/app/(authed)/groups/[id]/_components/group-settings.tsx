@@ -213,7 +213,6 @@ export function GroupSettings({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950"
-                  autoFocus
                 />
                 <button
                   type="button"
