@@ -124,6 +124,13 @@ export function AddExpense({
       return {};
     },
   );
+  // The sharer whose exact-amount field the user most recently typed
+  // in. Used by Auto-balance to know who to *preserve* — the residual
+  // should be redistributed across the other sharers, not punished
+  // onto whoever the user just edited.
+  const [lastEditedSharerId, setLastEditedSharerId] = useState<string | null>(
+    null,
+  );
 
   // Voice input — single-click mic dictates description + (best-effort) amount.
   // Browser Web Speech API; en-IN locale by default for Indian numerals.
@@ -409,16 +416,64 @@ export function AddExpense({
     );
   };
 
+  /**
+   * Auto-balance the exact-split delta. Picks a target set to receive
+   * the residual:
+   *
+   *   1. If any sharer has a 0/empty value AND there's a positive
+   *      residual to allocate, target those empty fields. Lets the
+   *      user fill in the "known" amounts and have the rest spread
+   *      across whoever they haven't gotten to yet.
+   *
+   *   2. Otherwise target every sharer EXCEPT the most recently
+   *      edited one — preserves the value the user just typed.
+   *      (Falls back to the last sharer when there's no edit
+   *      history, matching the previous behavior for a fresh form.)
+   *
+   * Distributes in paisa-integer space so the cents/paisa residual
+   * doesn't strand a fractional rupee on one row.
+   */
   const balanceToLast = () => {
     if (sharerIds.length === 0) return;
-    const last = sharerIds[sharerIds.length - 1];
-    const rest = sharerIds
-      .slice(0, -1)
-      .reduce((sum, id) => sum + (exactByPerson[id] ?? 0), 0);
-    setExactByPerson((m) => ({
-      ...m,
-      [last]: Math.round((numericAmount - rest) * 100) / 100,
-    }));
+    const totalPaisa = Math.round(numericAmount * 100);
+    const sumExisting = sharerIds.reduce(
+      (s, id) => s + Math.round((exactByPerson[id] ?? 0) * 100),
+      0,
+    );
+    const deltaPaisa = totalPaisa - sumExisting;
+
+    // Step 1: prefer redistributing onto empty sharers if any.
+    const emptyIds = sharerIds.filter((id) => !(exactByPerson[id] > 0));
+    let targets: string[];
+    if (emptyIds.length > 0 && deltaPaisa > 0) {
+      targets = emptyIds;
+    } else if (lastEditedSharerId && sharerIds.length > 1) {
+      targets = sharerIds.filter((id) => id !== lastEditedSharerId);
+    } else {
+      // First-edit / single sharer — fall back to "dump on last".
+      targets = [sharerIds[sharerIds.length - 1]];
+    }
+
+    if (targets.length === 0) return;
+
+    // Distribute the delta evenly across targets at paisa precision.
+    // First N targets pick up the residual paisa so totals close
+    // exactly. Existing target values are SHIFTED by the per-target
+    // delta (preserves what was there for the all-filled case).
+    const perTargetPaisa = Math.trunc(deltaPaisa / targets.length);
+    const residualPaisa = deltaPaisa - perTargetPaisa * targets.length;
+
+    setExactByPerson((m) => {
+      const next = { ...m };
+      targets.forEach((id, i) => {
+        const currentPaisa = Math.round((next[id] ?? 0) * 100);
+        const sharePaisa =
+          perTargetPaisa + (i < Math.abs(residualPaisa) ? Math.sign(residualPaisa) : 0);
+        const nextPaisa = Math.max(0, currentPaisa + sharePaisa);
+        next[id] = nextPaisa / 100;
+      });
+      return next;
+    });
   };
 
   const toggleSharer = (id: string) => {
@@ -858,6 +913,7 @@ export function AddExpense({
                             ...map,
                             [m.id]: v === "" ? 0 : Number(v),
                           }));
+                          setLastEditedSharerId(m.id);
                         }}
                         placeholder="0"
                         className="w-20 bg-transparent text-right outline-none tabular-nums"
