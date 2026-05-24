@@ -6,6 +6,7 @@ import { TopNavTabs } from "@/components/top-nav-tabs";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { ReferralAttacher } from "@/components/referral-attacher";
 import { OnboardingGate } from "@/components/onboarding-gate";
+import { ChartCalloutGuard } from "./_components/chart-callout-guard";
 
 /**
  * Auth gate for everything under /app/(authed)/. Redirects to /app/login
@@ -41,6 +42,7 @@ export default async function AuthedLayout({
       <MobileBottomNav />
       <ReferralAttacher />
       <OnboardingGate />
+      <ChartCalloutGuard />
     </>
   );
 }
