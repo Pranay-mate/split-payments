@@ -195,12 +195,12 @@ export function PersonalDashboard() {
     <main className="flex-1">
       <MonthlyReviewModal />
       <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-32 sm:px-6 sm:pt-8 sm:pb-12">
-        {/* Heading + month picker. The long "Your salary is your secret"
-            blurb that used to live here moved to a small chip on the
-            hero KPI card — kept the trust signal, reclaimed ~80px of
-            vertical space on every visit. */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+        {/* Heading row: h1 + Encrypted trust chip on one line, month
+            picker on its own row to the right. Three controls on a
+            single flex row was wrapping "Personal finance" to two
+            lines on phone widths. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
               Personal finance
             </h1>

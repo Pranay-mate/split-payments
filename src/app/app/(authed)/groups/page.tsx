@@ -19,8 +19,10 @@ export default async function GroupsPage() {
   return (
     <main className="flex-1">
       <div className="mx-auto max-w-3xl px-4 pt-8 pb-32 sm:px-6 sm:pt-12 sm:pb-16">
-        <header className="mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight">Your groups</h1>
+        <header className="mb-4">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Your groups
+          </h1>
         </header>
 
         <GroupsView initialGroups={initialGroups} />
