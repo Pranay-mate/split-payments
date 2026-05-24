@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeftRight, Loader2, X } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { COMMON_CURRENCIES } from "@/lib/fx";
@@ -49,6 +49,9 @@ export function RecordPaymentModal({
   const [occurredAt, setOccurredAt] = useState(
     new Date().toISOString().slice(0, 10),
   );
+  // Date + Note are tucked behind a summary chip — most payments are
+  // logged today with no note, so the defaults work for ~90% of taps.
+  const [showDetails, setShowDetails] = useState(false);
 
   // Re-seed defaults ONLY when the modal opens. Earlier version included
   // `members`/`currentUserId`/`primaryCurrency` in deps — but the parent
@@ -67,6 +70,7 @@ export function RecordPaymentModal({
       setCurrency(primaryCurrency);
       setNote("");
       setOccurredAt(new Date().toISOString().slice(0, 10));
+      setShowDetails(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -218,6 +222,36 @@ export function RecordPaymentModal({
             </div>
           </div>
 
+          {/* Date + Note collapsed by default — defaults work for the
+              "logging today's UPI transfer" case which is most taps. */}
+          {!showDetails ? (
+            <button
+              type="button"
+              onClick={() => setShowDetails(true)}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20"
+            >
+              <span className="min-w-0 flex-1 truncate">
+                {occurredAt === new Date().toISOString().slice(0, 10)
+                  ? "Today"
+                  : new Date(`${occurredAt}T00:00:00`).toLocaleDateString(
+                      undefined,
+                      { day: "numeric", month: "short" },
+                    )}
+                {" · "}
+                {note.trim()
+                  ? `"${note.trim().slice(0, 28)}${note.trim().length > 28 ? "…" : ""}"`
+                  : "No note"}
+              </span>
+              <span className="shrink-0 text-[10px] uppercase tracking-wider text-slate-400">
+                Edit
+              </span>
+              <ChevronDown
+                className="h-3.5 w-3.5 shrink-0 text-slate-400"
+                aria-hidden
+              />
+            </button>
+          ) : (
+          <>
           {/* Date */}
           <label className="block">
             <span className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -249,6 +283,8 @@ export function RecordPaymentModal({
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950"
             />
           </label>
+          </>
+          )}
 
           <button
             type="submit"

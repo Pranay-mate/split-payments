@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowDown,
   ArrowUp,
+  ChevronDown,
   CreditCard,
   Loader2,
   Pencil,
@@ -425,6 +426,19 @@ function HoldingForm({
     editing?.currentValue ?? "",
   );
   const [notes, setNotes] = useState(editing?.notes ?? "");
+  // Most holdings only need name + type + current value. Units / avg
+  // cost / notes are useful for stocks & MFs where you want gain/loss
+  // — hide them until the user asks. Pre-expanded when editing a row
+  // that already has any of those fields set, so the user sees what's
+  // there without an extra tap.
+  const [showDetails, setShowDetails] = useState<boolean>(
+    Boolean(
+      editing &&
+        (editing.units != null ||
+          editing.avgCost != null ||
+          (editing.notes && editing.notes.length > 0)),
+    ),
+  );
 
   const createMutation = trpc.personal.holdings.create.useMutation({
     onSuccess: () => {
@@ -544,6 +558,45 @@ function HoldingForm({
         </select>
       </label>
 
+      <label className="block">
+        <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+          Current total value (₹)
+          <span className="ml-1 font-normal text-slate-400">
+            — what it&apos;s worth today
+          </span>
+        </span>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="any"
+          value={currentValue}
+          onChange={(e) =>
+            setCurrentValue(
+              e.target.value === "" ? "" : Number(e.target.value),
+            )
+          }
+          placeholder="55000"
+          className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950"
+        />
+      </label>
+
+      {!showDetails ? (
+        <button
+          type="button"
+          onClick={() => setShowDetails(true)}
+          className="flex w-full items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-left text-[11.5px] text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/20"
+        >
+          <span className="min-w-0 flex-1 truncate">
+            Add units, avg cost, notes
+            <span className="ml-1 text-slate-400">
+              (optional — for gain/loss tracking)
+            </span>
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+        </button>
+      ) : (
+      <>
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -583,29 +636,6 @@ function HoldingForm({
 
       <label className="block">
         <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
-          Current total value (₹)
-          <span className="ml-1 font-normal text-slate-400">
-            — what it&apos;s worth today
-          </span>
-        </span>
-        <input
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="any"
-          value={currentValue}
-          onChange={(e) =>
-            setCurrentValue(
-              e.target.value === "" ? "" : Number(e.target.value),
-            )
-          }
-          placeholder="55000"
-          className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950"
-        />
-      </label>
-
-      <label className="block">
-        <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">
           Notes (optional)
         </span>
         <input
@@ -616,6 +646,8 @@ function HoldingForm({
           className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950"
         />
       </label>
+      </>
+      )}
 
       <div className="flex justify-end gap-2">
         <button
