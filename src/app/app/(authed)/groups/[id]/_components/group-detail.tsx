@@ -96,7 +96,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   // query.
   useEffect(() => {
     if (searchParams?.get("add") === "1") {
-      setAdding(true);
+      // Microtask defer matches the convention used elsewhere in the
+      // app to satisfy React 19's set-state-in-effect rule — the
+      // flag flips on the next tick rather than synchronously inside
+      // the effect body.
+      queueMicrotask(() => setAdding(true));
     }
   }, [searchParams]);
 
