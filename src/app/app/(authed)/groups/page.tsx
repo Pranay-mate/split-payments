@@ -18,7 +18,7 @@ export default async function GroupsPage() {
 
   return (
     <main className="flex-1">
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto max-w-3xl px-4 pt-8 pb-32 sm:px-6 sm:pt-12 sm:pb-16">
         <header className="mb-8">
           <h1 className="text-3xl font-semibold tracking-tight">Your groups</h1>
           <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
