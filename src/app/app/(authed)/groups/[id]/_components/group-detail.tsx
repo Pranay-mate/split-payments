@@ -450,19 +450,24 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 type="button"
                 onClick={() => setRecordingPayment(true)}
                 title="Log a member-to-member payment (cash, UPI, advance)"
-                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/60"
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/60"
               >
                 <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden />
                 <span className="hidden sm:inline">Record payment</span>
                 <span className="sm:hidden">Payment</span>
               </button>
+              {/* In-section Add expense — hidden on mobile because the
+                  bright "Add expense" FAB at the bottom already covers
+                  this action and there isn't room for both this button
+                  and "Payment" without the label wrapping. */}
               <button
                 type="button"
                 onClick={() => {
                   setEditingId(null);
                   setAdding(true);
                 }}
-                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
+                aria-label="Add expense"
+                className="hidden shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 sm:inline-flex"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
                 Add expense
