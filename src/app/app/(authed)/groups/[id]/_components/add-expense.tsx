@@ -23,7 +23,7 @@ import { useMutationWithQueue } from "@/lib/offline/use-mutation-with-queue";
 
 const EPSILON = 0.01;
 
-type EditingExpense = {
+export type EditingExpense = {
   id: string;
   description: string;
   /** Original amount (in `currency`). */

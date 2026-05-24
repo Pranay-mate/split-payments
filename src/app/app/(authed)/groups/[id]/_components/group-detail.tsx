@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -34,7 +34,7 @@ import { GroupCurrencyProvider } from "@/lib/group-currency-context";
 import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { CATEGORIES, toCategoryKey } from "@/lib/categories";
-import { AddExpense } from "./add-expense";
+import { AddExpenseModal } from "./add-expense-modal";
 import { BalancesView } from "./balances-view";
 import { RecordPaymentModal } from "./record-payment-modal";
 import { disambiguateMembers } from "@/lib/disambiguate-names";
@@ -69,12 +69,6 @@ const PAGE_SIZE = 5;
 export function GroupDetail({ groupId }: { groupId: string }) {
   const searchParams = useSearchParams();
   const [adding, setAdding] = useState(false);
-  // Tracks whether the user arrived via the global ?add=1 deep link.
-  // When true, we hoist the AddExpense panel above Balances so the
-  // form is the first thing they see — they came here to add, not to
-  // scroll. The in-page "+ Add expense" button still uses the normal
-  // inline render so users mid-balance-check don't get jumped.
-  const [deepLinkAdding, setDeepLinkAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingPayment, setRecordingPayment] = useState(false);
   const confirm = useConfirm();
@@ -93,24 +87,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [historyForExpense, setHistoryForExpense] = useState<string | null>(null);
   const [expenseSearch, setExpenseSearch] = useState("");
-  const formRef = useRef<HTMLDivElement | null>(null);
 
-  const focusForm = () => {
-    // Run after the panel has expanded — give React a microtask + paint.
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 60);
-  };
-
-  // ?add=1 deep-links the form open — the groups-list FAB lands users
-  // here in "ready to log an expense" mode, skipping the extra tap on
-  // the in-page FAB. Done in an effect (not a useState initializer)
-  // because useSearchParams() can hydrate empty on the first render
-  // pass; the effect runs after hydration with the real query.
+  // ?add=1 deep-link from the groups-list FAB — opens the AddExpense
+  // modal immediately on mount. Done in an effect (not a useState
+  // initializer) because useSearchParams() can hydrate empty on the
+  // first render pass; the effect runs after hydration with the real
+  // query.
   useEffect(() => {
     if (searchParams?.get("add") === "1") {
       setAdding(true);
-      setDeepLinkAdding(true);
     }
   }, [searchParams]);
 
@@ -392,52 +377,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             week. */}
         <LargeGroupNudge groupId={groupId} memberCount={members.length} />
 
-        {/* Hoisted Add Expense — only when the user landed here via the
-            global "Add expense" FAB (?add=1). They pressed "Add" on
-            the previous screen; honour the intent by putting the form
-            above Balances so there's nothing to scroll past. The normal
-            "+ Add expense" inside the Expenses section still renders
-            inline so users mid-balance-check don't get jumped. */}
-        {deepLinkAdding && adding && !editingId && (
-          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20 sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                <Plus className="h-3.5 w-3.5" aria-hidden /> Add expense
-              </h2>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdding(false);
-                  setDeepLinkAdding(false);
-                }}
-                className="text-xs text-slate-500 transition hover:text-slate-700 dark:hover:text-slate-300"
-              >
-                Cancel
-              </button>
-            </div>
-            <AddExpense
-              key="deep-link-new"
-              groupId={groupId}
-              primaryCurrency={group.primaryCurrency}
-              currentUserId={meQuery.data?.id ?? null}
-              members={members.map((m) => ({
-                id: m.userId,
-                name: m.displayName,
-              }))}
-              editing={null}
-              onSuccess={(queued) => {
-                if (!queued) {
-                  utils.expenses.listByGroup.invalidate({ groupId });
-                  utils.events.listByGroup.invalidate({ groupId });
-                  toast.success("Expense added");
-                }
-                setAdding(false);
-                setDeepLinkAdding(false);
-              }}
-            />
-          </section>
-        )}
-
         {/* Balances first — answers the #1 user question ("do I owe anyone?")
             before showing supporting context like contribution share. */}
         {summary && summary.balances.length > 0 && (
@@ -516,79 +455,16 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 type="button"
                 onClick={() => {
                   setEditingId(null);
-                  const next = !adding;
-                  setAdding(next);
-                  if (next) focusForm();
+                  setAdding(true);
                 }}
                 className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
-                {adding ? "Cancel" : "Add expense"}
+                Add expense
               </button>
             </div>
           </div>
 
-          {!deepLinkAdding && (adding || editingId) && (
-            <div ref={formRef} className="mt-4 scroll-mt-20">
-              {(() => {
-                const ed = editingId
-                  ? expenses.find((e) => e.id === editingId)
-                  : null;
-                return (
-                  <AddExpense
-                    key={editingId ?? "new"}
-                    groupId={groupId}
-                    primaryCurrency={group.primaryCurrency}
-                    currentUserId={meQuery.data?.id ?? null}
-                    members={members.map((m) => ({
-                      id: m.userId,
-                      name: m.displayName,
-                    }))}
-                    editing={
-                      ed
-                        ? {
-                            id: ed.id,
-                            description: ed.description,
-                            amount: ed.amount, // original currency amount
-                            currency: ed.currency,
-                            fxRate: ed.fxRate,
-                            payerId: ed.payerId,
-                            splitMode: ed.splitMode,
-                            category: (ed as unknown as { category?: string })
-                              .category,
-                            splits: ed.splits,
-                            items: (
-                              ed as unknown as {
-                                items?: {
-                                  id: string;
-                                  description: string;
-                                  amount: number;
-                                  sharerIds: string[];
-                                }[];
-                              }
-                            ).items,
-                          }
-                        : null
-                    }
-                onSuccess={(queued) => {
-                  if (!queued) {
-                    utils.expenses.listByGroup.invalidate({ groupId });
-                    utils.events.listByGroup.invalidate({ groupId });
-                  }
-                  if (editingId) {
-                    setEditingId(null);
-                    if (!queued) toast.success("Expense updated");
-                  } else {
-                    setAdding(false);
-                    if (!queued) toast.success("Expense added");
-                  }
-                }}
-                onCancel={editingId ? () => setEditingId(null) : undefined}
-              />
-                );
-              })()}
-            </div>
-          )}
 
           {expensesQuery.isLoading ? (
             <div className="mt-4 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -757,7 +633,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                         onClick={() => {
                           setAdding(false);
                           setEditingId(e.id);
-                          focusForm();
                         }}
                         aria-pressed={editingId === e.id}
                         className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${
@@ -1075,7 +950,6 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           onClick={() => {
             setEditingId(null);
             setAdding(true);
-            focusForm();
           }}
           aria-label="Add expense"
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-500/50 ring-4 ring-white/60 transition-transform duration-150 hover:scale-105 active:scale-95 dark:ring-slate-900/60 sm:bottom-6 sm:right-6 sm:px-6 sm:py-4 sm:text-base"
@@ -1084,6 +958,54 @@ export function GroupDetail({ groupId }: { groupId: string }) {
           <span>Add expense</span>
         </button>
       )}
+      <AddExpenseModal
+        open={adding || Boolean(editingId)}
+        onClose={() => {
+          setAdding(false);
+          setEditingId(null);
+        }}
+        groupId={groupId}
+        primaryCurrency={group.primaryCurrency}
+        currentUserId={meQuery.data?.id ?? null}
+        members={members.map((m) => ({
+          userId: m.userId,
+          displayName: m.displayName,
+        }))}
+        editing={(() => {
+          const ed = editingId
+            ? expenses.find((e) => e.id === editingId)
+            : null;
+          if (!ed) return null;
+          return {
+            id: ed.id,
+            description: ed.description,
+            amount: ed.amount,
+            currency: ed.currency,
+            fxRate: ed.fxRate,
+            payerId: ed.payerId,
+            splitMode: ed.splitMode,
+            category: (ed as unknown as { category?: string }).category,
+            splits: ed.splits,
+            items: (
+              ed as unknown as {
+                items?: {
+                  id: string;
+                  description: string;
+                  amount: number;
+                  sharerIds: string[];
+                }[];
+              }
+            ).items,
+          };
+        })()}
+        onSubmitted={(queued, wasEditing) => {
+          if (!queued) {
+            utils.expenses.listByGroup.invalidate({ groupId });
+            utils.events.listByGroup.invalidate({ groupId });
+            toast.success(wasEditing ? "Expense updated" : "Expense added");
+          }
+        }}
+      />
       {groupQuery.data && (
         <InviteModal
           groupName={groupQuery.data.name}
