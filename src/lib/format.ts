@@ -3,11 +3,19 @@
  */
 export function formatINR(amount: number, fractionDigits = 2): string {
   if (!Number.isFinite(amount)) return "—";
+  // Honour the caller's fractionDigits choice EXCEPT when zero would
+  // round away a real fractional part — e.g. ₹199.50 from a 399÷2
+  // split should not display as ₹200. Bump to 2 decimals whenever
+  // the amount has a meaningful fraction.
+  const effectiveDigits =
+    fractionDigits === 0 && Math.abs(amount - Math.round(amount)) > 0.005
+      ? 2
+      : fractionDigits;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: effectiveDigits,
+    maximumFractionDigits: effectiveDigits,
   }).format(amount);
 }
 
@@ -29,14 +37,21 @@ export function formatCurrency(
   fractionDigits = 2,
 ): string {
   if (!Number.isFinite(amount)) return "—";
-  // For INR we honour the caller's fractionDigits — call sites often pass
-  // 0 because the app is India-default and rupee amounts are typically
-  // whole. For non-INR we force at least 2 decimals: $5 ÷ 2 = $2.50,
-  // not $3, and rounding to whole units on USD/EUR misleads users on the
-  // amount they actually owe. JPY (zero-decimal currency) is the
-  // exception but it's not in our common list yet.
+  // Two precision rules layered together:
+  //   1) Non-INR currencies always get ≥ 2 decimals — $5 ÷ 2 = $2.50,
+  //      not $3, and rounding to whole units on USD/EUR misleads
+  //      users on the amount they actually owe. JPY (zero-decimal
+  //      currency) is the exception but it's not in our common list.
+  //   2) For INR we honour the caller's fractionDigits EXCEPT when
+  //      zero would round away a real fractional part — ₹199.50 from
+  //      a 399÷2 split should not display as ₹200.
   const isINR = (currency || "INR").toUpperCase() === "INR";
-  const effectiveDigits = isINR ? fractionDigits : Math.max(2, fractionDigits);
+  const hasFraction = Math.abs(amount - Math.round(amount)) > 0.005;
+  const effectiveDigits = isINR
+    ? fractionDigits === 0 && hasFraction
+      ? 2
+      : fractionDigits
+    : Math.max(2, fractionDigits);
   try {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",

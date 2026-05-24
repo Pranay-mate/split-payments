@@ -85,6 +85,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   const [showMembers, setShowMembers] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyForExpense, setHistoryForExpense] = useState<string | null>(null);
   const [expenseSearch, setExpenseSearch] = useState("");
 
@@ -346,6 +347,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                     isGuest: m.isGuest,
                   }))}
                   meId={meQuery.data?.id ?? null}
+                  open={settingsOpen}
+                  onOpenChange={setSettingsOpen}
                 />
               </div>
             </div>
@@ -934,10 +937,14 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               );
             })}
           </ul>
-          <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
-            Add or remove members from{" "}
-            <strong className="font-semibold">Settings</strong> in the header.
-          </p>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-indigo-600 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-300"
+          >
+            <Users className="h-3.5 w-3.5" aria-hidden />
+            Manage members
+          </button>
           </div>
           )}
         </section>

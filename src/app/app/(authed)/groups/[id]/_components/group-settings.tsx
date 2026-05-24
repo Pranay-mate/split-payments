@@ -40,6 +40,8 @@ export function GroupSettings({
   isCreator,
   members,
   meId,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   group: GroupForSettings;
   expenseCount: number;
@@ -49,10 +51,22 @@ export function GroupSettings({
   members: MemberForSettings[];
   /** Logged-in user's id, so we can hide "remove" on self. */
   meId: string | null;
+  /** Optional controlled-open API — when provided, parent owns the
+   *  open state so other parts of the page (e.g. the Members card
+   *  "Manage members" button) can trigger Settings without the user
+   *  scrolling back to the header gear icon. */
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
   const [name, setName] = useState(group.name);
   const [guestName, setGuestName] = useState("");
   const [memberSearch, setMemberSearch] = useState("");
