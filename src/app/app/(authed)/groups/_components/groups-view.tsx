@@ -231,10 +231,10 @@ export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) 
             setPickingGroup(true);
           }}
           aria-label="Add expense"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-5 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition-transform duration-150 hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-500/50 ring-4 ring-white/60 transition-transform duration-150 hover:scale-105 active:scale-95 dark:ring-slate-900/60 sm:bottom-6 sm:right-6 sm:px-6 sm:py-4 sm:text-base"
         >
-          <Plus className="h-5 w-5" aria-hidden />
-          <span className="hidden sm:inline">Add expense</span>
+          <Plus className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden strokeWidth={2.5} />
+          <span>Add expense</span>
         </button>
       )}
 
