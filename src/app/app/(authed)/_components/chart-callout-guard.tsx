@@ -21,15 +21,49 @@ import { useEffect } from "react";
  */
 export function ChartCalloutGuard() {
   useEffect(() => {
-    const handler = (e: Event) => {
-      const target = e.target as Element | null;
-      if (!target) return;
-      if (target.closest(".recharts-wrapper, .no-callout")) {
-        e.preventDefault();
+    const inChart = (target: EventTarget | null): boolean => {
+      const el = target as Element | null;
+      return Boolean(el?.closest?.(".recharts-wrapper, .no-callout"));
+    };
+
+    const onContextMenu = (e: Event) => {
+      if (inChart(e.target)) e.preventDefault();
+    };
+    // Chrome's image-action gesture on Android can also initiate a
+    // dragstart (the same path that powers "Search image with Lens").
+    // preventDefault stops the drag preview which is the white-box
+    // overlay the user reported.
+    const onDragStart = (e: Event) => {
+      if (inChart(e.target)) e.preventDefault();
+    };
+    // Some Android Chrome builds use a touch-and-hold gesture that
+    // never fires `contextmenu` — fall back to canceling the long-
+    // press at the touchstart layer when the target is a chart.
+    // Passive must be false to allow preventDefault.
+    const onTouchStart = (e: TouchEvent) => {
+      if (inChart(e.target)) {
+        // Don't blanket-block taps; only stop the gesture if it
+        // looks like a long-press candidate (single finger). Multi-
+        // touch (pinch-zoom etc.) is left alone.
+        if (e.touches.length === 1) {
+          // We don't preventDefault here (would kill tooltip taps);
+          // instead just stop propagation so the document-level
+          // image-lookup listener Chrome registers internally
+          // doesn't see the event. Lightweight belt to the
+          // contextmenu/dragstart suspenders above.
+          e.stopPropagation();
+        }
       }
     };
-    document.addEventListener("contextmenu", handler);
-    return () => document.removeEventListener("contextmenu", handler);
+
+    document.addEventListener("contextmenu", onContextMenu);
+    document.addEventListener("dragstart", onDragStart);
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    return () => {
+      document.removeEventListener("contextmenu", onContextMenu);
+      document.removeEventListener("dragstart", onDragStart);
+      document.removeEventListener("touchstart", onTouchStart);
+    };
   }, []);
 
   return null;

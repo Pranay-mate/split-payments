@@ -96,4 +96,25 @@ body {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  /* Strip the dragstart gesture so Android Chrome doesn't treat the
+     chart as a draggable image (the "white selection box" path). */
+  -webkit-user-drag: none;
+  /* Kill the tap-highlight halo Chrome paints over focusable
+     descendants on dark surfaces — it reads as a "white box" on
+     tap and isn't an action the user can take. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Recharts adds tabindex/focusability to surface + tooltip elements
+   for keyboard nav; on touch this manifests as a default focus
+   outline rectangle. Suppress for these wrappers — keyboard users
+   will still see :focus-visible on actually interactive controls
+   outside of charts. */
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus,
+.recharts-wrapper *:focus-visible,
+.no-callout:focus,
+.no-callout *:focus,
+.no-callout *:focus-visible {
+  outline: none;
 }
