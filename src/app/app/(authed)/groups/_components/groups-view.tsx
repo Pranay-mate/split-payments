@@ -15,8 +15,7 @@ import {
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/format";
-
-const COMMON_CURRENCIES = ["INR", "USD", "EUR", "GBP", "AED", "SGD", "AUD", "JPY"] as const;
+import { COMMON_CURRENCIES } from "@/lib/fx";
 
 type ServerGroup = {
   id: string;
@@ -479,6 +478,10 @@ function CreateGroupForm({
     (meQuery.data as { defaultCurrency?: string })?.defaultCurrency ?? "INR";
   const [name, setName] = useState(initialName);
   const [currency, setCurrency] = useState<string>(defaultCurrency);
+  // Surfaces an inline error after a "submit-empty" attempt. Without
+  // this, pressing Enter on an empty form did nothing visible — the
+  // submit handler bailed silently on the .trim() guard.
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const utils = trpc.useUtils();
   const createMutation = trpc.groups.create.useMutation({
@@ -494,7 +497,11 @@ function CreateGroupForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!name.trim()) return;
+        if (!name.trim()) {
+          setNameError("Give your group a name to continue.");
+          return;
+        }
+        setNameError(null);
         createMutation.mutate({ name: name.trim(), primaryCurrency: currency });
       }}
       className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
@@ -507,11 +514,24 @@ function CreateGroupForm({
           </span>
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError(null);
+            }}
             placeholder="Goa weekend, Roommates, Office lunch…"
             autoFocus
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-900"
+            aria-invalid={Boolean(nameError)}
+            className={`mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none dark:bg-slate-900 ${
+              nameError
+                ? "border-rose-400 focus:border-rose-500 dark:border-rose-700"
+                : "border-slate-300 focus:border-indigo-400 dark:border-slate-700"
+            }`}
           />
+          {nameError && (
+            <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+              {nameError}
+            </p>
+          )}
         </label>
         <label className="block">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -537,7 +557,7 @@ function CreateGroupForm({
       <div className="mt-4 flex items-center gap-2">
         <button
           type="submit"
-          disabled={!name.trim() || createMutation.isPending}
+          disabled={createMutation.isPending}
           className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
         >
           {createMutation.isPending ? (

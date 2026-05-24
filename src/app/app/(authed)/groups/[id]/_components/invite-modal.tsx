@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, QrCode, Share2, X } from "lucide-react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
@@ -29,6 +29,18 @@ export function InviteModal({
 }) {
   const [copied, setCopied] = useState(false);
   const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
+
+  // ESC dismiss for keyboard-accessibility parity with every other
+  // modal in the app (RecordPaymentModal, AddExpenseModal,
+  // AddPersonalEntryModal already have this).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 

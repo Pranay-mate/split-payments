@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Plus, Check } from "lucide-react";
@@ -13,6 +13,30 @@ export function GroupSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  // The original inline backdrop-button approach didn't work because
+  // it lives inside the sticky header's stacking context (z-30 +
+  // backdrop-blur). Clicks below the header escape it. A
+  // document-level listener catches everything regardless of
+  // stacking, including the ESC key.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      const el = e.target as Node | null;
+      if (el && wrapperRef.current && !wrapperRef.current.contains(el)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
   const groupsQuery = trpc.groups.list.useQuery(undefined, {
     staleTime: 30_000,
   });
@@ -44,7 +68,7 @@ export function GroupSwitcher() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapperRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -66,12 +90,6 @@ export function GroupSwitcher() {
 
       {open && (
         <>
-          <button
-            type="button"
-            aria-hidden
-            className="fixed inset-0 z-30 cursor-default"
-            onClick={() => setOpen(false)}
-          />
           <div
             role="menu"
             className="absolute left-0 top-11 z-40 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900"
