@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   BarChart3,
   ChevronDown,
@@ -13,6 +14,7 @@ import {
   Plus,
   TrendingUp,
   Trash2,
+  Upload,
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -213,38 +215,21 @@ export function PersonalDashboard() {
               storing — our database only ever sees scrambled text.
             </p>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <select
-              value={month}
-              onChange={(e) => {
-                setMonth(e.target.value);
-                setVisibleCount(PAGE_SIZE);
-              }}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900"
-              aria-label="Select month"
-            >
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  {formatMonthLabel(m)}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-1.5">
-              <Link
-                href="/app/personal/import"
-                title="Import transactions from a bank CSV statement"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                ⬇ Import
-              </Link>
-              <Link
-                href="/app/personal/wealth"
-                className="inline-flex items-center gap-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-[11px] font-medium text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
-              >
-                💼 Net worth
-              </Link>
-            </div>
-          </div>
+          <select
+            value={month}
+            onChange={(e) => {
+              setMonth(e.target.value);
+              setVisibleCount(PAGE_SIZE);
+            }}
+            className="shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-700 dark:bg-slate-900"
+            aria-label="Select month"
+          >
+            {months.map((m) => (
+              <option key={m} value={m}>
+                {formatMonthLabel(m)}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Hero KPI card */}
@@ -301,6 +286,45 @@ export function PersonalDashboard() {
             </p>
           )}
         </section>
+
+        {/* Quick actions — Net worth and Import live here instead of as
+            cramped pill buttons next to the month picker. Net worth gets
+            the dominant tile because it's a differentiating feature most
+            people don't realise the app has; Import is a smaller utility
+            chip. */}
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+          <Link
+            href="/app/personal/wealth"
+            className="group flex items-center gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 px-4 py-3 transition hover:border-indigo-400 hover:shadow-sm dark:border-indigo-900/40 dark:from-indigo-950/40 dark:to-violet-950/30 dark:hover:border-indigo-700"
+          >
+            <span
+              aria-hidden
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm"
+            >
+              <Wallet className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">
+                Net worth
+              </span>
+              <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                Track holdings, FDs, EMIs — see where you stand
+              </span>
+            </span>
+            <ArrowRight
+              className="h-4 w-4 shrink-0 text-indigo-500 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+          <Link
+            href="/app/personal/import"
+            title="Import transactions from a bank CSV statement"
+            className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/20 dark:hover:text-emerald-300 sm:px-4"
+          >
+            <Upload className="h-4 w-4" aria-hidden />
+            <span>Import CSV</span>
+          </Link>
+        </div>
 
         {/* Anomaly heads-up — only renders when there's something to flag */}
         <AnomalyBanner />
