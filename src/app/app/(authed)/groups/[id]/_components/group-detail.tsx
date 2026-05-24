@@ -453,12 +453,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         )}
 
         {expenses.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+          <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <button
               type="button"
               onClick={() => setShowContrib((v) => !v)}
               aria-expanded={showContrib}
-              className="flex w-full items-center justify-between"
+              className="flex w-full items-center justify-between p-4 text-left sm:p-5"
             >
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Who paid
@@ -469,7 +469,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               />
             </button>
             {showContrib && (
-              <div className="mt-3">
+              <div className="px-4 pb-4 sm:px-5 sm:pb-5">
                 <ContributionBar
                   expenses={expenses.map((e) => ({
                     payerId: e.payerId,
@@ -929,12 +929,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         {/* Charts — collapsed by default; lives below Expenses since
             it's a derived view of the same data. */}
         {expenses.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+          <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <button
               type="button"
               onClick={() => setShowCharts((v) => !v)}
               aria-expanded={showCharts}
-              className="flex w-full items-center justify-between"
+              className="flex w-full items-center justify-between p-4 text-left sm:p-5"
             >
               <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                 <BarChart3 className="h-4 w-4 text-fuchsia-500" aria-hidden />
@@ -946,7 +946,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               />
             </button>
             {showCharts && (
-              <div className="mt-4">
+              <div className="px-4 pb-4 sm:px-5 sm:pb-5">
                 <GroupCharts
                   expenses={expenses.map((e) => ({
                     id: e.id,
@@ -968,12 +968,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
         )}
 
         {showActivity ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <button
               type="button"
               onClick={() => setShowActivity(false)}
               aria-expanded
-              className="flex w-full items-center justify-between"
+              className="flex w-full items-center justify-between p-5 text-left"
             >
               <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                 <Activity className="h-4 w-4 text-violet-500" aria-hidden />
@@ -981,17 +981,17 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               </h2>
               <ChevronDown className="h-4 w-4 rotate-180 text-slate-400" aria-hidden />
             </button>
-            <div className="mt-3">
+            <div className="px-5 pb-5">
               <ActivityFeed groupId={groupId} memberById={memberById} embedded />
             </div>
           </section>
         ) : (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+          <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
             <button
               type="button"
               onClick={() => setShowActivity(true)}
               aria-expanded={false}
-              className="flex w-full items-center justify-between"
+              className="flex w-full items-center justify-between p-4 text-left sm:p-5"
             >
               <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
                 <Activity className="h-4 w-4 text-violet-500" aria-hidden />
@@ -1004,12 +1004,12 @@ export function GroupDetail({ groupId }: { groupId: string }) {
 
         {/* Members — read-only chips. Add/remove/claim controls live in
             Settings (header) since they're admin-mode actions. */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+        <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <button
             type="button"
             onClick={() => setShowMembers((v) => !v)}
             aria-expanded={showMembers}
-            className="flex w-full items-center justify-between gap-3"
+            className="flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5"
           >
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <Users className="h-4 w-4 text-indigo-500" aria-hidden />
@@ -1024,8 +1024,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             </span>
           </button>
           {showMembers && (
-          <>
-          <ul className="mt-3 flex flex-wrap gap-1.5">
+          <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+          <ul className="flex flex-wrap gap-1.5">
             {members.map((m) => {
               const isGuest = m.isGuest;
               return (
@@ -1061,7 +1061,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             Add or remove members from{" "}
             <strong className="font-semibold">Settings</strong> in the header.
           </p>
-          </>
+          </div>
           )}
         </section>
       </div>

@@ -315,34 +315,32 @@ export function BalancesView({
             onCollapse={() => setShowSuggested(false)}
           />
         ) : (
-          <section className="rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-4 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40 sm:p-5">
-            <button
-              type="button"
-              onClick={() => setShowSuggested(true)}
-              aria-expanded={false}
-              className="flex w-full items-center justify-between gap-3"
-            >
-              <span>
-                <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Suggested payments
-                </span>
-                <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-300">
-                  {summary.settlements.length} transfer
-                  {summary.settlements.length === 1 ? "" : "s"} to settle the group
-                </span>
+          <button
+            type="button"
+            onClick={() => setShowSuggested(true)}
+            aria-expanded={false}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-emerald-50 p-4 text-left transition hover:border-indigo-300 dark:border-slate-800 dark:from-indigo-950/40 dark:to-emerald-950/40 dark:hover:border-indigo-700 sm:p-5"
+          >
+            <span>
+              <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Suggested payments
               </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-            </button>
-          </section>
+              <span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-300">
+                {summary.settlements.length} transfer
+                {summary.settlements.length === 1 ? "" : "s"} to settle the group
+              </span>
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+          </button>
         )
       )}
       {recorded.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 sm:p-5">
+        <section className="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <button
             type="button"
             onClick={() => setShowHistory((v) => !v)}
             aria-expanded={showHistory}
-            className="flex w-full items-center justify-between gap-3"
+            className="flex w-full items-center justify-between gap-3 p-4 text-left sm:p-5"
           >
             <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               <History className="h-3.5 w-3.5" aria-hidden />
@@ -354,7 +352,7 @@ export function BalancesView({
             />
           </button>
           {showHistory && (
-          <ul className="mt-3 space-y-2">
+          <ul className="space-y-2 px-4 pb-4 sm:px-5 sm:pb-5">
             {recorded.map((r) => (
               <li
                 key={r.id}
