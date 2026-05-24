@@ -69,6 +69,12 @@ const PAGE_SIZE = 5;
 export function GroupDetail({ groupId }: { groupId: string }) {
   const searchParams = useSearchParams();
   const [adding, setAdding] = useState(false);
+  // Tracks whether the user arrived via the global ?add=1 deep link.
+  // When true, we hoist the AddExpense panel above Balances so the
+  // form is the first thing they see — they came here to add, not to
+  // scroll. The in-page "+ Add expense" button still uses the normal
+  // inline render so users mid-balance-check don't get jumped.
+  const [deepLinkAdding, setDeepLinkAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingPayment, setRecordingPayment] = useState(false);
   const confirm = useConfirm();
@@ -104,7 +110,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   useEffect(() => {
     if (searchParams?.get("add") === "1") {
       setAdding(true);
-      focusForm();
+      setDeepLinkAdding(true);
     }
   }, [searchParams]);
 
@@ -386,6 +392,52 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             week. */}
         <LargeGroupNudge groupId={groupId} memberCount={members.length} />
 
+        {/* Hoisted Add Expense — only when the user landed here via the
+            global "Add expense" FAB (?add=1). They pressed "Add" on
+            the previous screen; honour the intent by putting the form
+            above Balances so there's nothing to scroll past. The normal
+            "+ Add expense" inside the Expenses section still renders
+            inline so users mid-balance-check don't get jumped. */}
+        {deepLinkAdding && adding && !editingId && (
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20 sm:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                <Plus className="h-3.5 w-3.5" aria-hidden /> Add expense
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdding(false);
+                  setDeepLinkAdding(false);
+                }}
+                className="text-xs text-slate-500 transition hover:text-slate-700 dark:hover:text-slate-300"
+              >
+                Cancel
+              </button>
+            </div>
+            <AddExpense
+              key="deep-link-new"
+              groupId={groupId}
+              primaryCurrency={group.primaryCurrency}
+              currentUserId={meQuery.data?.id ?? null}
+              members={members.map((m) => ({
+                id: m.userId,
+                name: m.displayName,
+              }))}
+              editing={null}
+              onSuccess={(queued) => {
+                if (!queued) {
+                  utils.expenses.listByGroup.invalidate({ groupId });
+                  utils.events.listByGroup.invalidate({ groupId });
+                  toast.success("Expense added");
+                }
+                setAdding(false);
+                setDeepLinkAdding(false);
+              }}
+            />
+          </section>
+        )}
+
         {/* Balances first — answers the #1 user question ("do I owe anyone?")
             before showing supporting context like contribution share. */}
         {summary && summary.balances.length > 0 && (
@@ -476,7 +528,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             </div>
           </div>
 
-          {(adding || editingId) && (
+          {!deepLinkAdding && (adding || editingId) && (
             <div ref={formRef} className="mt-4 scroll-mt-20">
               {(() => {
                 const ed = editingId
