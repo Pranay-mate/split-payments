@@ -78,3 +78,22 @@ body {
     animation: none;
   }
 }
+
+/* Charts use SVG, which Android Chrome (and iOS Safari) treat as
+   images — long-press triggers the "save image / share / copy"
+   context menu with an ugly white selection halo, even when the
+   user just meant to scroll or read a tooltip. Disable the image
+   callout + text selection across every Recharts surface in one
+   pass. Recharts adds .recharts-wrapper to its outer div on every
+   chart, so this catches the donut, trajectory, sparkline,
+   leaderboard bar, and any future chart automatically. The
+   .no-callout escape hatch is for hand-rolled SVGs (e.g. the
+   settlement progress ring) that don't go through Recharts. */
+.recharts-wrapper,
+.recharts-wrapper svg,
+.no-callout,
+.no-callout svg {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

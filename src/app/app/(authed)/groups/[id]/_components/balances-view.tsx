@@ -100,7 +100,7 @@ function BalancesHeader({
   return (
     <div className="flex items-center gap-3">
       <div
-        className="relative shrink-0 text-slate-200 dark:text-slate-700"
+        className="no-callout relative shrink-0 text-slate-200 dark:text-slate-700"
         style={{ width: size, height: size }}
       >
         <svg width={size} height={size}>
