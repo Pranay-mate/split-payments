@@ -68,11 +68,7 @@ const PAGE_SIZE = 5;
 
 export function GroupDetail({ groupId }: { groupId: string }) {
   const searchParams = useSearchParams();
-  // ?add=1 deep-links the form open — the groups-list FAB lands users
-  // here in "ready to log an expense" mode, skipping the extra tap on
-  // the in-page FAB. Single-use latch via useState init so navigating
-  // away + back doesn't keep re-opening.
-  const [adding, setAdding] = useState(() => searchParams?.get("add") === "1");
+  const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingPayment, setRecordingPayment] = useState(false);
   const confirm = useConfirm();
@@ -99,6 +95,18 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 60);
   };
+
+  // ?add=1 deep-links the form open — the groups-list FAB lands users
+  // here in "ready to log an expense" mode, skipping the extra tap on
+  // the in-page FAB. Done in an effect (not a useState initializer)
+  // because useSearchParams() can hydrate empty on the first render
+  // pass; the effect runs after hydration with the real query.
+  useEffect(() => {
+    if (searchParams?.get("add") === "1") {
+      setAdding(true);
+      focusForm();
+    }
+  }, [searchParams]);
 
   const userTz = useUserTimezone();
   const meQuery = trpc.profiles.me.useQuery();
