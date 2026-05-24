@@ -227,7 +227,7 @@ export function PersonalDashboard() {
         </div>
 
         {/* Hero KPI card */}
-        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 p-4 text-white shadow-sm sm:p-5">
+        <section className="animate-section-in overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-emerald-500 p-4 text-white shadow-sm sm:p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-white/80">
             Net this month
           </p>
@@ -286,7 +286,7 @@ export function PersonalDashboard() {
             the dominant tile because it's a differentiating feature most
             people don't realise the app has; Import is a smaller utility
             chip. */}
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+        <div className="animate-section-in [animation-delay:60ms] grid gap-2 sm:grid-cols-[1fr_auto]">
           <Link
             href="/app/personal/wealth"
             className="group flex items-center gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 px-4 py-3 transition hover:border-indigo-400 hover:shadow-sm dark:border-indigo-900/40 dark:from-indigo-950/40 dark:to-violet-950/30 dark:hover:border-indigo-700"
@@ -324,11 +324,13 @@ export function PersonalDashboard() {
         <AnomalyBanner />
 
         {/* Scorecard — the differentiator */}
-        <Scorecard
-          score={profileQuery.data?.score ?? null}
-          exists={profileQuery.data?.exists ?? false}
-          loading={profileQuery.isLoading}
-        />
+        <div className="animate-section-in [animation-delay:120ms]">
+          <Scorecard
+            score={profileQuery.data?.score ?? null}
+            exists={profileQuery.data?.exists ?? false}
+            loading={profileQuery.isLoading}
+          />
+        </div>
 
         {/* Goals — only meaningful once the profile exists */}
         {profileQuery.data?.exists && profileQuery.data?.score?.hasEnoughData && (

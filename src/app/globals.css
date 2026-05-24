@@ -51,8 +51,30 @@ body {
   animation: ease-fade-in-up 220ms ease-out;
 }
 
+/* Page-section stagger entrance — slightly more pronounced than
+   .animate-row-in. The caller picks a per-section delay via the
+   Tailwind arbitrary [animation-delay:Xms] utility so the cascade
+   reads naturally without per-page config. `backwards` fill keeps
+   the opacity:0 from-state during the delay so sections don't
+   flash visible before their turn. */
+@keyframes section-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-section-in {
+  animation: section-fade-in-up 380ms ease-out backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-row-in {
+  .animate-row-in,
+  .animate-section-in {
     animation: none;
   }
 }
