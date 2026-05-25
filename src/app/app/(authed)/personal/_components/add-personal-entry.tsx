@@ -357,7 +357,7 @@ export function AddPersonalEntry({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
+      <div className="grid gap-2">
         <div className="flex items-stretch gap-1.5">
           <input
             value={description}

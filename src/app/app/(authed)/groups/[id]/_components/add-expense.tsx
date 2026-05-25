@@ -572,7 +572,12 @@ export function AddExpense({
           )}
         </div>
       )}
-      <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
+      {/* Stack vertically — the old `sm:grid-cols-[1fr_180px]` was
+          built for the form's inline placement on a max-w-3xl page.
+          Now that the form lives inside a max-w-md modal, the fixed
+          180px column pushed the currency selector off the right
+          edge on every desktop viewport. */}
+      <div className="grid gap-2">
         <div className="flex items-stretch gap-1.5">
           <input
             value={description}
@@ -731,7 +736,7 @@ export function AddExpense({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3">
         <div className="block">
           <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
             Paid by
