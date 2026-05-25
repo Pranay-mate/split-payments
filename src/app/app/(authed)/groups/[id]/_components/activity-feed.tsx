@@ -264,6 +264,15 @@ function describeEvent(
       if (typeof payload.newName === "string") return `renamed to "${payload.newName}"`;
       if (typeof payload.newCurrency === "string") return `currency → ${payload.newCurrency}`;
       return null;
+    case "comment.added": {
+      // Server logs the first 80 chars of the body in the payload;
+      // surface a trimmed preview so "Comments" filter rows aren't
+      // bare timestamps. Pre-fix the row read only "Pranay commented
+      // · 2d ago" with no idea what was said.
+      const body = typeof payload.body === "string" ? payload.body.trim() : "";
+      if (!body) return null;
+      return body.length > 60 ? `"${body.slice(0, 60)}…"` : `"${body}"`;
+    }
     default:
       return null;
   }

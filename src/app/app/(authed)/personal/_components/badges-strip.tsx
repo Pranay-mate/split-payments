@@ -61,20 +61,29 @@ export function BadgesStrip() {
       )}
 
       {showLocked && locked.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-1.5">
+        // Stacked rows (not pill chips) so each locked badge can show
+        // its unlock criterion inline. Native title= tooltip alone
+        // hid the path in headless / mobile browsers that suppress
+        // tooltips.
+        <ul className="mt-2 space-y-1.5">
           {locked.map((b) => (
             <li
               key={b.key}
               title={b.description}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50/60 px-2.5 py-1 text-xs opacity-60 dark:border-slate-800 dark:bg-slate-800/30"
+              className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5 text-xs opacity-80 dark:border-slate-800 dark:bg-slate-800/30"
             >
-              <span aria-hidden className="text-sm leading-none grayscale">
+              <span aria-hidden className="text-base leading-none grayscale">
                 {b.emoji}
               </span>
-              <span className="font-medium text-slate-600 dark:text-slate-300">
-                {b.label}
-              </span>
-              <Lock className="h-3 w-3 text-slate-400" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
+                  {b.label}
+                  <Lock className="h-3 w-3 text-slate-400" aria-hidden />
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                  {b.description}
+                </p>
+              </div>
             </li>
           ))}
         </ul>

@@ -289,7 +289,7 @@ export function WealthView() {
                   onClick={() => setAdding(true)}
                   className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
                 >
-                  <Plus className="h-4 w-4" aria-hidden /> Add a holding
+                  <Plus className="h-4 w-4" aria-hidden /> Add holding
                 </button>
               </div>
             )
@@ -463,17 +463,16 @@ function HoldingForm({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      !name.trim() ||
-      units === "" ||
-      avgCost === "" ||
-      currentValue === ""
-    ) {
-      toast.error("Fill name, units, avg cost, current value");
+    // Units / avg cost are optional (live behind the "Add units, avg
+    // cost, notes" disclosure chip — purely for gain/loss tracking).
+    // Only name + current value are actually required to save a
+    // holding; older toast asked for all four and confused users.
+    if (!name.trim() || currentValue === "") {
+      toast.error("Name and current value are required");
       return;
     }
-    if (Number(units) <= 0) {
-      toast.error("Units must be > 0");
+    if (units !== "" && Number(units) <= 0) {
+      toast.error("Units must be > 0 (or leave blank if not tracking)");
       return;
     }
     if (editing) {
@@ -481,8 +480,8 @@ function HoldingForm({
         id: editing.id,
         name: name.trim(),
         type,
-        units: Number(units),
-        avgCost: Number(avgCost),
+        units: units === "" ? 0 : Number(units),
+        avgCost: avgCost === "" ? 0 : Number(avgCost),
         currentValue: Number(currentValue),
         notes,
       });
@@ -490,8 +489,8 @@ function HoldingForm({
       createMutation.mutate({
         name: name.trim(),
         type,
-        units: Number(units),
-        avgCost: Number(avgCost),
+        units: units === "" ? 0 : Number(units),
+        avgCost: avgCost === "" ? 0 : Number(avgCost),
         currentValue: Number(currentValue),
         notes,
       });
