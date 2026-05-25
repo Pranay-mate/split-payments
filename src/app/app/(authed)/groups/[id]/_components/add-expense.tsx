@@ -628,9 +628,16 @@ export function AddExpense({
             min={0}
             step={1}
             value={mode === "items" ? itemsTotal || "" : amount}
-            onChange={(e) =>
-              setAmount(e.target.value === "" ? "" : Number(e.target.value))
-            }
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "") return setAmount("");
+              // Clamp at the input boundary: no negatives (paste/keyboard
+              // both go through here), and round to 2dp so the value the
+              // server stores matches what the user sees.
+              const n = Number(raw);
+              if (!Number.isFinite(n)) return;
+              setAmount(Math.max(0, Math.round(n * 100) / 100));
+            }}
             disabled={mode === "items"}
             placeholder="0"
             className="w-full bg-transparent px-3 py-2 text-base outline-none tabular-nums disabled:cursor-not-allowed disabled:text-slate-500"
@@ -914,10 +921,16 @@ export function AddExpense({
                         value={exactByPerson[m.id] ?? ""}
                         onChange={(e) => {
                           const v = e.target.value;
-                          setExactByPerson((map) => ({
-                            ...map,
-                            [m.id]: v === "" ? 0 : Number(v),
-                          }));
+                          if (v === "") {
+                            setExactByPerson((map) => ({ ...map, [m.id]: 0 }));
+                          } else {
+                            const n = Number(v);
+                            if (!Number.isFinite(n)) return;
+                            setExactByPerson((map) => ({
+                              ...map,
+                              [m.id]: Math.max(0, Math.round(n * 100) / 100),
+                            }));
+                          }
                           setLastEditedSharerId(m.id);
                         }}
                         placeholder="0"
@@ -989,12 +1002,18 @@ export function AddExpense({
                     min={0}
                     step={1}
                     value={it.amount}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") return updateItem(idx, { amount: "" });
+                      const n = Number(raw);
+                      if (!Number.isFinite(n)) return;
+                      // Same clamp as the top amount — paisa-precision
+                      // line items keep itemsTotal from drifting by 1¢
+                      // on a 1/3 split that the user already eyeballed.
                       updateItem(idx, {
-                        amount:
-                          e.target.value === "" ? "" : Number(e.target.value),
-                      })
-                    }
+                        amount: Math.max(0, Math.round(n * 100) / 100),
+                      });
+                    }}
                     placeholder="0"
                     className="w-16 bg-transparent py-1.5 text-right text-sm outline-none tabular-nums"
                     aria-label={`Item ${idx + 1} amount`}

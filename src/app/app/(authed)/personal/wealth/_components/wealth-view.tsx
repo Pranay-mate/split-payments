@@ -941,11 +941,25 @@ function DebtForm({
   const numericPrincipal = typeof principal === "number" ? principal : 0;
   const numericEmi = typeof emi === "number" ? emi : 0;
   const numericRate = typeof rate === "number" ? rate : 0;
+  // Tighter bounds — pre-fix the form accepted nonsense like
+  // EMI=999,999,999 on Outstanding=10,000 at rate=500%, computed
+  // "debt-free in 0y 1m", and let the user save it. Each rule maps
+  // to a real-world sanity check; helper text below the button
+  // explains which one is firing.
+  const numericPrincipalRaw =
+    typeof principal === "number" ? principal : null;
+  const rateOutOfRange = numericRate < 0 || numericRate > 99.99;
+  const emiExceedsPrincipal =
+    numericPrincipal > 0 && numericEmi > numericPrincipal;
+  const negativePrincipal =
+    numericPrincipalRaw !== null && numericPrincipalRaw < 0;
   const valid =
     name.trim().length > 0 &&
     numericPrincipal > 0 &&
     numericEmi > 0 &&
-    numericRate >= 0;
+    !rateOutOfRange &&
+    !emiExceedsPrincipal &&
+    !negativePrincipal;
 
   // Live preview: at current inputs, what does the math say about
   // months-to-freedom and EMI sufficiency? Helps users catch typos
@@ -1112,11 +1126,17 @@ function DebtForm({
         <p className="-mt-1 text-[11px] text-slate-500 dark:text-slate-400">
           {name.trim().length === 0
             ? "Give the debt a name (e.g. HDFC home loan)."
-            : numericPrincipal <= 0
-              ? "Enter the outstanding amount."
-              : numericEmi <= 0
-                ? "Enter the monthly EMI."
-                : "Enter the interest rate (use 0 if interest-free)."}
+            : negativePrincipal
+              ? "Outstanding amount must be positive."
+              : numericPrincipal <= 0
+                ? "Enter the outstanding amount."
+                : numericEmi <= 0
+                  ? "Enter the monthly EMI."
+                  : emiExceedsPrincipal
+                    ? "Monthly EMI can't be greater than the outstanding amount."
+                    : rateOutOfRange
+                      ? "Interest rate must be between 0% and 99.99%."
+                      : "Enter the interest rate (use 0 if interest-free)."}
         </p>
       )}
     </form>

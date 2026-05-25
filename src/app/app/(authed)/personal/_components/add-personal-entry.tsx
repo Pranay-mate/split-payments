@@ -497,6 +497,11 @@ export function AddPersonalEntry({
           value={occurredAt}
           onChange={(e) => setOccurredAt(e.target.value)}
           max={new Date().toISOString().slice(0, 10)}
+          min={(() => {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() - 5);
+            return d.toISOString().slice(0, 10);
+          })()}
           className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900 sm:w-auto"
         />
       </label>

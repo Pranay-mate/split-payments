@@ -282,12 +282,25 @@ export function OnboardWizard() {
   const blankAsZero = (v: number | "") => (v === "" ? 0 : v);
 
   const isExisting = profileQuery.data?.exists ?? false;
+  const retirementBeforeAge =
+    typeof form.age === "number" &&
+    typeof form.retirementAge === "number" &&
+    form.retirementAge <= form.age;
+  // Block submit on retirement ≤ current age — pre-fix the inline
+  // error was advisory only; users could still click Compute and the
+  // score saved with a nonsensical retirement target.
   const canSubmit =
-    form.monthlyIncome !== "" && form.monthlyExpenses !== "";
+    form.monthlyIncome !== "" &&
+    form.monthlyExpenses !== "" &&
+    !retirementBeforeAge;
 
   const submit = async () => {
     if (!canSubmit) {
-      toast.error("Monthly income and expenses are required");
+      if (retirementBeforeAge) {
+        toast.error("Target retirement age must be later than your current age");
+      } else {
+        toast.error("Monthly income and expenses are required");
+      }
       return;
     }
     try {
