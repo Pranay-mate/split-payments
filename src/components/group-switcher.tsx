@@ -28,7 +28,31 @@ export function GroupSwitcher() {
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      // Trap ArrowUp/ArrowDown inside the open menu so the page
+      // doesn't scroll. Move focus to next/prev focusable child of
+      // the menu — keeps the dropdown reachable for keyboard users.
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      if (!wrapperRef.current) return;
+      const menu = wrapperRef.current.querySelector('[role="menu"]');
+      if (!menu) return;
+      const items = Array.from(
+        menu.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [role="menuitem"], a[href]',
+        ),
+      );
+      if (items.length === 0) return;
+      e.preventDefault();
+      const active = document.activeElement as HTMLElement | null;
+      const idx = active ? items.indexOf(active) : -1;
+      const next =
+        e.key === "ArrowDown"
+          ? items[Math.min(items.length - 1, idx + 1)] ?? items[0]
+          : items[Math.max(0, idx - 1)] ?? items[items.length - 1];
+      next.focus();
     };
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);

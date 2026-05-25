@@ -748,7 +748,15 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             const buildExportData = (): ExportInput => ({
               groupName: group.name,
               primaryCurrency: group.primaryCurrency,
-              members: members.map((m) => ({ id: m.userId, name: m.displayName })),
+              // Strip the "(you)" suffix that disambiguateMembers
+              // attaches for in-app display — exports are for archival,
+              // and jspdf's autoTable rendered the parenthesised row
+              // as a blank cell. CSV handled it but inconsistently;
+              // unify on the clean displayName everywhere.
+              members: members.map((m) => ({
+                id: m.userId,
+                name: m.displayName.replace(/\s*\(you\)\s*$/, ""),
+              })),
               expenses: expenses.map((e) => ({
                 description: e.description,
                 amount: e.amount,

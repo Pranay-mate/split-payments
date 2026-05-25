@@ -265,13 +265,24 @@ function describeEvent(
       if (typeof payload.newCurrency === "string") return `currency → ${payload.newCurrency}`;
       return null;
     case "comment.added": {
-      // Server logs the first 80 chars of the body in the payload;
-      // surface a trimmed preview so "Comments" filter rows aren't
-      // bare timestamps. Pre-fix the row read only "Pranay commented
-      // · 2d ago" with no idea what was said.
+      // Server logs the first 80 chars of the body PLUS the parent
+      // expense's description snapshot so the row reads "commented
+      // on 'Non veg': hello..." instead of just "commented · 2d ago".
+      // Older events (pre-snapshot) only have body; render that
+      // gracefully too.
       const body = typeof payload.body === "string" ? payload.body.trim() : "";
-      if (!body) return null;
-      return body.length > 60 ? `"${body.slice(0, 60)}…"` : `"${body}"`;
+      const expenseDesc =
+        typeof payload.expenseDescription === "string"
+          ? payload.expenseDescription.trim()
+          : "";
+      const preview = body
+        ? body.length > 60
+          ? `"${body.slice(0, 60)}…"`
+          : `"${body}"`
+        : null;
+      const target = expenseDesc ? `on "${expenseDesc}"` : null;
+      if (target && preview) return `${target}: ${preview}`;
+      return preview ?? target;
     }
     default:
       return null;

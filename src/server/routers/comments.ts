@@ -85,12 +85,27 @@ export const commentsRouter = router({
         });
       }
 
+      // Snapshot the expense description into the event payload so the
+      // group activity feed's Comments filter can show "commented on
+      // 'Non veg': hello…" instead of a bare timestamp. Cheaper than
+      // joining expenses every time the feed re-renders.
+      const [parentExpense] = await db
+        .select({ description: expenses.description })
+        .from(expenses)
+        .where(eq(expenses.id, input.expenseId))
+        .limit(1);
+
       await logEvent({
         groupId,
         expenseId: input.expenseId,
         eventType: "comment.added",
         actorId: ctx.user.id,
-        payload: { expenseId: input.expenseId, commentId: created.id, body: input.body.trim().slice(0, 80) },
+        payload: {
+          expenseId: input.expenseId,
+          commentId: created.id,
+          body: input.body.trim().slice(0, 80),
+          expenseDescription: parentExpense?.description ?? "",
+        },
       });
 
       return created;

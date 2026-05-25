@@ -54,6 +54,8 @@ function NumField({
   onChange,
   prefix = "₹",
   locked,
+  max,
+  error,
 }: {
   label: string;
   hint?: string;
@@ -65,6 +67,12 @@ function NumField({
    *  Used by the Scorecard wizard to avoid double-entry of EMI /
    *  investment balance once those are tracked on /wealth. */
   locked?: { source: "wealth"; href: string; note: string } | null;
+  /** Optional HTML5 max attribute — used by age fields to cap at 120
+   *  so typos like "200" get caught by native validation. */
+  max?: number;
+  /** Inline error message shown under the field. Used for
+   *  cross-field validation (e.g. retirement age ≤ current age). */
+  error?: string | null;
 }) {
   const isLocked = !!locked;
   return (
@@ -87,6 +95,7 @@ function NumField({
           type="number"
           inputMode="decimal"
           min={0}
+          max={max}
           step={1}
           value={value}
           onChange={(e) =>
@@ -108,6 +117,11 @@ function NumField({
           >
             Edit on /wealth →
           </a>
+        </span>
+      )}
+      {error && (
+        <span className="mt-1 block text-[11px] text-rose-600 dark:text-rose-400">
+          {error}
         </span>
       )}
     </label>
@@ -349,6 +363,7 @@ export function OnboardWizard() {
               value={form.age}
               onChange={(v) => set("age", v)}
               prefix="🎂"
+              max={120}
             />
             <NumField
               label="Target retirement age"
@@ -356,6 +371,14 @@ export function OnboardWizard() {
               value={form.retirementAge}
               onChange={(v) => set("retirementAge", v)}
               prefix="🎯"
+              max={120}
+              error={
+                typeof form.age === "number" &&
+                typeof form.retirementAge === "number" &&
+                form.retirementAge <= form.age
+                  ? "Target retirement age should be later than your current age."
+                  : null
+              }
             />
           </div>
           <Toggle
