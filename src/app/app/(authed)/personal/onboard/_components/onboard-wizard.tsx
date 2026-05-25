@@ -462,7 +462,7 @@ export function OnboardWizard() {
         </Section>
 
         {/* Inline compute button for desktop / when sticky isn't needed */}
-        <div className="hidden sm:flex sm:justify-end">
+        <div className="hidden sm:flex sm:flex-col sm:items-end sm:gap-1.5">
           <button
             type="button"
             onClick={submit}
@@ -476,6 +476,11 @@ export function OnboardWizard() {
             )}
             {isExisting ? "Update my score" : "Compute my score"}
           </button>
+          {!canSubmit && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Add monthly income + expenses to compute.
+            </p>
+          )}
         </div>
       </div>
 

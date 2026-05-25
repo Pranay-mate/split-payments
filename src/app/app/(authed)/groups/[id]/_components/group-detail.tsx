@@ -357,21 +357,24 @@ export function GroupDetail({ groupId }: { groupId: string }) {
               </div>
             </div>
           </div>
-          {/* Stats row — split out of the gradient for legibility */}
-          <div className="grid grid-cols-2 divide-x divide-slate-200 px-5 py-4 sm:px-6 dark:divide-slate-800">
-            <div>
+          {/* Stats row — gap-4 instead of divide-x because a 1px
+              hairline reads as "no separator" on white/slate
+              backgrounds and produces visually-concatenated numbers
+              like "₹13,84011" on narrow phones. */}
+          <div className="grid grid-cols-2 gap-4 px-5 py-4 sm:px-6">
+            <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Total spent
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
+              <p className="mt-1 truncate text-2xl font-semibold tabular-nums sm:text-3xl">
                 {formatCurrency(summary?.totalSpent ?? 0, group.primaryCurrency, 0)}
               </p>
             </div>
-            <div className="pl-5 sm:pl-6">
+            <div className="min-w-0 border-l border-slate-200 pl-4 dark:border-slate-700">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Expenses
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
+              <p className="mt-1 truncate text-2xl font-semibold tabular-nums sm:text-3xl">
                 {expenses.length}
               </p>
             </div>

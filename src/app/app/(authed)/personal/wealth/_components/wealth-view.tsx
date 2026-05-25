@@ -1109,6 +1109,17 @@ function DebtForm({
           {isEditing ? "Save changes" : "Add debt"}
         </button>
       </div>
+      {!valid && !isPending && (
+        <p className="-mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+          {name.trim().length === 0
+            ? "Give the debt a name (e.g. HDFC home loan)."
+            : numericPrincipal <= 0
+              ? "Enter the outstanding amount."
+              : numericEmi <= 0
+                ? "Enter the monthly EMI."
+                : "Enter the interest rate (use 0 if interest-free)."}
+        </p>
+      )}
     </form>
   );
 }
