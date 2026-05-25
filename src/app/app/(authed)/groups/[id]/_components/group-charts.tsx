@@ -68,9 +68,24 @@ export function GroupCharts({
     };
   }, [expenses]);
 
+  // "Where the money goes" is a spend-direction story — including
+  // category="income" or "investment" entries (reimbursements, etc.)
+  // distorts the percentages and lists. Filter to actual spend
+  // categories before bucketing. The Total spent KPI at the top is
+  // untouched on purpose: it sums every transaction, which is the
+  // right view for "what did this group transact".
+  const spendExpenses = useMemo(
+    () =>
+      expenses.filter((e) => {
+        const k = toCategoryKey(e.category ?? null);
+        return k !== "income" && k !== "investment";
+      }),
+    [expenses],
+  );
+
   const byCategory = useMemo(() => {
     const buckets = new Map<string, number>();
-    for (const e of expenses) {
+    for (const e of spendExpenses) {
       const key = toCategoryKey(e.category ?? null);
       buckets.set(key, (buckets.get(key) ?? 0) + e.convertedAmount);
     }
@@ -88,16 +103,14 @@ export function GroupCharts({
       ...e,
       pct: sum > 0 ? e.total / sum : 0,
     }));
-  }, [expenses]);
+  }, [spendExpenses]);
 
   const topCategory = byCategory[0];
 
-  // Top 5 biggest expenses — what people actually want to know when
-  // they open the chart panel: "where did the money really go?". A
-  // daily-totals chart implied continuity, but expenses are discrete
-  // events; a sorted leaderboard is the honest read.
+  // Top 5 biggest expenses — same spend-only filter so an "income"
+  // tagged row doesn't show up in the "Biggest expenses" leaderboard.
   const topExpenses = useMemo(() => {
-    return [...expenses]
+    return [...spendExpenses]
       .sort((a, b) => b.convertedAmount - a.convertedAmount)
       .slice(0, 5)
       .map((e) => {

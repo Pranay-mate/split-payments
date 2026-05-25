@@ -451,6 +451,11 @@ function ProjectionLine({
 
 function GoalPicker({ onClose }: { onClose: () => void }) {
   const utils = trpc.useUtils();
+  const confirm = useConfirm();
+  // Read the existing active goals so we can warn before creating a
+  // duplicate. Cheap — TanStack returns from cache instantly since
+  // the parent GoalsCard already mounted the query.
+  const existingQuery = trpc.personal.goals.list.useQuery();
   const createMutation = trpc.personal.goals.create.useMutation({
     onSuccess: async () => {
       // Await refetch before closing the picker — pre-fix the parent
@@ -464,7 +469,28 @@ function GoalPicker({ onClose }: { onClose: () => void }) {
   });
   const [targetDate, setTargetDate] = useState<string>("");
 
-  const submit = (tpl: GoalTemplate) => {
+  const submit = async (tpl: GoalTemplate) => {
+    // Soft-warn before creating a duplicate. Same template was easy
+    // to tap twice and end up with two identical "emergency fund"
+    // goals at 0/20 each. User can still proceed if they really
+    // want two of the same — Splitwise-style "are you sure".
+    const existing = (existingQuery.data ?? []).filter(
+      (g) => !g.archivedAt && !g.completedAt,
+    );
+    const dup = existing.find(
+      (g) =>
+        g.goalKind === tpl.goalKind &&
+        g.pillarKey === tpl.pillarKey &&
+        g.targetScore === tpl.targetScore,
+    );
+    if (dup) {
+      const ok = await confirm({
+        title: "Already have this goal",
+        description: `You're already working on "${tpl.label}". Add another anyway?`,
+        confirmLabel: "Add anyway",
+      });
+      if (!ok) return;
+    }
     createMutation.mutate({
       goalKind: tpl.goalKind,
       pillarKey: tpl.pillarKey,
