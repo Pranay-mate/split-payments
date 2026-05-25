@@ -212,6 +212,7 @@ export function GroupSettings({
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  maxLength={80}
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 dark:border-slate-700 dark:bg-slate-950"
                 />
                 <button
@@ -229,6 +230,15 @@ export function GroupSettings({
                   )}
                   Save name
                 </button>
+                {/* Make the disabled state legible — pre-fix, clearing
+                    the input gave no clue why Save did nothing. */}
+                {!renameDirty && !updateMutation.isPending && (
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                    {name.trim().length === 0
+                      ? "Group name can't be empty."
+                      : "Change the name to enable Save."}
+                  </p>
+                )}
               </label>
 
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-800 dark:bg-slate-800/40">

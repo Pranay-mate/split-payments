@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format-date";
 import { useUserTimezone } from "@/lib/use-user-timezone";
 import { ShareMilestoneButton } from "@/components/share-milestone-button";
 import { GoalCelebration } from "@/components/goal-celebration";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type PillarKey =
   | "emergency"
@@ -120,9 +121,23 @@ function daysUntil(d: Date | string | null): number | null {
 export function GoalsCard() {
   const goalsQuery = trpc.personal.goals.list.useQuery();
   const utils = trpc.useUtils();
+  const confirm = useConfirm();
   const archiveMutation = trpc.personal.goals.archive.useMutation({
     onSuccess: () => utils.personal.goals.list.invalidate(),
   });
+  const onArchive = async (id: string) => {
+    if (
+      !(await confirm({
+        title: "Remove this goal?",
+        description:
+          "Goals are archived (not destroyed). You can add new ones any time.",
+        confirmLabel: "Remove",
+        destructive: true,
+      }))
+    )
+      return;
+    archiveMutation.mutate({ id });
+  };
   const [showPicker, setShowPicker] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -183,7 +198,7 @@ export function GoalsCard() {
                   <GoalRow
                     key={g.id}
                     goal={g}
-                    onArchive={(id) => archiveMutation.mutate({ id })}
+                    onArchive={onArchive}
                   />
                 ))}
               </ul>
@@ -215,7 +230,7 @@ export function GoalsCard() {
                         key={g.id}
                         goal={g}
                         compact
-                        onArchive={(id) => archiveMutation.mutate({ id })}
+                        onArchive={onArchive}
                       />
                     ))}
                   </ul>
@@ -437,8 +452,13 @@ function ProjectionLine({
 function GoalPicker({ onClose }: { onClose: () => void }) {
   const utils = trpc.useUtils();
   const createMutation = trpc.personal.goals.create.useMutation({
-    onSuccess: () => {
-      utils.personal.goals.list.invalidate();
+    onSuccess: async () => {
+      // Await refetch before closing the picker — pre-fix the parent
+      // GoalsCard sometimes re-rendered with the empty-state copy
+      // before the new goal landed in the query cache. Closing the
+      // picker AFTER invalidate resolves means the parent sees the
+      // fresh list on its next paint.
+      await utils.personal.goals.list.invalidate();
       onClose();
     },
   });

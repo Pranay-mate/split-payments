@@ -306,10 +306,12 @@ function RecurrenceForm({
     onError: (err) => toast.error(err.message),
   });
 
+  const numericAmount = typeof amount === "number" ? amount : 0;
+  const valid = numericAmount > 0;
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (amount === "" || amount <= 0) {
-      toast.error("Amount must be > 0");
+    if (!valid) {
+      toast.error("Amount must be greater than 0");
       return;
     }
     if (editing) {
@@ -387,7 +389,7 @@ function RecurrenceForm({
           <input
             type="number"
             inputMode="numeric"
-            min="0"
+            min="1"
             step="1"
             value={amount}
             onChange={(e) =>
@@ -460,13 +462,18 @@ function RecurrenceForm({
         </button>
         <button
           type="submit"
-          disabled={isPending || amount === "" || Number(amount) <= 0}
+          disabled={isPending || !valid}
           className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-violet-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
         >
           {isPending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
           {editing ? "Save changes" : "Create"}
         </button>
       </div>
+      {!valid && !isPending && (
+        <p className="-mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+          Enter an amount greater than 0.
+        </p>
+      )}
     </form>
   );
 }

@@ -46,7 +46,15 @@ export function UserMenu() {
       setIosInstallModal(true);
       return;
     }
-    await install.triggerNativePrompt();
+    const outcome = await install.triggerNativePrompt();
+    // Browser may report "no-prompt" if the deferredPrompt was already
+    // consumed by the in-page InstallPrompt banner — surface that
+    // instead of silently dismissing the menu.
+    if (outcome === "no-prompt") {
+      toast.info(
+        "Open this site's address bar menu and pick \"Install\" — your browser handles it from there.",
+      );
+    }
   };
 
   // Sync the user's saved theme preference into next-themes ONCE per

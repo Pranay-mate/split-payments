@@ -184,6 +184,12 @@ export function ExportDataModal({
   const exportQuery = trpc.profiles.exportAll.useQuery(undefined, {
     enabled: open,
     staleTime: 0,
+    // Always refetch on every open. The counts shown here aggregate
+    // across goals / settlements / holdings — none of which fire an
+    // explicit invalidation on this query when they mutate, so the
+    // cached snapshot grew stale across reopens (e.g. "Goals 2" after
+    // both test goals were deleted).
+    refetchOnMount: "always",
   });
   const [downloadedAs, setDownloadedAs] = useState<null | "json" | "csv">(null);
   const [lastSize, setLastSize] = useState(0);
