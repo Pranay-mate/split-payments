@@ -141,7 +141,7 @@ export function RecordPaymentModal({
           </p>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
+        <div className="flex-1 space-y-4 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5 sm:px-6">
           {/* From → To */}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">

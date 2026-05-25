@@ -70,7 +70,7 @@ export function AddPersonalEntryModal({
           </h2>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5 sm:px-6">
           <AddPersonalEntry
             key={editing?.id ?? "new"}
             editing={editing ?? null}
