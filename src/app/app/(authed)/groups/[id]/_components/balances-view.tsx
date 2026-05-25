@@ -468,6 +468,7 @@ function SuggestedPayments({
   // Track which simplified row's "Why?" expander is open. Pairwise rows
   // don't need the explainer — those are the underlying debts already.
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const confirm = useConfirm();
   const rawList =
     mode === "simplified" ? summary.settlements : summary.pairwiseSettlements;
   // Drop zero-balance rows defensively (already filtered server-side
@@ -615,6 +616,18 @@ function SuggestedPayments({
                 <button
                   type="button"
                   onClick={async () => {
+                    // Symmetric confirmation with "Undo settlement" —
+                    // both mutate shared financial state, so both
+                    // should ask. Pre-modal QA caught users tapping
+                    // Log payment by mistake.
+                    if (
+                      !(await confirm({
+                        title: "Log this payment?",
+                        description: `Records that ${fromName} paid ${toName} ${formatCurrency(s.amount, currency, 0)}. Balances update immediately. You can undo from Past settlements.`,
+                        confirmLabel: "Log payment",
+                      }))
+                    )
+                      return;
                     try {
                       const { queued } = await submitRecord({
                         groupId,

@@ -277,6 +277,14 @@ export function OnboardWizard() {
       return;
     }
     try {
+      // totalEmi is empty-as-null (not -zero): pre-fix, an untouched
+      // form returned 20/20 on the Debt pillar because blankAsZero
+      // read empty as "0 EMIs — full marks". The pillar already has
+      // a "Add your income + total EMIs to score this." branch for
+      // null; use it so untouched forms don't claim a perfect score.
+      // Other "have none" fields (insurance, investments) stay as
+      // blankAsZero because their default 0 is a more common honest
+      // answer ("I have ₹0 in term cover" is a real, scorable state).
       await upsertMutation.mutateAsync({
         age: form.age === "" ? null : form.age,
         retirementAge: form.retirementAge === "" ? null : form.retirementAge,
@@ -288,7 +296,7 @@ export function OnboardWizard() {
         liquidSavings: blankAsZero(form.liquidSavings),
         termCoverAmount: blankAsZero(form.termCoverAmount),
         healthCoverAmount: blankAsZero(form.healthCoverAmount),
-        totalEmi: blankAsZero(form.totalEmi),
+        totalEmi: blankAsNull(form.totalEmi),
         investmentBalance: blankAsZero(form.investmentBalance),
         monthlyInvestment: blankAsZero(form.monthlyInvestment),
         markCompleted: true,

@@ -341,19 +341,26 @@ export function EditProfileModal({
         >
           Cancel
         </button>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={updateMutation.isPending || !name.trim()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
-        >
-          {updateMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <Save className="h-4 w-4" aria-hidden />
+        <div className="flex flex-col items-end gap-1">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={updateMutation.isPending || !name.trim()}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:bg-slate-300 disabled:dark:bg-slate-700"
+          >
+            {updateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Save className="h-4 w-4" aria-hidden />
+            )}
+            Save
+          </button>
+          {!name.trim() && !updateMutation.isPending && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Display name is required.
+            </p>
           )}
-          Save
-        </button>
+        </div>
       </div>
     </Backdrop>
   );

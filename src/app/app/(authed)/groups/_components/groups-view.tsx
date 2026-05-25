@@ -12,6 +12,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+
+
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc/client";
 import { formatCurrency } from "@/lib/format";
@@ -103,7 +105,11 @@ export function GroupsView({ initialGroups }: { initialGroups: ServerGroup[] }) 
           onClick={() => setCreating((v) => !v)}
           className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-500"
         >
-          <Plus className="h-3.5 w-3.5" aria-hidden />
+          {creating ? (
+            <X className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+          )}
           {creating ? "Cancel" : "New group"}
         </button>
       </div>

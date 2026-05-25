@@ -298,7 +298,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
   return (
     <GroupCurrencyProvider currency={group.primaryCurrency}>
     <main className="flex-1">
-      <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-32 sm:px-6 sm:pt-8 sm:pb-12">
+      <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-40 sm:px-6 sm:pt-8 sm:pb-12">
         <Link
           href="/app/groups"
           className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition hover:text-slate-700 dark:hover:text-slate-300"
@@ -537,7 +537,8 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             </div>
             {expenseSearch && (
               <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                {filteredExpenses.length} of {expenses.length} match
+                {filteredExpenses.length} of {expenses.length}{" "}
+                {filteredExpenses.length === 1 ? "matches" : "match"}{" "}
                 &ldquo;{expenseSearch}&rdquo;
               </p>
             )}
@@ -577,7 +578,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                       {/* Description on its own line — chip row drops below
                           on narrow screens via flex-wrap, no truncation. */}
                       <p className="truncate text-sm font-medium">
-                        {e.description || "Expense"}
+                        {e.description || "Untitled expense"}
                       </p>
                       <p className="mt-1 flex flex-wrap items-center gap-1.5">
                         {(() => {
