@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
@@ -67,6 +67,18 @@ export function GroupSettings({
     if (!isControlled) setInternalOpen(next);
     onOpenChange?.(next);
   };
+  // Lock background scroll while the modal is open. The fixed overlay
+  // covers the body visually but doesn't stop wheel/touch from
+  // scrolling the page underneath — fixed by toggling html overflow.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prev;
+    };
+  }, [open]);
+
   const [name, setName] = useState(group.name);
   const [guestName, setGuestName] = useState("");
   const [memberSearch, setMemberSearch] = useState("");

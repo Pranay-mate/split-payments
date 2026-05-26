@@ -351,7 +351,13 @@ export function AddExpense({
     }));
   };
 
+  const trimmedDescription = description.trim();
   const valid = (() => {
+    // Require a non-whitespace description on every path. Empty
+    // descriptions used to slip through and render as "Untitled
+    // expense" in lists/exports — the fallback is for legacy rows,
+    // not a UX shortcut.
+    if (trimmedDescription.length === 0) return false;
     if (mode === "items") {
       if (!payerId) return false;
       if (items.length === 0) return false;
@@ -1090,15 +1096,17 @@ export function AddExpense({
           tapping a dead button and wondering what's wrong. */}
       {!valid && !isPending && (
         <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-          {mode === "items"
-            ? itemsTotal <= 0
-              ? "Add at least one line item with an amount above 0."
-              : "Each item needs an amount and at least one sharer."
-            : numericAmount <= 0
-              ? "Enter an amount above 0."
-              : sharerIds.length === 0
-                ? "Pick at least one person to split with."
-                : "Fill in payer, amount, and sharers."}
+          {trimmedDescription.length === 0
+            ? "Give this expense a description (e.g. “Pizza”, “Cab to airport”)."
+            : mode === "items"
+              ? itemsTotal <= 0
+                ? "Add at least one line item with an amount above 0."
+                : "Each item needs an amount and at least one sharer."
+              : numericAmount <= 0
+                ? "Enter an amount above 0."
+                : sharerIds.length === 0
+                  ? "Pick at least one person to split with."
+                  : "Fill in payer, amount, and sharers."}
         </p>
       )}
     </div>

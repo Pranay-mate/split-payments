@@ -105,6 +105,21 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Hide the native up/down spinner on every <input type="number">. The
+   form designs across the app are custom — the default browser arrows
+   look out of place against the dark/rounded inputs, and on touch
+   they're a tap-target trap. inputMode="decimal" keeps the keypad
+   sane. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Recharts adds tabindex/focusability to surface + tooltip elements
    for keyboard nav; on touch this manifests as a default focus
    outline rectangle. Suppress for these wrappers — keyboard users
