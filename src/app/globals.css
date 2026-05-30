@@ -105,6 +105,25 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Global keyboard focus indicator for interactive elements — the
+   previous default ring vanished on saturated backgrounds (the green
+   Add-expense FAB was the worst offender). Scoped to buttons / links /
+   role=button so inputs keep their custom focus borders. Only fires
+   for keyboard users (:focus-visible) — mouse clicks stay clean. */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #1d4ed8; /* blue-700 — high contrast on white + green */
+  outline-offset: 2px;
+}
+.dark button:focus-visible,
+.dark a:focus-visible,
+.dark [role="button"]:focus-visible,
+.dark summary:focus-visible {
+  outline-color: #93c5fd; /* blue-300 — readable on dark + on green */
+}
+
 /* Hide the native up/down spinner on every <input type="number">. The
    form designs across the app are custom — the default browser arrows
    look out of place against the dark/rounded inputs, and on touch

@@ -95,7 +95,7 @@ export function WealthView() {
 
   return (
     <main className="flex-1">
-      <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8 lg:max-w-5xl">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <Link

@@ -204,7 +204,11 @@ export function GroupCharts({
         </div>
         <div className="mt-3 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
           <div className="relative mx-auto h-[180px] w-[180px]">
-            <ResponsiveContainer width="100%" height="100%">
+            {/* Explicit pixel dimensions avoid Recharts' parent-measure
+                race that logged width(-1) height(-1) warnings during
+                the first paint. The wrapper div is fixed at 180×180
+                anyway so there's no responsiveness lost. */}
+            <ResponsiveContainer width={180} height={180}>
               <PieChart>
                 <Pie
                   data={byCategory}

@@ -194,7 +194,7 @@ export function PersonalDashboard() {
   return (
     <main className="flex-1">
       <MonthlyReviewModal />
-      <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-40 sm:px-6 sm:pt-8 sm:pb-12">
+      <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-40 sm:px-6 sm:pt-8 sm:pb-12 lg:max-w-5xl">
         {/* Heading row: h1 + Encrypted trust chip on one line, month
             picker on its own row to the right. Three controls on a
             single flex row was wrapping "Personal finance" to two

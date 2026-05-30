@@ -169,7 +169,9 @@ export function PersonalCharts({ month }: { month: string }) {
           </div>
           <div className="mt-3 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
             <div className="relative mx-auto h-[180px] w-[180px]">
-              <ResponsiveContainer width="100%" height="100%">
+              {/* Explicit pixel dims sidestep the parent-measure race
+                  that produced width(-1) height(-1) warnings. */}
+              <ResponsiveContainer width={180} height={180}>
                 <PieChart>
                   <Pie
                     data={byCategory}

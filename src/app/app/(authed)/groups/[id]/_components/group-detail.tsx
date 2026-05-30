@@ -301,7 +301,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
       {/* Desktop bottom padding has to clear the FAB's 24px-from-bottom
           anchor + ~64px button + ring; sm:pb-12 used to leave the FAB
           covering the last card. */}
-      <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-40 sm:px-6 sm:pt-8 sm:pb-32">
+      <div className="mx-auto max-w-3xl space-y-5 px-4 pt-6 pb-40 sm:px-6 sm:pt-8 sm:pb-32 lg:max-w-5xl">
         <Link
           href="/app/groups"
           className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition hover:text-slate-700 dark:hover:text-slate-300"
@@ -334,7 +334,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                   type="button"
                   onClick={openInvite}
                   aria-label="Show invite QR + link"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:bg-white/25"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   <Share2 className="h-3.5 w-3.5" aria-hidden />
                   <span className="hidden sm:inline">Invite</span>
@@ -985,7 +985,11 @@ export function GroupDetail({ groupId }: { groupId: string }) {
             setAdding(true);
           }}
           aria-label="Add expense"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-500/50 ring-4 ring-white/60 transition-transform duration-150 hover:scale-105 active:scale-95 dark:ring-slate-900/60 sm:bottom-6 sm:right-6 sm:px-6 sm:py-4 sm:text-base"
+          // Hidden on lg+ — the inline "Add expense" button at the top
+          // of the Expenses card is always visible there, so a fixed
+          // FAB is redundant. Mobile + small tablets keep the FAB
+          // because the inline button is off-screen for them.
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-30 flex items-center gap-2 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-3.5 text-sm font-semibold text-white shadow-xl shadow-emerald-500/50 ring-4 ring-white/60 transition-transform duration-150 hover:scale-105 active:scale-95 dark:ring-slate-900/60 sm:bottom-6 sm:right-6 sm:px-6 sm:py-4 sm:text-base lg:hidden"
         >
           <Plus className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden strokeWidth={2.5} />
           <span>Add expense</span>

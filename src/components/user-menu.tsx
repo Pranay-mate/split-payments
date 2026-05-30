@@ -29,7 +29,16 @@ export function UserMenu() {
   const [editing, setEditing] = useState(false);
   const [iosInstallModal, setIosInstallModal] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const meQuery = trpc.profiles.me.useQuery(undefined, { staleTime: 60_000 });
+  // refetchOnWindowFocus disabled to defuse a reported visual glitch
+  // where the avatar initial appeared to "flip" between letters when
+  // the cursor moved over it. Most likely cause: a focus-triggered
+  // refetch returning briefly-different profile data (e.g. mid-edit).
+  // Profile rarely changes mid-session — opting out of the refetch is
+  // the safer default here.
+  const meQuery = trpc.profiles.me.useQuery(undefined, {
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
   const { setTheme } = useTheme();
   const install = useInstallPrompt();
 
