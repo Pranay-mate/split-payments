@@ -338,6 +338,7 @@ export const expensesRouter = router({
          */
         clientUpdatedAt: z.date().optional(),
         clientEventId: z.string().uuid().optional(),
+        occurredAt: z.date().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -439,6 +440,7 @@ export const expensesRouter = router({
             payerId: input.payerId,
             splitMode: input.splitMode,
             category: input.category,
+            ...(input.occurredAt && { occurredAt: input.occurredAt }),
             updatedAt: new Date(),
           })
           .where(eq(expenses.id, input.id))

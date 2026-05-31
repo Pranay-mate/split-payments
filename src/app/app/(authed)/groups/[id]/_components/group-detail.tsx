@@ -1033,6 +1033,7 @@ export function GroupDetail({ groupId }: { groupId: string }) {
                 }[];
               }
             ).items,
+            occurredAt: ed.occurredAt,
           };
         })()}
         onSubmitted={(queued, wasEditing) => {

@@ -43,6 +43,8 @@ export type EditingExpense = {
     amount: number;
     sharerIds: string[];
   }[];
+  /** When the expense actually happened; optional, server defaults to now. */
+  occurredAt?: Date | string;
 };
 
 type ItemDraft = {
@@ -160,6 +162,14 @@ export function AddExpense({
   // summary tile that the user taps to edit. When editing an existing
   // expense, default open so they can see what's about to change.
   const [showDetails, setShowDetails] = useState<boolean>(Boolean(editing));
+  // Optional occurred-at date — blank string means "use server now()".
+  // Allows back-dating ("I paid last Tuesday") and future-dating
+  // ("rent goes out on the 1st"). Mirrors the personal-entry flow.
+  const [occurredAt, setOccurredAt] = useState<string>(() => {
+    if (!editing?.occurredAt) return "";
+    const d = new Date(editing.occurredAt);
+    return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : "";
+  });
   const [items, setItems] = useState<ItemDraft[]>(
     editing?.items && editing.items.length > 0
       ? editing.items.map((it) => ({
@@ -327,6 +337,7 @@ export function AddExpense({
     setSharerIds(members.map((m) => m.id));
     setMode("single");
     setItems([blankItem(members.map((m) => m.id))]);
+    setOccurredAt("");
   };
 
   const buildSplits = () => {
@@ -522,6 +533,15 @@ export function AddExpense({
           editing && (editing.items?.length ?? 0) > 0
           ? []
           : undefined;
+      // Parse the optional YYYY-MM-DD into UTC midnight (same TZ-safe
+      // pattern as personal entries — IST midnight would shift the row
+      // into the previous day server-side).
+      const occurredAtPayload = occurredAt
+        ? (() => {
+            const [oy, om, od] = occurredAt.split("-").map(Number);
+            return new Date(Date.UTC(oy, om - 1, od));
+          })()
+        : undefined;
       if (editing) {
         result = await submitUpdate({
           id: editing.id,
@@ -533,6 +553,7 @@ export function AddExpense({
           category,
           splits: buildSplits(),
           ...(payloadItems !== undefined && { items: payloadItems }),
+          ...(occurredAtPayload && { occurredAt: occurredAtPayload }),
           // For last-write-wins conflict resolution. The server compares
           // this against the row's current updated_at; if a newer edit
           // exists, our update is rejected with CONFLICT.
@@ -549,6 +570,7 @@ export function AddExpense({
           category,
           splits: buildSplits(),
           ...(payloadItems !== undefined && { items: payloadItems }),
+          ...(occurredAtPayload && { occurredAt: occurredAtPayload }),
         });
         resetForm();
       }
@@ -1072,6 +1094,31 @@ export function AddExpense({
         </button>
       </div>
       )}
+
+      {/* Optional date — back-date past expenses ("paid last Tuesday")
+          or pre-log future ones ("rent on the 1st"). Blank means today,
+          which is what most adds want, so we never make it required. */}
+      <label className="block">
+        <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+          Date <span className="font-normal opacity-60">(optional)</span>
+        </span>
+        <input
+          type="date"
+          value={occurredAt}
+          onChange={(e) => setOccurredAt(e.target.value)}
+          // No max so future dates are allowed. 5-year past floor to
+          // guard against decade-typo errors.
+          min={(() => {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() - 5);
+            return d.toISOString().slice(0, 10);
+          })()}
+          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-400 dark:border-slate-700 dark:bg-slate-900 sm:w-auto"
+        />
+        <span className="ml-2 text-[10.5px] text-slate-500 dark:text-slate-400">
+          Defaults to today. Past or future is fine.
+        </span>
+      </label>
       </>
       )}
 
