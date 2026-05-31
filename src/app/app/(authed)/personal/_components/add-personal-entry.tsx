@@ -236,7 +236,14 @@ export function AddPersonalEntry({
   const handleSubmit = async () => {
     if (!valid) return;
     try {
-      const occurred = new Date(`${occurredAt}T00:00:00`);
+      // Parse the YYYY-MM-DD picker value as UTC midnight, NOT local
+      // midnight. The old `new Date(\`${occurredAt}T00:00:00\`)` form
+      // parses as the user's local timezone — so an IST user picking
+      // "2026-06-01" produced 2026-05-31T18:30:00Z, which falls into
+      // May from the server's UTC month-bounds POV. Net-this-month
+      // and the trend bars would silently miss those entries.
+      const [oy, om, od] = occurredAt.split("-").map(Number);
+      const occurred = new Date(Date.UTC(oy, om - 1, od));
       if (editing) {
         const { queued } = await submitUpdate({
           id: editing.id,
@@ -302,6 +309,10 @@ export function AddPersonalEntry({
       utils.personal.summary.invalidate();
       utils.personal.topCategoriesThisMonth.invalidate();
       utils.personal.availableMonths.invalidate();
+      // monthlyTrend powers the "Last 6 months" bar chart on the
+      // Trends card — it was missing from the invalidation set, so
+      // bars only refreshed on a hard reload.
+      utils.personal.monthlyTrend.invalidate();
       onDone();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Save failed");

@@ -95,7 +95,13 @@ export function RecordPaymentModal({
         toUserId,
         amount: numericAmount,
         note: note.trim(),
-        occurredAt: new Date(`${occurredAt}T00:00:00`),
+        // UTC midnight, not local — see add-personal-entry for the
+        // same fix. IST midnight parses as previous-day UTC, which
+        // bumps the settlement into the prior month server-side.
+        occurredAt: (() => {
+          const [oy, om, od] = occurredAt.split("-").map(Number);
+          return new Date(Date.UTC(oy, om - 1, od));
+        })(),
       });
       toast.success("Payment recorded");
       onClose();
