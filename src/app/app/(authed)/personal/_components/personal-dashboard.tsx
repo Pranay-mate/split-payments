@@ -128,6 +128,24 @@ export function PersonalDashboard() {
   const profileQuery = trpc.personal.profile.get.useQuery();
 
   const utils = trpc.useUtils();
+  const shiftLegacy = trpc.personal.shiftLegacyTimezoneEntries.useMutation();
+  const onShiftLegacy = async () => {
+    try {
+      const { shifted } = await shiftLegacy.mutateAsync();
+      if (shifted === 0) {
+        toast.info("Nothing to move — your entries are already on the right day.");
+      } else {
+        toast.success(`Moved ${shifted} entr${shifted === 1 ? "y" : "ies"} to the correct day.`);
+      }
+      utils.personal.list.invalidate();
+      utils.personal.summary.invalidate();
+      utils.personal.topCategoriesThisMonth.invalidate();
+      utils.personal.availableMonths.invalidate();
+      utils.personal.monthlyTrend.invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not move entries");
+    }
+  };
   const deleteMutation = trpc.personal.delete.useMutation({
     onSuccess: () => {
       utils.personal.list.invalidate();
@@ -226,6 +244,34 @@ export function PersonalDashboard() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* One-shot "Move my entries" banner. Surfaces the legacy-
+            timezone recovery mutation for users whose entries landed
+            in the wrong month before the 2026-06-01 client fix. Safe
+            to keep mounted indefinitely — the server-side mutation is
+            idempotent (no-op when there's nothing matching the
+            18:30:00-UTC signature). */}
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+          <p className="font-medium">
+            Are some of your entries on the wrong day?
+          </p>
+          <p className="mt-0.5 opacity-90">
+            A timezone bug in the old client could have shifted entries
+            to the previous day. Tap below to move them back — only
+            affected rows are touched.
+          </p>
+          <button
+            type="button"
+            onClick={onShiftLegacy}
+            disabled={shiftLegacy.isPending}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-amber-500 disabled:opacity-60"
+          >
+            {shiftLegacy.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+            ) : null}
+            Move entries to the correct day
+          </button>
         </div>
 
         {/* Hero KPI card */}

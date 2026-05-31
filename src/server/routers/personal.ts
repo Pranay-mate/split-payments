@@ -748,6 +748,42 @@ export const personalRouter = router({
     }),
 
   /**
+   * One-shot recovery for entries created with the pre-2026-06-01 client.
+   *
+   * Old client did `new Date(\`${YYYY-MM-DD}T00:00:00\`)`, which parses
+   * as the user's local timezone. For an IST user (+5:30), every "today"
+   * entry was stored as `(previous-day)T18:30:00Z` — which the server's
+   * UTC month-bounds query then placed in the wrong calendar month.
+   *
+   * Signature: any entry whose `occurred_at` UTC time-of-day is exactly
+   * `HH:MM:SS = 18:30:00` was created via that buggy path from IST. Shift
+   * those forward by 5h30 so they land at UTC midnight of the day the
+   * user originally picked. Idempotent — the new client writes UTC
+   * midnight, so re-running finds nothing to shift.
+   *
+   * Caller-scoped: only touches the calling user's rows. No admin
+   * privilege needed.
+   */
+  shiftLegacyTimezoneEntries: protectedProcedure.mutation(async ({ ctx }) => {
+    const result = await db.execute(sql`
+      UPDATE personal_entries
+      SET occurred_at = occurred_at + INTERVAL '5 hours 30 minutes',
+          updated_at = now()
+      WHERE user_id = ${ctx.user.id}
+        AND deleted_at IS NULL
+        AND EXTRACT(HOUR FROM occurred_at AT TIME ZONE 'UTC') = 18
+        AND EXTRACT(MINUTE FROM occurred_at AT TIME ZONE 'UTC') = 30
+        AND EXTRACT(SECOND FROM occurred_at AT TIME ZONE 'UTC') = 0
+    `);
+    // node-postgres returns a result with rowCount; drizzle exposes it.
+    const shifted =
+      (result as unknown as { rowCount?: number; count?: number }).rowCount ??
+      (result as unknown as { rowCount?: number; count?: number }).count ??
+      0;
+    return { shifted };
+  }),
+
+  /**
    * Last N months of aggregated income / expense / investment for trend
    * charts. Encryption-aware (decrypts in app, like summary). Returns the
    * series in chronological order so the chart can render left-to-right.

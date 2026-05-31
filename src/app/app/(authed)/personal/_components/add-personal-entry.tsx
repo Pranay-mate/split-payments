@@ -507,7 +507,9 @@ export function AddPersonalEntry({
           type="date"
           value={occurredAt}
           onChange={(e) => setOccurredAt(e.target.value)}
-          max={new Date().toISOString().slice(0, 10)}
+          // Allow future dates (scheduled rent, planned salary, etc.).
+          // Keep the 5-year-past floor so an off-by-decade tap doesn't
+          // skew the trend; no cap on the future side.
           min={(() => {
             const d = new Date();
             d.setFullYear(d.getFullYear() - 5);
