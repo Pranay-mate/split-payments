@@ -105,23 +105,26 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Global keyboard focus indicator for interactive elements — the
-   previous default ring vanished on saturated backgrounds (the green
-   Add-expense FAB was the worst offender). Scoped to buttons / links /
-   role=button so inputs keep their custom focus borders. Only fires
-   for keyboard users (:focus-visible) — mouse clicks stay clean. */
+/* Global keyboard focus indicator for interactive elements. Round 2
+   QA reported a 1px white default still showing on the green FAB —
+   our earlier 2px wasn't enough to overcome the existing emerald
+   shadow + ring around the button. Bumped to 3px solid + 3px offset
+   with !important to win against any UA default. Scoped to
+   buttons / links / role=button so inputs keep their custom focus
+   borders. Only fires for keyboard users (:focus-visible) — mouse
+   clicks stay clean. */
 button:focus-visible,
 a:focus-visible,
 [role="button"]:focus-visible,
 summary:focus-visible {
-  outline: 2px solid #1d4ed8; /* blue-700 — high contrast on white + green */
-  outline-offset: 2px;
+  outline: 3px solid #1d4ed8 !important; /* blue-700 */
+  outline-offset: 3px !important;
 }
 .dark button:focus-visible,
 .dark a:focus-visible,
 .dark [role="button"]:focus-visible,
 .dark summary:focus-visible {
-  outline-color: #93c5fd; /* blue-300 — readable on dark + on green */
+  outline-color: #93c5fd !important; /* blue-300 — readable on dark */
 }
 
 /* Hide the native up/down spinner on every <input type="number">. The

@@ -250,7 +250,9 @@ export function PersonalCharts({ month }: { month: string }) {
           Income (green) · Expense (rose) · Investment (cyan).
         </p>
         <div className="mt-3 h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          {/* minWidth/minHeight keep Recharts from logging width(-1)
+              when the parent measures as 0 on the very first paint. */}
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <BarChart
               data={trend}
               margin={{ top: 5, right: 5, bottom: 0, left: 0 }}

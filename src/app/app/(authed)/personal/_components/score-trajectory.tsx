@@ -119,7 +119,7 @@ export function ScoreTrajectory() {
 
   return (
     <div className="h-[140px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
         <AreaChart
           data={chartData}
           margin={{ top: 5, right: 5, bottom: 0, left: 0 }}

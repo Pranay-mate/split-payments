@@ -52,7 +52,7 @@ export default function YearlyTrendChartInner({
 
   return (
     <div className="h-[220px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
         <BarChart data={series} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
           <CartesianGrid
             stroke="currentColor"
