@@ -316,10 +316,41 @@ function RecurrenceForm({
   const [scheduleDay, setScheduleDay] = useState<number>(
     editing?.scheduleDay ?? 1,
   );
+  // Backfill is only meaningful on NEW recurrences whose chosen day
+  // has already passed in the current month — in that case nextDueAt
+  // skips to next month, so the user loses this month's occurrence
+  // unless they opt in to a one-off entry for it.
+  const [backfill, setBackfill] = useState(false);
+  const today = new Date();
+  const showBackfill = !editing && scheduleDay < today.getDate();
+  const backfillDate = (() => {
+    if (!showBackfill) return null;
+    const lastDay = new Date(
+      today.getFullYear(),
+      today.getMonth() + 1,
+      0,
+    ).getDate();
+    const day = Math.min(scheduleDay, lastDay);
+    return new Date(today.getFullYear(), today.getMonth(), day);
+  })();
 
   const createMutation = trpc.personal.recurrences.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (created) => {
       utils.personal.recurrences.list.invalidate();
+      // If the server materialized an entry (fire-on-create or
+      // backfill), refresh the surfaces that show personal entries.
+      if (
+        (created as unknown as { fired?: boolean; backfilled?: boolean })
+          ?.fired ||
+        (created as unknown as { fired?: boolean; backfilled?: boolean })
+          ?.backfilled
+      ) {
+        utils.personal.list.invalidate();
+        utils.personal.summary.invalidate();
+        utils.personal.topCategoriesThisMonth.invalidate();
+        utils.personal.availableMonths.invalidate();
+        utils.personal.monthlyTrend.invalidate();
+      }
       toast.success("Recurrence saved");
       onDone();
     },
@@ -358,6 +389,7 @@ function RecurrenceForm({
         description,
         category: category as (typeof CATEGORY_KEYS)[number],
         scheduleDay,
+        ...(showBackfill && backfill && { backfillCurrentMonth: true }),
       });
     }
   };
@@ -446,6 +478,28 @@ function RecurrenceForm({
           />
         </label>
       </div>
+
+      {showBackfill && backfillDate && (
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-amber-200 bg-amber-50/60 p-2 text-[11.5px] text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-200">
+          <input
+            type="checkbox"
+            checked={backfill}
+            onChange={(e) => setBackfill(e.target.checked)}
+            className="mt-0.5 h-3.5 w-3.5"
+          />
+          <span>
+            Day {scheduleDay} has already passed this month — also log
+            an entry for{" "}
+            <strong className="font-semibold">
+              {backfillDate.toLocaleDateString(undefined, {
+                day: "numeric",
+                month: "short",
+              })}
+            </strong>
+            ? Future months fire normally.
+          </span>
+        </label>
+      )}
 
       <label className="block">
         <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400">

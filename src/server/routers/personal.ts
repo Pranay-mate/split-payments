@@ -1492,25 +1492,90 @@ export const personalRouter = router({
           category: categorySchema.default("other"),
           currency: currencySchema.default("INR"),
           scheduleDay: z.number().int().min(1).max(31),
+          /**
+           * If true and the most-recent occurrence of `scheduleDay` in
+           * the current calendar month is in the past, also insert a
+           * one-off entry for that date. Lets users who set up "Day 6"
+           * on Jun 7 retroactively log Jun 6 without breaking the
+           * monthly cadence. The recurrence's nextDueAt stays in the
+           * future month (cron logic untouched).
+           */
+          backfillCurrentMonth: z.boolean().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
         const now = new Date();
         const nextDueAt = computeNextDue(input.scheduleDay, now, null);
-        const [created] = await db
-          .insert(personalRecurrences)
-          .values({
-            userId: ctx.user.id,
-            type: input.type,
-            amount: encryptAmount(input.amount),
-            description: encryptValue(input.description.trim()),
-            category: input.category,
-            currency: input.currency,
-            scheduleDay: input.scheduleDay,
-            nextDueAt,
-          })
-          .returning();
-        return created;
+
+        // Fire-on-create: when nextDueAt is "today or earlier", the
+        // user expects an immediate entry — otherwise they have to
+        // wait up to 24h for the cron (or until tomorrow if they
+        // created the rule after 19:30 IST). Materialize the row now
+        // and advance the schedule by one month, same shape as cron.
+        let fireNow = false;
+        let backfillDate: Date | null = null;
+        if (nextDueAt.getTime() <= now.getTime()) {
+          fireNow = true;
+        } else if (input.backfillCurrentMonth) {
+          // Past-day case for the current month: nextDueAt is in the
+          // FUTURE (next month), but the user opted in to log this
+          // month's missed occurrence as a one-off entry.
+          const clampedDay = Math.min(
+            input.scheduleDay,
+            new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
+          );
+          backfillDate = new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), clampedDay),
+          );
+        }
+
+        return await db.transaction(async (tx) => {
+          const [created] = await tx
+            .insert(personalRecurrences)
+            .values({
+              userId: ctx.user.id,
+              type: input.type,
+              amount: encryptAmount(input.amount),
+              description: encryptValue(input.description.trim()),
+              category: input.category,
+              currency: input.currency,
+              scheduleDay: input.scheduleDay,
+              nextDueAt,
+              ...(fireNow && { lastFiredAt: now }),
+            })
+            .returning();
+
+          if (fireNow) {
+            await tx.insert(personalEntries).values({
+              userId: ctx.user.id,
+              type: input.type,
+              amount: encryptAmount(input.amount),
+              currency: input.currency,
+              category: input.category,
+              description: encryptValue(input.description.trim()),
+              occurredAt: nextDueAt,
+            });
+            // Advance nextDueAt by one month so the cron doesn't
+            // re-fire the same occurrence tomorrow.
+            const advanced = computeNextDue(input.scheduleDay, now, nextDueAt);
+            await tx
+              .update(personalRecurrences)
+              .set({ nextDueAt: advanced, updatedAt: now })
+              .where(eq(personalRecurrences.id, created.id));
+          } else if (backfillDate) {
+            await tx.insert(personalEntries).values({
+              userId: ctx.user.id,
+              type: input.type,
+              amount: encryptAmount(input.amount),
+              currency: input.currency,
+              category: input.category,
+              description: encryptValue(input.description.trim()),
+              occurredAt: backfillDate,
+            });
+          }
+
+          return { ...created, fired: fireNow, backfilled: backfillDate !== null };
+        });
       }),
 
     update: protectedProcedure
