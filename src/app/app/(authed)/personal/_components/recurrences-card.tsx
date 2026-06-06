@@ -47,6 +47,22 @@ export function RecurrencesCard() {
   const active = items.filter((r) => r.pausedAt === null);
   const paused = items.filter((r) => r.pausedAt !== null);
 
+  // Monthly burn / earn summary across active recurrences. Paused
+  // rows are excluded because they won't fire. Mirrors the sign
+  // convention used per-row: income positive, expense + investment
+  // subtract from net.
+  const activeSums = active.reduce(
+    (acc, r) => {
+      if (r.type === "income") acc.income += r.amount;
+      else if (r.type === "expense") acc.expense += r.amount;
+      else if (r.type === "investment") acc.investment += r.amount;
+      return acc;
+    },
+    { income: 0, expense: 0, investment: 0 },
+  );
+  const netMonthly =
+    activeSums.income - activeSums.expense - activeSums.investment;
+
   // Default-collapsed when no items; auto-open when adding.
   const isOpen = expanded || items.length > 0 || adding;
 
@@ -82,13 +98,25 @@ export function RecurrencesCard() {
         className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left dark:border-slate-800 sm:px-5"
         aria-expanded={isOpen}
       >
-        <div className="flex items-center gap-2">
-          <Repeat className="h-4 w-4 text-violet-500" aria-hidden />
-          <h2 className="text-sm font-semibold tracking-tight">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Repeat className="h-4 w-4 shrink-0 text-violet-500" aria-hidden />
+          <h2 className="min-w-0 text-sm font-semibold tracking-tight">
             Recurring · {active.length}
             {paused.length > 0 && (
               <span className="ml-1.5 text-[11px] font-normal text-slate-400">
                 + {paused.length} paused
+              </span>
+            )}
+            {active.length > 0 && (
+              <span
+                className={`ml-2 text-[11px] font-medium tabular-nums ${
+                  netMonthly >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                · {netMonthly >= 0 ? "+" : "−"}
+                {formatINR(Math.abs(netMonthly), 0)}/mo
               </span>
             )}
           </h2>
