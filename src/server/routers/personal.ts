@@ -1820,7 +1820,9 @@ export const personalRouter = router({
             "bond",
             "other",
           ]),
-          units: z.number().positive(),
+          // FDs, gold, bonds etc. don't have a sensible "units" count —
+          // client passes 0 when the field is left blank, so accept it.
+          units: z.number().nonnegative(),
           avgCost: z.number().nonnegative(),
           currentValue: z.number().nonnegative(),
           asOf: z.date().optional(),
@@ -1853,7 +1855,7 @@ export const personalRouter = router({
           type: z
             .enum(["mutual_fund", "fd", "stock", "gold", "bond", "other"])
             .optional(),
-          units: z.number().positive().optional(),
+          units: z.number().nonnegative().optional(),
           avgCost: z.number().nonnegative().optional(),
           currentValue: z.number().nonnegative().optional(),
           asOf: z.date().optional(),
