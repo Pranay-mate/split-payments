@@ -17,7 +17,9 @@ import { logEvent } from "../events";
 
 const splitSchema = z.object({
   userId: z.string().uuid(),
-  amount: z.number().positive(),
+  // Allow 0 — in Exact mode a checked sharer can legitimately owe nothing
+  // (e.g. one person covers the whole bill for the group). Negative is invalid.
+  amount: z.number().nonnegative(),
 });
 
 const splitModeSchema = z.enum(["equal", "exact", "share", "percent"]);
