@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Search,
   Bell,
@@ -9,6 +9,7 @@ import {
   TrendingDown,
   Trash2,
   Pencil,
+  Plus,
   RefreshCw,
   Activity,
 } from "lucide-react";
@@ -76,12 +77,53 @@ export function IndexPulseDashboard() {
       );
   }, [rows, q, tab, category]);
 
-  // Map instrumentKey → existing alert for quick "already armed" badges.
-  const alertByKey = useMemo(() => {
-    const m = new Map<string, IndexFundAlert>();
-    for (const a of alerts.data ?? []) m.set(a.instrumentKey, a);
+  // Map instrumentKey → all alerts on that instrument (a fund can carry
+  // several — e.g. an upper + lower bound + a couple of % triggers).
+  const alertsByKey = useMemo(() => {
+    const m = new Map<string, IndexFundAlert[]>();
+    for (const a of alerts.data ?? []) {
+      const list = m.get(a.instrumentKey);
+      if (list) list.push(a);
+      else m.set(a.instrumentKey, [a]);
+    }
     return m;
   }, [alerts.data]);
+
+  // Open the modal to EDIT an existing alert (from the panel or a row bell
+  // when a fund has exactly one alert).
+  const openEdit = useCallback(
+    (a: IndexFundAlert) => {
+      const fund = rows.find((r) => r.key === a.instrumentKey);
+      setTarget({
+        instrumentKey: a.instrumentKey,
+        instrumentType: a.instrumentType as "etf" | "mf",
+        name: a.name,
+        symbol: a.symbol,
+        currentPrice: fund?.quote.price ?? null,
+        existing: {
+          id: a.id,
+          mode: a.mode as "amount" | "percent",
+          condition: a.condition as "above" | "below",
+          threshold: Number(a.threshold),
+          basePrice: a.basePrice != null ? Number(a.basePrice) : null,
+          channels: safeParseChannels(a.channels),
+          enabled: a.enabled,
+        },
+      });
+    },
+    [rows],
+  );
+
+  // Open the modal to CREATE a fresh alert on a fund.
+  const openCreate = useCallback((r: FundRow) => {
+    setTarget({
+      instrumentKey: r.key,
+      instrumentType: r.type,
+      name: r.name,
+      symbol: r.symbol,
+      currentPrice: r.quote.price,
+    });
+  }, []);
 
   return (
     <main className="mx-auto max-w-4xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
@@ -118,28 +160,7 @@ export function IndexPulseDashboard() {
       </div>
 
       {/* Active alerts */}
-      <AlertsPanel
-        alerts={alerts.data ?? []}
-        onEdit={(a) => {
-          const fund = rows.find((r) => r.key === a.instrumentKey);
-          setTarget({
-            instrumentKey: a.instrumentKey,
-            instrumentType: a.instrumentType as "etf" | "mf",
-            name: a.name,
-            symbol: a.symbol,
-            currentPrice: fund?.quote.price ?? null,
-            existing: {
-              id: a.id,
-              mode: a.mode as "amount" | "percent",
-              condition: a.condition as "above" | "below",
-              threshold: Number(a.threshold),
-              basePrice: a.basePrice != null ? Number(a.basePrice) : null,
-              channels: safeParseChannels(a.channels),
-              enabled: a.enabled,
-            },
-          });
-        }}
-      />
+      <AlertsPanel alerts={alerts.data ?? []} onEdit={openEdit} />
 
       {/* Controls */}
       <div className="space-y-3">
@@ -215,16 +236,9 @@ export function IndexPulseDashboard() {
             <FundListItem
               key={r.key}
               row={r}
-              armed={alertByKey.has(r.key)}
-              onSetAlert={() =>
-                setTarget({
-                  instrumentKey: r.key,
-                  instrumentType: r.type,
-                  name: r.name,
-                  symbol: r.symbol,
-                  currentPrice: r.quote.price,
-                })
-              }
+              alerts={alertsByKey.get(r.key) ?? []}
+              onCreate={() => openCreate(r)}
+              onEdit={openEdit}
             />
           ))}
         </ul>
@@ -249,15 +263,25 @@ export function IndexPulseDashboard() {
 
 function FundListItem({
   row,
-  armed,
-  onSetAlert,
+  alerts,
+  onCreate,
+  onEdit,
 }: {
   row: FundRow;
-  armed: boolean;
-  onSetAlert: () => void;
+  alerts: IndexFundAlert[];
+  onCreate: () => void;
+  onEdit: (a: IndexFundAlert) => void;
 }) {
   const { quote } = row;
   const up = (quote.changePct ?? 0) >= 0;
+  const count = alerts.length;
+  const armed = count > 0;
+  // Bell: no alerts → create; exactly one → edit it (no accidental dupes);
+  // several → add another (edits happen in the Active alerts panel).
+  const onBell = () => {
+    if (count === 1) onEdit(alerts[0]);
+    else onCreate();
+  };
   return (
     <li className="flex items-center gap-3 bg-white px-3 py-3 transition hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900 sm:px-4">
       <div className="min-w-0 flex-1">
@@ -266,10 +290,17 @@ function FundListItem({
             {row.name}
           </span>
           {armed && (
-            <BellRing
-              className="h-3.5 w-3.5 shrink-0 text-violet-500"
-              aria-label="Alert set"
-            />
+            <span
+              className="inline-flex shrink-0 items-center gap-0.5 text-violet-500"
+              aria-label={`${count} alert${count > 1 ? "s" : ""} set`}
+            >
+              <BellRing className="h-3.5 w-3.5" aria-hidden />
+              {count > 1 && (
+                <span className="text-[10px] font-semibold tabular-nums">
+                  {count}
+                </span>
+              )}
+            </span>
           )}
         </div>
         <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
@@ -322,17 +353,37 @@ function FundListItem({
         )}
       </div>
 
-      <button
-        onClick={onSetAlert}
-        aria-label={armed ? "Edit alert" : "Set alert"}
-        className={`shrink-0 rounded-full p-2 transition ${
-          armed
-            ? "bg-violet-100 text-violet-600 hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300"
-            : "text-slate-400 hover:bg-slate-100 hover:text-violet-600 dark:hover:bg-slate-800"
-        }`}
-      >
-        <Bell className="h-4 w-4" />
-      </button>
+      <div className="flex shrink-0 items-center gap-1">
+        {/* When exactly one alert exists, the bell edits it — so offer a
+            distinct "add another" affordance alongside. */}
+        {count === 1 && (
+          <button
+            onClick={onCreate}
+            aria-label="Add another alert"
+            title="Add another alert"
+            className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-violet-600 dark:hover:bg-slate-800"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          onClick={onBell}
+          aria-label={
+            count === 0
+              ? "Set alert"
+              : count === 1
+                ? "Edit alert"
+                : "Add another alert"
+          }
+          className={`rounded-full p-2 transition ${
+            armed
+              ? "bg-violet-100 text-violet-600 hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300"
+              : "text-slate-400 hover:bg-slate-100 hover:text-violet-600 dark:hover:bg-slate-800"
+          }`}
+        >
+          <Bell className="h-4 w-4" />
+        </button>
+      </div>
     </li>
   );
 }

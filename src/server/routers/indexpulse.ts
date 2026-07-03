@@ -24,6 +24,11 @@ import { getCatalog, getQuotes } from "@/lib/indexpulse/quotes";
 
 const channelEnum = z.enum(["in_app", "push", "email"]);
 
+/** Guardrail: cap alerts per (user, instrument) so one fund can't
+ *  accumulate runaway alerts. A band + a couple of % triggers fits well
+ *  under this. */
+const MAX_ALERTS_PER_INSTRUMENT = 5;
+
 /** Shared validation for both create + update: amount alerts need a
  *  positive price + an above/below direction; percent alerts need a
  *  non-zero signed % and a base price to measure from (direction is
@@ -132,6 +137,21 @@ export const indexpulseRouter = router({
   createAlert: adminProcedure
     .input(alertInput)
     .mutation(async ({ ctx, input }) => {
+      const existing = await db
+        .select({ id: indexFundAlerts.id })
+        .from(indexFundAlerts)
+        .where(
+          and(
+            eq(indexFundAlerts.userId, ctx.user.id),
+            eq(indexFundAlerts.instrumentKey, input.instrumentKey),
+          ),
+        );
+      if (existing.length >= MAX_ALERTS_PER_INSTRUMENT) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `You already have ${MAX_ALERTS_PER_INSTRUMENT} alerts on ${input.name}. Delete one before adding another.`,
+        });
+      }
       const [row] = await db
         .insert(indexFundAlerts)
         .values({
