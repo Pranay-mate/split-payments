@@ -33,6 +33,17 @@ function meets(condition: string, value: number, threshold: number): boolean {
   return condition === "above" ? value >= threshold : value <= threshold;
 }
 
+/** True if `asOf` falls on today's date in IST. Used as a self-maintaining
+ *  market-closed guard for ETF alerts — a holiday/pre-open leaves ETF quotes
+ *  timestamped on the previous trading day. */
+function isFreshTodayIST(asOf: string | null): boolean {
+  if (!asOf) return false;
+  const d = new Date(asOf);
+  if (Number.isNaN(d.getTime())) return false;
+  const opts = { timeZone: "Asia/Kolkata" } as const;
+  return d.toLocaleDateString("en-CA", opts) === new Date().toLocaleDateString("en-CA", opts);
+}
+
 /** Cache email lookups within a single run — a user with N alerts firing
  *  shouldn't trigger N identical service-role calls. */
 async function makeEmailResolver() {
@@ -90,7 +101,7 @@ export async function GET(request: Request) {
   // One quote fetch for the distinct instruments referenced by alerts.
   const keys = Array.from(new Set(alerts.map((a) => a.instrumentKey)));
   const quotes = await getQuotes(keys);
-  const priceByKey = new Map(quotes.map((q) => [q.key, q.price]));
+  const quoteByKey = new Map(quotes.map((q) => [q.key, q]));
 
   const vapidReady = ensureVapidConfigured();
   const resolveEmail = await makeEmailResolver();
@@ -99,11 +110,21 @@ export async function GET(request: Request) {
   let pushSent = 0;
   let emailSent = 0;
   let skippedStale = 0;
+  let skippedClosed = 0;
 
   for (const alert of alerts) {
-    const price = priceByKey.get(alert.instrumentKey) ?? null;
+    const quote = quoteByKey.get(alert.instrumentKey);
+    const price = quote?.price ?? null;
     if (price == null) {
       skippedStale++;
+      continue;
+    }
+    // Self-maintaining market-closed guard: on NSE holidays/pre-open, Yahoo
+    // returns the previous trading day's ETF price with an old `asOf`. Skip
+    // without touching last_value so the next live crossing is still detected.
+    // (mf/NAV alerts are once-daily + edge-triggered, so they're exempt.)
+    if (alert.instrumentType === "etf" && !isFreshTodayIST(quote?.asOf ?? null)) {
+      skippedClosed++;
       continue;
     }
     // The comparison runs on a "measured" value that depends on the mode:
@@ -217,5 +238,6 @@ export async function GET(request: Request) {
     pushSent,
     emailSent,
     skippedStale,
+    skippedClosed,
   });
 }

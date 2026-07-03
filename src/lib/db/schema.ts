@@ -866,3 +866,28 @@ export const indexFundAlerts = pgTable(
 );
 
 export type IndexFundAlert = typeof indexFundAlerts.$inferSelect;
+
+/**
+ * IndexPulse last-good quote cache (durable). The in-memory cache in
+ * lib/indexpulse/quotes.ts resets on every serverless cold start, and the
+ * free Yahoo/AMFI sources are flaky — so we persist each successful quote
+ * here. When a live fetch comes back stale/null, we fall back to the last
+ * good row so the UI shows the previous price (with a "stale" pill) instead
+ * of a blank, and the alert cron doesn't mis-evaluate on a transient outage.
+ *
+ * One row per instrument key ("etf:NIFTYBEES" | "mf:120716"), upserted.
+ */
+export const indexpulseQuotes = pgTable("indexpulse_quotes", {
+  /** Instrument key — same id space as the catalog / alerts. */
+  key: text("key").primaryKey(),
+  price: numeric("price", { precision: 14, scale: 4 }),
+  previousClose: numeric("previous_close", { precision: 14, scale: 4 }),
+  changePct: numeric("change_pct", { precision: 10, scale: 4 }),
+  /** ISO date/datetime the quote is as-of (from the source). */
+  asOf: text("as_of"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type IndexpulseQuoteRow = typeof indexpulseQuotes.$inferSelect;

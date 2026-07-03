@@ -8,6 +8,7 @@
 import { ETF_CATALOG } from "./catalog";
 import { fetchAmfiIndexFunds } from "./amfi";
 import { fetchYahooQuotes } from "./yahoo";
+import { saveQuotes, withFallback } from "./quote-store";
 import type { Instrument, Quote } from "./types";
 
 const AMFI_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -97,5 +98,6 @@ export async function getQuotes(keys?: string[]): Promise<Quote[]> {
       out.push(staleFor(key));
     }
   }
-  return out;
+  await saveQuotes(out);
+  return withFallback(out);
 }
