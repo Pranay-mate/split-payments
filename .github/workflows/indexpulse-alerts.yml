@@ -1,0 +1,63 @@
+name: IndexPulse alerts
+
+# Free 30-min alert scheduler for IndexPulse. Vercel's Hobby plan caps
+# cron at once/day, so GitHub Actions drives the frequent checks instead
+# by curling the (CRON_SECRET-protected) alert route.
+#
+# All times are UTC; IST = UTC+5:30. NSE trades 09:15–15:30 IST.
+#   - Every 30 min, ~market hours (08:30–16:00 IST) → ETF alerts only
+#     (live Yahoo prices; skips the once-daily AMFI file entirely).
+#   - Once at 23:30 IST → index-fund (MF) alerts, right after AMFI
+#     publishes the day's NAV (~23:00 IST).
+#
+# Setup (one-time): add a repo secret CRON_SECRET (Settings → Secrets and
+# variables → Actions) matching the CRON_SECRET env var in Vercel.
+# Optionally override the target with an APP_URL secret.
+
+on:
+  schedule:
+    - cron: "0,30 3-10 * * 1-5" # every 30 min, weekdays, market hours (IST)
+    - cron: "0 18 * * 1-5" # 23:30 IST, weekdays — after NAV publishes
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Alert scope to evaluate"
+        required: true
+        default: "etf"
+        type: choice
+        options: [etf, mf, all]
+
+# Never run two pings at once; cancel a straggler if a new tick fires.
+concurrency:
+  group: indexpulse-alerts
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve scope
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "scope=${{ github.event.inputs.scope }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 18 * * 1-5" ]; then
+            echo "scope=mf" >> "$GITHUB_OUTPUT"
+          else
+            echo "scope=etf" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger alert evaluation
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set." && exit 1
+          fi
+          BASE="${APP_URL:-https://easysplits.in}"
+          SCOPE="${{ steps.scope.outputs.scope }}"
+          echo "Pinging $BASE/api/cron/indexpulse-alerts?scope=$SCOPE"
+          curl -fsS --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE/api/cron/indexpulse-alerts?scope=$SCOPE"

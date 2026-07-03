@@ -70,9 +70,14 @@ function staleFor(key: string): Quote {
 }
 
 export async function getQuotes(keys?: string[]): Promise<Quote[]> {
-  // Resolve the full set of instruments so a caller can omit `keys`.
-  const catalog = await getCatalog();
-  const requested = keys && keys.length > 0 ? keys : catalog.map((i) => i.key);
+  // When keys are given, derive the source split from them directly — do
+  // NOT resolve the full catalog, since that would fetch AMFI even for an
+  // ETF-only request (e.g. the 30-min market-hours alert cron). Only build
+  // the catalog when the caller omits keys (the full dashboard listing).
+  const requested =
+    keys && keys.length > 0
+      ? keys
+      : (await getCatalog()).map((i) => i.key);
 
   const wantEtf = requested.some((k) => k.startsWith("etf:"));
   const wantMf = requested.some((k) => k.startsWith("mf:"));

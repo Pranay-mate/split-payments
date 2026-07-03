@@ -18,7 +18,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { indexFundAlerts, pushSubscriptions } from "@/lib/db/schema";
 import { getQuotes } from "@/lib/indexpulse/quotes";
@@ -69,13 +69,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // scope=etf → only ETF alerts (the every-30-min market-hours run, live
+  // Yahoo prices, skips AMFI). scope=mf → only index-fund alerts (the
+  // nightly run after AMFI publishes NAV). Omitted/anything else → all.
+  const scope = new URL(request.url).searchParams.get("scope");
+  const filters = [eq(indexFundAlerts.enabled, true)];
+  if (scope === "etf") filters.push(eq(indexFundAlerts.instrumentType, "etf"));
+  else if (scope === "mf")
+    filters.push(eq(indexFundAlerts.instrumentType, "mf"));
+
   const alerts = await db
     .select()
     .from(indexFundAlerts)
-    .where(eq(indexFundAlerts.enabled, true));
+    .where(and(...filters));
 
   if (alerts.length === 0) {
-    return NextResponse.json({ evaluated: 0, fired: 0 });
+    return NextResponse.json({ evaluated: 0, fired: 0, scope: scope ?? "all" });
   }
 
   // One quote fetch for the distinct instruments referenced by alerts.
@@ -202,6 +211,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
+    scope: scope ?? "all",
     evaluated: alerts.length,
     fired,
     pushSent,

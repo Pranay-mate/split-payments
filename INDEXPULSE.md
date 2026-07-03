@@ -94,7 +94,7 @@ and always degrade gracefully to a **"stale"** badge in the UI rather than error
 
 | Source | Endpoint | Covers | Cadence | Notes |
 |--------|----------|--------|---------|-------|
-| **AMFI** | `https://www.amfiindia.com/spages/NAVAll.txt` | Index mutual funds (NAV) | Daily (~11pm IST) | Plain-text, `;`-delimited. One big file; parse + cache. Only updates once/day, so MF alerts need only a daily check. |
+| **AMFI** | `https://portal.amfiindia.com/spages/NAVAll.txt` | Index mutual funds (NAV) | Daily (~11pm IST) | Plain-text, `;`-delimited. One big file; parse + cache. Only updates once/day, so MF alerts need only a daily check. |
 | **Yahoo Finance** | `https://query1.finance.yahoo.com/v7/finance/quote?symbols=...` | ETFs (intraday price) | Near real-time during market hours | Append `.NS` for NSE symbols (e.g. `NIFTYBEES.NS`). **Unofficial + rate-limited** → must cache and back off. |
 
 Guidance for the catalog layer:
@@ -142,41 +142,27 @@ once daily around 11pm IST) but **too coarse for intraday ETF alerts**.
 > `30 18 * * *` UTC ≈ 00:00 IST — a daily post-market sweep that covers MF NAV alerts.
 > (Vercel Cron always sends the `Authorization: Bearer $CRON_SECRET` header automatically.)
 
-### GitHub Actions (recommended for near-real-time ETF alerts)
+### GitHub Actions (primary scheduler — WIRED)
 
-The Indian market trades **09:15–15:30 IST, Mon–Fri**. For ETF alerts that need to fire
-during the session, add a **free** GitHub Actions workflow that curls the cron route every
-~15 minutes during market hours. IST is **UTC+5:30**, so `09:15–15:30 IST` ≈ `03:45–10:00 UTC`
-— use `9-16 UTC` loosely, or tighten as below.
+The Indian market trades **09:15–15:30 IST, Mon–Fri**. Since Vercel Hobby cron can't run
+intra-day, the committed workflow **`.github/workflows/indexpulse-alerts.yml`** drives the
+frequent checks for free. It uses the route's `?scope=` param to fetch the right source:
 
-Create `.github/workflows/indexpulse-alerts.yml`:
+| Schedule (UTC) | ≈ IST | `scope` | Why |
+|---|---|---|---|
+| `0,30 3-10 * * 1-5` | every 30 min, 08:30–16:00 | `etf` | Live Yahoo prices during the session. **Skips AMFI** — the data layer only fetches AMFI when an MF key is requested. |
+| `0 18 * * 1-5` | 23:30 daily | `mf` | Runs just after AMFI publishes the day's NAV (~23:00 IST). Index-fund NAV can't change intraday, so once/day is enough. |
 
-```yaml
-name: IndexPulse ETF alerts
-on:
-  schedule:
-    # Every 15 min, 04:00–10:00 UTC (≈ 09:30–15:30 IST), Mon–Fri.
-    - cron: "*/15 4-10 * * 1-5"
-  workflow_dispatch: {}   # allow manual runs
+`workflow_dispatch` allows manual runs (with a `scope` choice) for testing.
 
-jobs:
-  poke-cron:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger IndexPulse cron
-        run: |
-          curl -fsS -X GET \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            https://easysplits.in/api/cron/indexpulse-alerts
-```
+**One-time setup:** add a repo secret **`CRON_SECRET`** (GitHub → Settings → Secrets and
+variables → Actions) matching the `CRON_SECRET` env var in Vercel. Optionally set `APP_URL`
+to override the default `https://easysplits.in` target.
 
-Add `CRON_SECRET` under **GitHub repo → Settings → Secrets and variables → Actions**,
-matching the value in Vercel.
-
-> Notes: GitHub Actions cron is best-effort and can be delayed a few minutes under load —
-> acceptable for alerts. The cron handler de-dupes via `last_triggered_at` so overlapping
-> Vercel + GitHub triggers won't double-send. AMFI/MF alerts stay on the once-daily
-> Vercel schedule; the 15-min GitHub run mainly serves ETF alerts.
+> Notes: GitHub Actions cron is best-effort and can slip a few minutes under load — fine for
+> alerts (so "instant" means *within the ~30-min tick*). The handler is edge-triggered via
+> `last_value`/`last_triggered_at`, so overlapping Vercel + GitHub triggers won't double-send.
+> The daily Vercel Cron (below) stays as a `scope=all` safety net if a GitHub run is dropped.
 
 ## 6. Setup checklist
 
