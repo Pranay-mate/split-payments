@@ -802,3 +802,58 @@ export const anomalyMutes = pgTable(
 );
 
 export type AnomalyMute = typeof anomalyMutes.$inferSelect;
+
+/**
+ * IndexPulse price alerts (admin-only feature). One row per alert the
+ * admin sets on an Indian index fund / ETF. Keyed by user_id (the
+ * signed-in admin) — this is NOT a device-anonymous store; the whole
+ * surface lives behind adminProcedure + the ADMIN_USER_IDS allow-list.
+ *
+ * instrumentKey is the stable catalog id: "etf:NIFTYBEES" (Yahoo) or
+ * "mf:120716" (AMFI scheme code). We snapshot the display name + symbol
+ * so the alerts list renders without a catalog round-trip.
+ *
+ * channels is a JSON array subset of ["in_app","push","email"]. The
+ * cron (/api/cron/indexpulse-alerts) evaluates enabled alerts, and on a
+ * threshold crossing delivers on each requested channel, then stamps
+ * lastTriggeredAt + lastValue so we don't re-fire until it crosses back.
+ */
+export const indexFundAlerts = pgTable(
+  "index_fund_alerts",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    userId: uuid("user_id").notNull(),
+    /** "etf:NIFTYBEES" | "mf:120716" */
+    instrumentKey: text("instrument_key").notNull(),
+    /** "etf" | "mf" */
+    instrumentType: text("instrument_type").notNull(),
+    /** Snapshot of the display name at creation time. */
+    name: text("name").notNull(),
+    /** Yahoo symbol (ETF, no .NS) or AMFI scheme code (MF). */
+    symbol: text("symbol").notNull(),
+    /** "above" | "below" */
+    condition: text("condition").notNull(),
+    /** Price/NAV threshold in INR. numeric(14,4) — NAVs carry 4 dp. */
+    threshold: numeric("threshold", { precision: 14, scale: 4 }).notNull(),
+    /** JSON array subset of ["in_app","push","email"]. */
+    channels: text("channels").notNull().default('["in_app"]'),
+    enabled: boolean("enabled").notNull().default(true),
+    /** Set when the alert last fired; cleared logic lives in the cron. */
+    lastTriggeredAt: timestamp("last_triggered_at", { withTimezone: true }),
+    /** The instrument value observed at the last evaluation. Lets the
+     *  cron detect a fresh crossing (was on the other side, now crossed)
+     *  rather than re-firing every run while the condition stays true. */
+    lastValue: numeric("last_value", { precision: 14, scale: 4 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("index_fund_alerts_user_idx").on(t.userId)],
+);
+
+export type IndexFundAlert = typeof indexFundAlerts.$inferSelect;

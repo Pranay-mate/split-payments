@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
+import { isAdmin } from "../admin-auth";
 import { db } from "@/lib/db";
 import { groupMembers, profiles } from "@/lib/db/schema";
 
@@ -7,6 +8,13 @@ export const authRouter = router({
   /** Returns the current authenticated user (or null). */
   me: publicProcedure.query(({ ctx }) => {
     return ctx.user;
+  }),
+
+  /** Whether the current user is in the ADMIN_USER_IDS allow-list.
+   *  Used by the nav to conditionally reveal the IndexPulse tab. Returns
+   *  false for anonymous users. */
+  isAdmin: publicProcedure.query(({ ctx }) => {
+    return isAdmin(ctx.user?.id);
   }),
 
   /** Signs the current user out. */

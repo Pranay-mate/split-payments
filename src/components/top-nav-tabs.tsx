@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Wallet } from "lucide-react";
+import { Users, Wallet, Activity } from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
 
 /**
  * Two-tab nav between Groups and Personal. Sits between the
@@ -10,11 +11,19 @@ import { Users, Wallet } from "lucide-react";
  *
  * Mobile: icon-only pill to fit alongside the other elements at 375px.
  * Desktop: icon + label.
+ *
+ * A third IndexPulse pill appears only for admins (ADMIN_USER_IDS
+ * allow-list), surfaced via auth.isAdmin.
  */
 export function TopNavTabs() {
   const pathname = usePathname();
+  const onIndexPulse = pathname.startsWith("/app/indexpulse");
   const onPersonal = pathname.startsWith("/app/personal");
-  const onGroups = !onPersonal; // every other /app/* route is "groups context"
+  const onGroups = !onPersonal && !onIndexPulse; // default context
+  const isAdmin = trpc.auth.isAdmin.useQuery(undefined, {
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  }).data;
 
   return (
     <nav
@@ -47,6 +56,21 @@ export function TopNavTabs() {
         <Wallet className="h-3.5 w-3.5" aria-hidden />
         <span className="hidden sm:inline">Personal finance</span>
       </Link>
+      {isAdmin && (
+        <Link
+          href="/app/indexpulse"
+          aria-label="IndexPulse"
+          aria-current={onIndexPulse ? "page" : undefined}
+          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
+            onIndexPulse
+              ? "bg-violet-500 text-white shadow-sm"
+              : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+          }`}
+        >
+          <Activity className="h-3.5 w-3.5" aria-hidden />
+          <span className="hidden sm:inline">IndexPulse</span>
+        </Link>
+      )}
     </nav>
   );
 }

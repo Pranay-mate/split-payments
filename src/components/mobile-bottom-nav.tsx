@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Wallet } from "lucide-react";
+import { Users, Wallet, Activity } from "lucide-react";
+import { trpc } from "@/lib/trpc/client";
 
 /**
  * Mobile-only bottom tab bar — thumb-zone primary navigation between the
@@ -25,10 +26,15 @@ import { Users, Wallet } from "lucide-react";
  */
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const onIndexPulse = pathname.startsWith("/app/indexpulse");
   const onPersonal = pathname.startsWith("/app/personal");
   // /app/groups, /app/groups/[id], /app/admin etc. all read as
   // "groups context" for the purposes of this nav.
-  const onGroups = !onPersonal;
+  const onGroups = !onPersonal && !onIndexPulse;
+  const isAdmin = trpc.auth.isAdmin.useQuery(undefined, {
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  }).data;
 
   return (
     <nav
@@ -36,7 +42,9 @@ export function MobileBottomNav() {
       className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:border-slate-800 dark:bg-slate-950/95 dark:supports-[backdrop-filter]:bg-slate-950/80 sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="mx-auto grid max-w-md grid-cols-2">
+      <ul
+        className={`mx-auto grid max-w-md ${isAdmin ? "grid-cols-3" : "grid-cols-2"}`}
+      >
         <li>
           <Link
             href="/app/groups"
@@ -85,6 +93,30 @@ export function MobileBottomNav() {
             Personal finance
           </Link>
         </li>
+        {isAdmin && (
+          <li>
+            <Link
+              href="/app/indexpulse"
+              aria-label="IndexPulse"
+              aria-current={onIndexPulse ? "page" : undefined}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10.5px] font-medium transition ${
+                onIndexPulse
+                  ? "text-violet-600 dark:text-violet-400"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`grid h-6 w-10 place-items-center rounded-full transition ${
+                  onIndexPulse ? "bg-violet-100 dark:bg-violet-950/60" : ""
+                }`}
+              >
+                <Activity className="h-4 w-4" aria-hidden />
+              </span>
+              IndexPulse
+            </Link>
+          </li>
+        )}
       </ul>
     </nav>
   );
