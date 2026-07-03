@@ -24,16 +24,75 @@ import { getCatalog, getQuotes } from "@/lib/indexpulse/quotes";
 
 const channelEnum = z.enum(["in_app", "push", "email"]);
 
-const alertInput = z.object({
-  instrumentKey: z.string().min(1),
-  instrumentType: z.enum(["etf", "mf"]),
-  name: z.string().min(1),
-  symbol: z.string().min(1),
-  condition: z.enum(["above", "below"]),
-  threshold: z.number().positive(),
-  channels: z.array(channelEnum).min(1),
-  enabled: z.boolean().default(true),
-});
+/** Shared validation for both create + update: amount alerts need a
+ *  positive price + an above/below direction; percent alerts need a
+ *  non-zero signed % and a base price to measure from (direction is
+ *  derived from the sign). */
+function refineAlert(
+  val: {
+    mode: "amount" | "percent";
+    condition?: "above" | "below";
+    threshold: number;
+    basePrice?: number;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (val.mode === "amount") {
+    if (val.threshold <= 0)
+      ctx.addIssue({
+        code: "custom",
+        message: "Price threshold must be positive.",
+        path: ["threshold"],
+      });
+    if (!val.condition)
+      ctx.addIssue({
+        code: "custom",
+        message: "Pick above or below.",
+        path: ["condition"],
+      });
+  } else {
+    if (val.threshold === 0)
+      ctx.addIssue({
+        code: "custom",
+        message: "Percent must be non-zero.",
+        path: ["threshold"],
+      });
+    if (val.basePrice == null)
+      ctx.addIssue({
+        code: "custom",
+        message: "Base price is required for percent alerts.",
+        path: ["basePrice"],
+      });
+  }
+}
+
+/** Derive the stored above/below direction. Percent alerts encode
+ *  direction in the sign of the threshold (+ = rise/above, − = fall/below). */
+function resolveCondition(
+  mode: "amount" | "percent",
+  threshold: number,
+  condition: "above" | "below" | undefined,
+): "above" | "below" {
+  if (mode === "percent") return threshold >= 0 ? "above" : "below";
+  return condition ?? "above";
+}
+
+const alertInput = z
+  .object({
+    instrumentKey: z.string().min(1),
+    instrumentType: z.enum(["etf", "mf"]),
+    name: z.string().min(1),
+    symbol: z.string().min(1),
+    mode: z.enum(["amount", "percent"]).default("amount"),
+    condition: z.enum(["above", "below"]).optional(),
+    /** amount: positive price. percent: signed % (may be negative). */
+    threshold: z.number(),
+    /** Required for percent mode — the reference price the % is measured from. */
+    basePrice: z.number().positive().optional(),
+    channels: z.array(channelEnum).min(1),
+    enabled: z.boolean().default(true),
+  })
+  .superRefine(refineAlert);
 
 export const indexpulseRouter = router({
   /**
@@ -81,8 +140,13 @@ export const indexpulseRouter = router({
           instrumentType: input.instrumentType,
           name: input.name,
           symbol: input.symbol,
-          condition: input.condition,
+          mode: input.mode,
+          condition: resolveCondition(input.mode, input.threshold, input.condition),
           threshold: input.threshold.toString(),
+          basePrice:
+            input.mode === "percent" && input.basePrice != null
+              ? input.basePrice.toString()
+              : null,
           channels: JSON.stringify(input.channels),
           enabled: input.enabled,
         })
@@ -92,29 +156,41 @@ export const indexpulseRouter = router({
 
   updateAlert: adminProcedure
     .input(
-      z.object({
-        id: z.string().uuid(),
-        condition: z.enum(["above", "below"]).optional(),
-        threshold: z.number().positive().optional(),
-        channels: z.array(channelEnum).min(1).optional(),
-        enabled: z.boolean().optional(),
-      }),
+      z
+        .object({
+          id: z.string().uuid(),
+          mode: z.enum(["amount", "percent"]),
+          condition: z.enum(["above", "below"]).optional(),
+          threshold: z.number(),
+          basePrice: z.number().positive().optional(),
+          channels: z.array(channelEnum).min(1),
+          enabled: z.boolean().optional(),
+        })
+        .superRefine(refineAlert),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...rest } = input;
-      const patch: Record<string, unknown> = { updatedAt: new Date() };
-      if (rest.condition !== undefined) patch.condition = rest.condition;
-      if (rest.threshold !== undefined)
-        patch.threshold = rest.threshold.toString();
-      if (rest.channels !== undefined)
-        patch.channels = JSON.stringify(rest.channels);
-      if (rest.enabled !== undefined) patch.enabled = rest.enabled;
+      // Threshold semantics changed (a new base or sign), so reset the
+      // edge-trigger baseline — otherwise a stale last_value could
+      // suppress or spuriously fire the next crossing.
+      const patch: Record<string, unknown> = {
+        mode: input.mode,
+        condition: resolveCondition(input.mode, input.threshold, input.condition),
+        threshold: input.threshold.toString(),
+        basePrice:
+          input.mode === "percent" && input.basePrice != null
+            ? input.basePrice.toString()
+            : null,
+        channels: JSON.stringify(input.channels),
+        lastValue: null,
+        updatedAt: new Date(),
+      };
+      if (input.enabled !== undefined) patch.enabled = input.enabled;
       const [row] = await db
         .update(indexFundAlerts)
         .set(patch)
         .where(
           and(
-            eq(indexFundAlerts.id, id),
+            eq(indexFundAlerts.id, input.id),
             eq(indexFundAlerts.userId, ctx.user.id),
           ),
         )

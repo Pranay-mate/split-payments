@@ -833,10 +833,19 @@ export const indexFundAlerts = pgTable(
     name: text("name").notNull(),
     /** Yahoo symbol (ETF, no .NS) or AMFI scheme code (MF). */
     symbol: text("symbol").notNull(),
-    /** "above" | "below" */
+    /** "above" | "below". In percent mode this is derived from the sign
+     *  of `threshold` (>=0 → above, <0 → below) so the cron's crossing
+     *  logic is uniform across modes. */
     condition: text("condition").notNull(),
-    /** Price/NAV threshold in INR. numeric(14,4) — NAVs carry 4 dp. */
+    /** "amount" | "percent". amount → absolute ₹ price/NAV threshold;
+     *  percent → signed % move measured from `basePrice`. */
+    mode: text("mode").notNull().default("amount"),
+    /** amount mode: absolute price/NAV in INR. percent mode: signed
+     *  percentage (e.g. 5 = +5% rise, -3 = 3% fall). numeric(14,4). */
     threshold: numeric("threshold", { precision: 14, scale: 4 }).notNull(),
+    /** Percent mode only: the reference price/NAV the % is measured from
+     *  — snapshotted at creation (editable). Null for amount-mode alerts. */
+    basePrice: numeric("base_price", { precision: 14, scale: 4 }),
     /** JSON array subset of ["in_app","push","email"]. */
     channels: text("channels").notNull().default('["in_app"]'),
     enabled: boolean("enabled").notNull().default(true),

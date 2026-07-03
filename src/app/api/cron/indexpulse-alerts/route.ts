@@ -97,15 +97,32 @@ export async function GET(request: Request) {
       skippedStale++;
       continue;
     }
-    const threshold = Number(alert.threshold);
+    // The comparison runs on a "measured" value that depends on the mode:
+    // amount → the raw price; percent → the % move from a stored base price.
+    let measured: number;
+    const thresholdValue = Number(alert.threshold);
+    if (alert.mode === "percent") {
+      const base = alert.basePrice != null ? Number(alert.basePrice) : null;
+      if (base == null || base === 0) {
+        // No usable reference price → can't measure the % move.
+        skippedStale++;
+        continue;
+      }
+      measured = ((price - base) / base) * 100;
+    } else {
+      measured = price;
+    }
+
     const prev = alert.lastValue != null ? Number(alert.lastValue) : null;
-    const meetsNow = meets(alert.condition, price, threshold);
-    const meetsPrev = prev != null && meets(alert.condition, prev, threshold);
+    const meetsNow = meets(alert.condition, measured, thresholdValue);
+    const meetsPrev =
+      prev != null && meets(alert.condition, prev, thresholdValue);
     const isFreshCrossing = meetsNow && !meetsPrev;
 
-    // Always record the observed value so the next run has a baseline.
+    // Always record the measured value so the next run has a baseline
+    // (a % for percent alerts, a price for amount alerts).
     const patch: Record<string, unknown> = {
-      lastValue: price.toString(),
+      lastValue: measured.toString(),
       updatedAt: new Date(),
     };
 
@@ -123,9 +140,23 @@ export async function GET(request: Request) {
 
       const arrow = alert.condition === "above" ? "↑" : "↓";
       const title = `${arrow} ${alert.name}`;
-      const body = `Now ₹${price.toLocaleString("en-IN", {
+      const priceText = price.toLocaleString("en-IN", {
         maximumFractionDigits: 2,
-      })} — ${alert.condition} your ₹${threshold.toLocaleString("en-IN")} alert.`;
+      });
+      let body: string;
+      if (alert.mode === "percent") {
+        const moveSign = measured >= 0 ? "+" : "-";
+        const moveText = Math.abs(measured).toLocaleString("en-IN", {
+          maximumFractionDigits: 2,
+        });
+        const thrSign = thresholdValue >= 0 ? "+" : "-";
+        const thrText = Math.abs(thresholdValue).toLocaleString("en-IN");
+        body = `Now ₹${priceText} (${moveSign}${moveText}% since set) — crossed your ${thrSign}${thrText}% alert.`;
+      } else {
+        body = `Now ₹${priceText} — ${alert.condition} your ₹${thresholdValue.toLocaleString(
+          "en-IN"
+        )} alert.`;
+      }
 
       // Push
       if (channels.includes("push") && vapidReady) {

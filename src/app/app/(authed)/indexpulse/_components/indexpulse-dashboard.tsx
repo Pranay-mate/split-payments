@@ -130,8 +130,10 @@ export function IndexPulseDashboard() {
             currentPrice: fund?.quote.price ?? null,
             existing: {
               id: a.id,
+              mode: a.mode as "amount" | "percent",
               condition: a.condition as "above" | "below",
               threshold: Number(a.threshold),
+              basePrice: a.basePrice != null ? Number(a.basePrice) : null,
               channels: safeParseChannels(a.channels),
               enabled: a.enabled,
             },
@@ -372,8 +374,23 @@ function AlertsPanel({
                 {a.name}
               </span>{" "}
               <span className="text-slate-500 dark:text-slate-400">
-                {a.condition === "above" ? "↑ above" : "↓ below"} ₹
-                {Number(a.threshold).toLocaleString("en-IN")}
+                {a.mode === "percent" ? (
+                  <>
+                    {Number(a.threshold) < 0 ? "↓ −" : "↑ +"}
+                    {Math.abs(Number(a.threshold)).toLocaleString("en-IN")}%
+                    {a.basePrice != null && (
+                      <>
+                        {" from ₹"}
+                        {Number(a.basePrice).toLocaleString("en-IN")}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {a.condition === "above" ? "↑ above" : "↓ below"} ₹
+                    {Number(a.threshold).toLocaleString("en-IN")}
+                  </>
+                )}
               </span>
               {isRecentlyTriggered(a.lastTriggeredAt) && (
                 <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
