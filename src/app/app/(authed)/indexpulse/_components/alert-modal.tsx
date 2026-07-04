@@ -106,10 +106,20 @@ export function AlertModal({
     );
   }
 
-  /** Ensure Web Push is granted + subscribed before saving a push alert. */
+  /** Ensure Web Push is granted + subscribed before saving a push alert.
+   *  Reuses an existing subscription when present, surfaces the real error
+   *  on failure, and self-heals the common InvalidStateError (a stale
+   *  subscription created with a different VAPID key). */
   async function ensurePushReady(): Promise<boolean> {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-      toast.error("This browser doesn't support push notifications.");
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window) ||
+      !("Notification" in window)
+    ) {
+      toast.error(
+        "This browser doesn't support push. On iPhone, add the site to your Home Screen first, then enable push from there.",
+      );
       return false;
     }
     const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -117,29 +127,63 @@ export function AlertModal({
       toast.error("Push isn't configured on the server (missing VAPID key).");
       return false;
     }
+    setSubscribing(true);
     try {
-      setSubscribing(true);
+      if (Notification.permission === "denied") {
+        toast.error(
+          "Notifications are blocked for this site — enable them in your browser's site settings, then try again.",
+        );
+        return false;
+      }
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        toast.error("Notification permission denied.");
+        toast.error("Notification permission wasn't granted.");
         return false;
       }
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapid).buffer as ArrayBuffer,
-      });
+      // Reuse an existing subscription (e.g. from EasySplits reminders)
+      // rather than re-subscribing — avoids InvalidStateError.
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapid)
+            .buffer as ArrayBuffer,
+        });
+      }
       const json = sub.toJSON() as {
-        endpoint: string;
-        keys: { p256dh: string; auth: string };
+        endpoint?: string;
+        keys?: { p256dh?: string; auth?: string };
       };
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        toast.error("Push subscription is missing keys — try again.");
+        return false;
+      }
       await subscribe.mutateAsync({
         endpoint: json.endpoint,
         keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
       });
       return true;
-    } catch {
-      toast.error("Couldn't enable push on this device.");
+    } catch (err) {
+      console.error("[IndexPulse] push enable failed:", err);
+      // Stale subscription bound to a different VAPID key → clear it so the
+      // next attempt subscribes cleanly.
+      if (err instanceof Error && err.name === "InvalidStateError") {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const existing = await reg.pushManager.getSubscription();
+          if (existing) await existing.unsubscribe();
+        } catch {
+          /* best-effort */
+        }
+        toast.error(
+          "Cleared a stale push subscription — tap Save once more to finish enabling push.",
+        );
+        return false;
+      }
+      const detail =
+        err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      toast.error(`Couldn't enable push — ${detail}`);
       return false;
     } finally {
       setSubscribing(false);
