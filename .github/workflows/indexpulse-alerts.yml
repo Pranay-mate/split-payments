@@ -52,12 +52,26 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           APP_URL: ${{ secrets.APP_URL }}
         run: |
-          if [ -z "$CRON_SECRET" ]; then
+          set -uo pipefail
+          # Strip any stray whitespace/newline the secret may carry — curl
+          # rejects an Authorization header containing a newline (exit 43).
+          SECRET="$(printf '%s' "${CRON_SECRET:-}" | tr -d '[:space:]')"
+          if [ -z "$SECRET" ]; then
             echo "::error::CRON_SECRET repo secret is not set." && exit 1
           fi
           BASE="${APP_URL:-https://easysplits.in}"
           SCOPE="${{ steps.scope.outputs.scope }}"
-          echo "Pinging $BASE/api/cron/indexpulse-alerts?scope=$SCOPE"
-          curl -fsS --max-time 60 \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            "$BASE/api/cron/indexpulse-alerts?scope=$SCOPE"
+          URL="$BASE/api/cron/indexpulse-alerts?scope=$SCOPE"
+          echo "Pinging $URL"
+          # Capture status + body separately so failures are legible
+          # (a raw curl exit code tells us nothing about the HTTP result).
+          code=$(curl -sS -o /tmp/resp.txt -w '%{http_code}' --max-time 60 \
+            -H "Authorization: Bearer $SECRET" "$URL" || echo "000")
+          echo "HTTP $code"
+          echo "── response ──"; cat /tmp/resp.txt 2>/dev/null; echo
+          if [ "$code" = "000" ]; then
+            echo "::error::Request failed to complete (network/curl error)." && exit 1
+          fi
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::Cron returned HTTP $code (see response above)." && exit 1
+          fi
