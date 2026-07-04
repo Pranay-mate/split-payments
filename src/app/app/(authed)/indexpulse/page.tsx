@@ -1,6 +1,3 @@
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isAdmin } from "@/server/admin-auth";
 import { IndexPulseDashboard } from "./_components/indexpulse-dashboard";
 
 export const metadata = {
@@ -9,19 +6,13 @@ export const metadata = {
 };
 
 /**
- * IndexPulse — admin-only. Lists Indian index funds + ETFs with live
- * price/NAV and lets the admin set price alerts.
+ * IndexPulse — available to any signed-in user. Lists Indian index funds +
+ * ETFs with live price/NAV and lets you set price alerts.
  *
- * Two-layer gate (same pattern as /app/admin):
- *   1. Parent (authed) layout requires a signed-in Supabase user.
- *   2. This page additionally requires the user's id in ADMIN_USER_IDS.
- * Non-admins are bounced to their normal landing surface (no URL leak).
+ * Auth is handled by the parent (authed) layout, which redirects anonymous
+ * visitors to /app/login. No admin gate — the tRPC router uses
+ * protectedProcedure and scopes all alerts to the caller's user id.
  */
-export default async function IndexPulsePage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !isAdmin(user.id)) redirect("/app/groups");
+export default function IndexPulsePage() {
   return <IndexPulseDashboard />;
 }

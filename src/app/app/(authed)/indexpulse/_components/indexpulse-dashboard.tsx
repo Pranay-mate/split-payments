@@ -133,7 +133,7 @@ export function IndexPulseDashboard() {
           <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
             <Activity className="h-4 w-4" aria-hidden />
             <span className="text-xs font-semibold uppercase tracking-wide">
-              Admin · IndexPulse
+              IndexPulse
             </span>
           </div>
           <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">

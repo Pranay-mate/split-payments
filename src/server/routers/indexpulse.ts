@@ -1,13 +1,12 @@
 /**
- * IndexPulse router — admin-only. Powers the /app/indexpulse surface:
+ * IndexPulse router. Powers the /app/indexpulse surface:
  *   - `funds`  : the catalog (Indian index funds + ETFs) with live quotes
  *   - alert CRUD (list/create/update/toggle/delete), scoped to the
- *     signed-in admin's user id.
+ *     signed-in user's id.
  *
- * Every procedure is an adminProcedure (protected + ADMIN_USER_IDS
- * allow-list), so there is no per-user data isolation concern beyond
- * "only admins reach here at all". Alerts are still keyed by user_id so
- * two founders don't see each other's alerts.
+ * Every procedure is a protectedProcedure (any authenticated user). Alerts
+ * are keyed by user_id, so each user only sees + manages their own — the
+ * cron delivers each alert to its owner.
  *
  * Data comes from the free AMFI + Yahoo layer in @/lib/indexpulse, which
  * is internally cached and degrades to `stale` quotes on any outage —
@@ -16,8 +15,7 @@
 import { z } from "zod";
 import { and, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { router } from "../trpc";
-import { adminProcedure } from "../admin-auth";
+import { router, protectedProcedure } from "../trpc";
 import { db } from "@/lib/db";
 import { indexFundAlerts } from "@/lib/db/schema";
 import { getCatalog, getQuotes } from "@/lib/indexpulse/quotes";
@@ -106,7 +104,7 @@ export const indexpulseRouter = router({
    * cheap. Returns instruments even when their quote is stale so the UI
    * can still list them with a "—" price.
    */
-  funds: adminProcedure.query(async () => {
+  funds: protectedProcedure.query(async () => {
     const instruments = await getCatalog();
     const quotes = await getQuotes(instruments.map((i) => i.key));
     const byKey = new Map(quotes.map((q) => [q.key, q]));
@@ -126,7 +124,7 @@ export const indexpulseRouter = router({
   }),
 
   /** The admin's own alerts, newest first. */
-  listAlerts: adminProcedure.query(async ({ ctx }) => {
+  listAlerts: protectedProcedure.query(async ({ ctx }) => {
     return db
       .select()
       .from(indexFundAlerts)
@@ -134,7 +132,7 @@ export const indexpulseRouter = router({
       .orderBy(desc(indexFundAlerts.createdAt));
   }),
 
-  createAlert: adminProcedure
+  createAlert: protectedProcedure
     .input(alertInput)
     .mutation(async ({ ctx, input }) => {
       const existing = await db
@@ -174,7 +172,7 @@ export const indexpulseRouter = router({
       return row;
     }),
 
-  updateAlert: adminProcedure
+  updateAlert: protectedProcedure
     .input(
       z
         .object({
@@ -220,7 +218,7 @@ export const indexpulseRouter = router({
       return row;
     }),
 
-  toggleAlert: adminProcedure
+  toggleAlert: protectedProcedure
     .input(z.object({ id: z.string().uuid(), enabled: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
       await db
@@ -235,7 +233,7 @@ export const indexpulseRouter = router({
       return { ok: true };
     }),
 
-  deleteAlert: adminProcedure
+  deleteAlert: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await db
